@@ -99,6 +99,7 @@ overflow: hidden;
    down so flex-1 sections claim the full viewport. */
 app-home,
 app-servers,
+app-server-detail,
 app-console,
 app-files,
 app-backups,

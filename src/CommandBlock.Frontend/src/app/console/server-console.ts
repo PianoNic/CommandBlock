@@ -4,73 +4,66 @@ import {
   Component,
   ElementRef,
   OnDestroy,
-  computed,
   inject,
+  input,
   signal,
   viewChild,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArrowLeft, lucideTerminal } from '@ng-icons/lucide';
+import { lucideTerminal } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
-import { ContentHeader } from '../shared/components/content-header/content-header';
-import { ServerService } from '../api/api/server.service';
 import { environment } from '../shared/environments/environment';
 
+/// Embeddable live console for one server: xterm log stream + RCON command input over the
+/// /hubs/console SignalR hub. Self-contained (connects on init, cleans up on destroy) so it can be
+/// dropped into the detail page or a full-screen route alike.
 @Component({
-  selector: 'app-console',
-  imports: [RouterLink, NgIcon, HlmButtonImports, HlmInputImports, ContentHeader],
-  providers: [provideIcons({ lucideArrowLeft, lucideTerminal })],
+  selector: 'app-server-console',
+  imports: [NgIcon, HlmButtonImports, HlmInputImports],
+  providers: [provideIcons({ lucideTerminal })],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex h-full min-h-0 flex-col' },
   template: `
-    <app-content-header />
-    <section class="flex flex-1 min-h-0 flex-col border-t">
-      <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
-        <div class="flex items-center gap-2">
-          <a hlmBtn size="sm" variant="ghost" routerLink="/servers"><ng-icon name="lucideArrowLeft" size="16" /></a>
-          <h3 class="inline-flex items-center gap-2 text-sm font-medium">
-            <ng-icon name="lucideTerminal" size="16" /> Console — {{ name() || 'server' }}
-          </h3>
-        </div>
-        <span class="text-xs" [class.text-primary]="connected()" [class.text-muted-foreground]="!connected()">
-          {{ connected() ? '● connected' : '○ connecting…' }}
-        </span>
-      </header>
+    <div class="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+      <span class="inline-flex items-center gap-1.5 text-xs font-medium">
+        <ng-icon name="lucideTerminal" size="14" /> Console
+      </span>
+      <span class="text-[11px]" [class.text-primary]="connected()" [class.text-muted-foreground]="!connected()">
+        {{ connected() ? '● connected' : '○ connecting…' }}
+      </span>
+    </div>
 
-      <div class="min-h-0 flex-1 overflow-hidden bg-black p-2">
-        <div #term class="h-full w-full"></div>
-      </div>
+    <div class="min-h-0 flex-1 overflow-hidden bg-black p-2">
+      <div #term class="h-full w-full"></div>
+    </div>
 
-      <form class="flex items-center gap-2 border-t p-2" (submit)="send($event)">
-        <span class="text-muted-foreground pl-2 font-mono text-sm">/</span>
-        <input
-          hlmInput
-          class="flex-1 font-mono"
-          placeholder="say hello   ·   whitelist add Steve   ·   op Steve"
-          [value]="command()"
-          (input)="command.set($any($event.target).value)"
-          [disabled]="!connected()"
-          autocomplete="off"
-        />
-        <button hlmBtn size="sm" type="submit" [disabled]="!connected() || command().trim() === ''">Send</button>
-      </form>
-    </section>
+    <form class="flex items-center gap-2 border-t p-2" (submit)="send($event)">
+      <span class="text-muted-foreground pl-1 font-mono text-sm">/</span>
+      <input
+        hlmInput
+        class="flex-1 font-mono"
+        placeholder="say hello   ·   whitelist add Steve   ·   op Steve"
+        [value]="command()"
+        (input)="command.set($any($event.target).value)"
+        [disabled]="!connected()"
+        autocomplete="off"
+      />
+      <button hlmBtn size="sm" type="submit" [disabled]="!connected() || command().trim() === ''">Send</button>
+    </form>
   `,
 })
-export class Console implements AfterViewInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
-  private readonly api = inject(ServerService);
+export class ServerConsole implements AfterViewInit, OnDestroy {
   private readonly oidc = inject(OidcSecurityService);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('term');
 
-  private readonly serverId = this.route.snapshot.paramMap.get('id')!;
-  protected readonly name = signal('');
+  readonly serverId = input.required<string>();
+
   protected readonly connected = signal(false);
   protected readonly command = signal('');
 
@@ -79,13 +72,6 @@ export class Console implements AfterViewInit, OnDestroy {
   private connection?: HubConnection;
   private stream?: { dispose: () => void };
   private readonly onResize = () => this.fit?.fit();
-
-  constructor() {
-    this.api.apiServerGet().subscribe((rows) => {
-      const s = rows.find((r) => r.id === this.serverId);
-      if (s) this.name.set(s.displayName);
-    });
-  }
 
   async ngAfterViewInit(): Promise<void> {
     this.term = new Terminal({
@@ -115,7 +101,7 @@ export class Console implements AfterViewInit, OnDestroy {
     try {
       await this.connection.start();
       this.connected.set(true);
-      this.stream = this.connection.stream('StreamLogs', this.serverId).subscribe({
+      this.stream = this.connection.stream('StreamLogs', this.serverId()).subscribe({
         next: (chunk: string) => this.term?.write(chunk),
         error: (err: unknown) => this.term?.writeln(`\r\n[stream ended: ${String(err)}]`),
         complete: () => this.term?.writeln('\r\n[log stream closed]'),
@@ -132,7 +118,7 @@ export class Console implements AfterViewInit, OnDestroy {
     this.command.set('');
     this.term?.writeln(`\x1b[36m> ${cmd}\x1b[0m`);
     try {
-      const output = await this.connection.invoke<string>('SendCommand', this.serverId, cmd);
+      const output = await this.connection.invoke<string>('SendCommand', this.serverId(), cmd);
       if (output?.trim()) this.term?.writeln(output.replace(/\n/g, '\r\n'));
     } catch (err) {
       this.term?.writeln(`\x1b[31m${String(err)}\x1b[0m`);

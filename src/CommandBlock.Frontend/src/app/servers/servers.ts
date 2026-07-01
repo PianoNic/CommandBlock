@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucidePlus,
@@ -7,19 +7,21 @@ import {
   lucideGlobe,
   lucidePlay,
   lucideSquare,
+  lucideRotateCcw,
   lucideTrash2,
   lucideArchive,
-  lucideTerminal,
-  lucideFolder,
   lucideUsers,
   lucideLoaderCircle,
   lucideHourglass,
+  lucideEllipsisVertical,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
+import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
+import { HlmContextMenuImports } from '@spartan-ng/helm/context-menu';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -32,11 +34,12 @@ import { ServerBackupsDialog } from './server-backups-dialog';
   selector: 'app-servers',
   imports: [
     ContentHeader,
-    RouterLink,
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
     HlmTableImports,
+    HlmDropdownMenuImports,
+    HlmContextMenuImports,
   ],
   providers: [
     provideIcons({
@@ -45,13 +48,13 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideGlobe,
       lucidePlay,
       lucideSquare,
+      lucideRotateCcw,
       lucideTrash2,
       lucideArchive,
-      lucideTerminal,
-      lucideFolder,
       lucideUsers,
       lucideLoaderCircle,
       lucideHourglass,
+      lucideEllipsisVertical,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -63,6 +66,7 @@ export class Servers {
   private readonly dialog = inject(HlmDialogService);
   private readonly confirm = inject(ConfirmService);
   private readonly statusStream = inject(ServerStatusStream);
+  private readonly router = inject(Router);
   protected readonly statuses = this.statusStream.statuses;
 
   protected readonly servers = signal<ReadonlyArray<ServerInstanceDto>>([]);
@@ -129,6 +133,10 @@ export class Servers {
     });
   }
 
+  protected openDetail(s: ServerInstanceDto): void {
+    this.router.navigate(['/servers', s.id]);
+  }
+
   protected openBackups(s: ServerInstanceDto): void {
     this.dialog.open(ServerBackupsDialog, {
       context: { serverId: s.id, serverName: s.displayName },
@@ -151,6 +159,11 @@ export class Servers {
     if (!ok) return;
     this.mark(s.id);
     this.api.apiServerIdStopPost(s.id).subscribe({ next: () => this.load(), error: () => this.unmark(s.id) });
+  }
+
+  protected restart(s: ServerInstanceDto): void {
+    this.mark(s.id);
+    this.api.apiServerIdRestartPost(s.id).subscribe({ next: () => this.load(), error: () => this.unmark(s.id) });
   }
 
   private mark(id: string): void { this.busy.set(new Set(this.busy()).add(id)); }
