@@ -1,0 +1,62 @@
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity } from '@ng-icons/lucide';
+import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmDialogService } from '@spartan-ng/helm/dialog';
+import { ContentHeader } from '../shared/components/content-header/content-header';
+import { ServerService } from '../api/api/server.service';
+import { ActivityService } from '../api/api/activity.service';
+import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { ActivityEntryDto } from '../api/model/activityEntryDto';
+import { ServerCreateDialog } from '../servers/server-create-dialog';
+
+@Component({
+  selector: 'app-home',
+  imports: [RouterLink, NgIcon, HlmButtonImports, ContentHeader],
+  providers: [provideIcons({ lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity })],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './home.html',
+})
+export class Home {
+  private readonly api = inject(ServerService);
+  private readonly activityApi = inject(ActivityService);
+  private readonly dialog = inject(HlmDialogService);
+
+  protected readonly servers = signal<ReadonlyArray<ServerInstanceDto>>([]);
+  protected readonly activity = signal<ReadonlyArray<ActivityEntryDto>>([]);
+
+  protected readonly total = computed(() => this.servers().length);
+  protected readonly running = computed(() => this.servers().filter((s) => s.state === 'running').length);
+  protected readonly memory = computed(() => {
+    const mb = this.servers().reduce((sum, s) => sum + parseMemory(s.memory), 0);
+    return mb >= 1024 ? `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB` : `${mb} MB`;
+  });
+
+  constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.api.apiServerGet().subscribe((rows) => this.servers.set(rows));
+    this.activityApi.apiActivityGet().subscribe((rows) => this.activity.set(rows.slice(0, 8)));
+  }
+
+  protected createServer(): void {
+    this.dialog.open(ServerCreateDialog, {
+      context: { onCreated: () => this.load() },
+      contentClass: 'sm:max-w-[560px]',
+    });
+  }
+}
+
+function parseMemory(mem: string): number {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*([gmk]?)/i.exec(mem ?? '');
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  switch (m[2].toLowerCase()) {
+    case 'g': return Math.round(n * 1024);
+    case 'k': return Math.round(n / 1024);
+    case 'm': default: return Math.round(n);
+  }
+}

@@ -15,23 +15,21 @@ import {
   lucideActivity,
   lucideArchive,
   lucideChevronsUpDown,
-  lucideDatabase,
+  lucideLayoutDashboard,
   lucideLogOut,
   lucideMonitor,
   lucideMoon,
-  lucideNetwork,
   lucidePlus,
   lucideServer,
-  lucideSettings,
   lucideSun,
-  lucideTable,
-  lucideTerminal,
 } from '@ng-icons/lucide';
 import { HlmSidebarImports, HlmSidebarService } from '@spartan-ng/helm/sidebar';
 import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmAvatarImports } from '@spartan-ng/helm/avatar';
+import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ThemeService, ThemeMode } from '../shared/services/theme.service';
 import { AppService } from '../api/api/app.service';
+import { ServerCreateDialog } from '../servers/server-create-dialog';
 
 @Component({
   selector: 'app-sidenav',
@@ -41,17 +39,13 @@ import { AppService } from '../api/api/app.service';
       lucideActivity,
       lucideArchive,
       lucideChevronsUpDown,
-      lucideDatabase,
+      lucideLayoutDashboard,
       lucideLogOut,
+      lucideMonitor,
+      lucideMoon,
       lucidePlus,
       lucideServer,
-      lucideSettings,
       lucideSun,
-      lucideMoon,
-      lucideMonitor,
-      lucideNetwork,
-      lucideTable,
-      lucideTerminal,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,6 +57,14 @@ export class Sidenav {
   private readonly destroyRef = inject(DestroyRef);
   private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(HlmDialogService);
+
+  protected openCreate(): void {
+    this.dialog.open(ServerCreateDialog, {
+      context: { onCreated: () => this.router.navigate(['/servers']) },
+      contentClass: 'sm:max-w-[560px]',
+    });
+  }
 
   // Persist the sidebar open/closed state in localStorage so the user's choice survives
   // reloads. Spartan helm already cookies this, but the user explicitly wanted localStorage
@@ -103,7 +105,9 @@ export class Sidenav {
 
   protected readonly themeMode = this.theme.mode;
   protected readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
+    { route: '/', label: 'Dashboard', icon: 'lucideLayoutDashboard' },
     { route: '/servers', label: 'Servers', icon: 'lucideServer' },
+    { route: '/backups', label: 'Backups', icon: 'lucideArchive' },
     { route: '/activity', label: 'Activity', icon: 'lucideActivity' },
   ];
 

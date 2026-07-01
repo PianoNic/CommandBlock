@@ -1,0 +1,63 @@
+<app-content-header />
+
+<div class="min-h-0 flex-1 overflow-auto p-6">
+  <div class="mx-auto flex max-w-5xl flex-col gap-6">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold">Welcome to CommandBlock</h1>
+        <p class="text-muted-foreground text-sm">One click. Every server. Routed and ready.</p>
+      </div>
+      <button hlmBtn (click)="createServer()">
+        <ng-icon name="lucidePlus" size="16" />
+        Create server
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <a routerLink="/servers" class="hover:bg-accent rounded-lg border p-4 transition-colors">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
+          <ng-icon name="lucideServer" size="14" /> Servers
+        </div>
+        <div class="mt-2 text-3xl font-semibold">{{ total() }}</div>
+      </a>
+      <div class="rounded-lg border p-4">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
+          <ng-icon name="lucidePlay" size="14" /> Running
+        </div>
+        <div class="mt-2 text-3xl font-semibold">
+          {{ running() }} <span class="text-muted-foreground text-base">/ {{ total() }}</span>
+        </div>
+      </div>
+      <div class="rounded-lg border p-4">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
+          <ng-icon name="lucideHardDrive" size="14" /> Memory allocated
+        </div>
+        <div class="mt-2 text-3xl font-semibold">{{ memory() }}</div>
+      </div>
+    </div>
+
+    <div class="rounded-lg border">
+      <header class="flex items-center justify-between border-b px-4 py-2">
+        <h2 class="inline-flex items-center gap-2 text-sm font-medium">
+          <ng-icon name="lucideActivity" size="15" /> Recent activity
+        </h2>
+        <a routerLink="/activity" class="text-muted-foreground text-xs hover:underline">View all</a>
+      </header>
+      @if (activity().length === 0) {
+        <p class="text-muted-foreground p-4 text-sm">Nothing here yet.</p>
+      } @else {
+        <ul class="divide-border divide-y">
+          @for (a of activity(); track a.id) {
+            <li class="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+              <span class="inline-flex min-w-0 items-center gap-2">
+                <span class="font-mono text-xs">{{ a.action }}</span>
+                <span class="text-muted-foreground truncate">{{ a.target }}</span>
+              </span>
+              <span class="text-muted-foreground shrink-0 text-xs">{{ a.actorName || 'system' }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</div>

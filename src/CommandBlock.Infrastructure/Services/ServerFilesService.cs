@@ -90,12 +90,7 @@ namespace CommandBlock.Infrastructure.Services
         public async Task<Stream> OpenReadAsync(Guid serverId, string path, CancellationToken ct = default)
         {
             var (docker, id) = await ResolveAsync(serverId, ct);
-            var entry = await FirstTarEntryAsync(docker, id, Full(path), ct);
-            var buffer = new MemoryStream();
-            await entry.CopyToAsync(buffer, ct);
-            await entry.DisposeAsync();
-            buffer.Position = 0;
-            return buffer;
+            return await FirstTarEntryAsync(docker, id, Full(path), ct);
         }
 
         public async Task UploadAsync(Guid serverId, string path, Stream content, CancellationToken ct = default)
@@ -144,15 +139,26 @@ namespace CommandBlock.Infrastructure.Services
             await docker.ExecCaptureAsync(id, new[] { "mv", Full(fromPath), Full(toPath) }, ct);
         }
 
-        /// <summary>Copies a single file out of the container and returns the first tar entry's data stream.</summary>
+        /// <summary>Copies a single file out of the container and returns its bytes as a seekable
+        /// stream. Docker's archive comes over a chunked HTTP stream that TarReader can't read
+        /// incrementally, so buffer it whole first, then hand back a self-contained copy of the entry.</summary>
         private static async Task<Stream> FirstTarEntryAsync(IDockerService docker, string containerId, string full, CancellationToken ct)
         {
-            var archive = await docker.GetArchiveAsync(containerId, full, ct);
-            var reader = new TarReader(archive, leaveOpen: false);
+            using var buffer = new MemoryStream();
+            await using (var archive = await docker.GetArchiveAsync(containerId, full, ct))
+                await archive.CopyToAsync(buffer, ct);
+            buffer.Position = 0;
+
+            using var reader = new TarReader(buffer, leaveOpen: true);
             while (await reader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
             {
                 if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile && entry.DataStream is not null)
-                    return entry.DataStream;
+                {
+                    var data = new MemoryStream();
+                    await entry.DataStream.CopyToAsync(data, ct);
+                    data.Position = 0;
+                    return data;
+                }
             }
             throw new InvalidOperationException("Not a file (or the file is empty).");
         }
