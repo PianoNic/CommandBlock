@@ -50,19 +50,16 @@ Verify with `dotnet user-secrets list --project src/CommandBlock.API`.
 
 Non-secret app config lives in **`commandblock.yaml`** at the repo root. The API loads it via `services.AddCommandBlockConfig(env)` (see `src/CommandBlock.API/Extensions/CommandBlockConfigExtensions.cs`), which walks up from the content root to find the file. Override the path with the `CommandBlock_CONFIG` environment variable.
 
-Currently used to declare which host ports each engine is allowed to bind:
+Currently used to declare where server worlds persist on disk:
 
 ```yaml
 commandblock:
-  port_ranges:
-    postgres: 30000-30199
-    mysql:    30200-30399
-    mariadb:  30400-30599
-    mssql:    30600-30799
-    mongo:    30800-30999
+  storage:
+    mode: HostFolder      # or Volume
+    host_path: /data/servers
 ```
 
-Bind into a handler via `IOptions<CommandBlockOptions>` (in `CommandBlock.Application/Options/`). The file is reload-on-change, so edits are picked up without a restart.
+Bind into a handler via `IOptions<CommandBlockOptions>` (in `CommandBlock.Application/Options/`).
 
 ## 3. Dev infrastructure (Postgres + Keycloak)
 
@@ -119,39 +116,16 @@ Frontend on `http://localhost:4200`.
 dotnet run --project src/CommandBlock.Tests
 ```
 
-TUnit 1.x test runner. Coverage:
-
-- **Unit**: `PingQueryTests`, `SecretGeneratorServiceTests`, `SecretsVaultServiceTests`. All use `Microsoft.EntityFrameworkCore.InMemory`: no Postgres required.
-- **E2E**: Browser-driven tests via Microsoft.Playwright. The suite boots its **own** ephemeral stack each session by driving `e2e/compose.e2e.yml` through Ductus.FluentDocker (Postgres + `mock-oauth2-server` + the bundled CommandBlock image built from this repo's Dockerfile). You don't need to run the dev stack manually. Spin it up by hand for debugging with `docker compose -f e2e/compose.e2e.yml up -d --build`.
-
-### Running the E2E suite
-
-Prereqs: Docker running on the host, plus (one-time) Playwright's Chromium build:
-
-```powershell
-dotnet build src/CommandBlock.Tests
-pwsh src/CommandBlock.Tests/bin/Debug/net10.0/playwright.ps1 install chromium
-```
-
-Then:
+TUnit 1.x test runner. Run the suite with:
 
 ```powershell
 dotnet run --project src/CommandBlock.Tests
 ```
 
-What happens on first run:
-1. **Image build** (~2 min): compose builds `src/CommandBlock.API/Dockerfile` (frontend via `bun build` + .NET API publish) into a single distroless Azure Linux image.
-2. **Stack boot** (~30 s): Postgres 18 on `localhost:15434`, `mock-oauth2-server` on `localhost:18080` (non-interactive, auto-issues signed JWTs from `e2e/mock-oauth2-config.json`), CommandBlock app on `localhost:18081`.
-3. **Browser tests**: each test opens a fresh browser context. The SPA redirects to the mock IdP, which auto-redirects straight back with a token. No login form, no credentials.
-
-Test files (`src/CommandBlock.Tests/E2E/`):
-- `CommandBlockStack.cs`: drives `e2e/compose.e2e.yml` via Ductus.FluentDocker, exposes URLs
-- `CommandBlockTestFixture.cs`: per-test browser context
-- `CommandBlockSessionHooks.cs`: TUnit `[Before/After(TestSession)]` for stack lifecycle
-- `WizardHelper.cs`: drives the `/create` wizard
-- `NavigationTests`, `WizardTests`, `InstanceDialogTests`, `BackupTests`, `ActivityLogTests`, `InstanceLifecycleTests`
-
-Headless by default. Set `CommandBlockTestFixture.Headless = false` in `CommandBlockSessionHooks.StartStack` for visible browser windows during local debugging.
+Coverage is unit tests only (`SafePasswordGuardTests`, `SecretGeneratorServiceTests`,
+`SecretsVaultServiceTests`) - fast, no Docker or database required. The browser-driven E2E suite
+that shipped with the database-provisioning app was removed in the Minecraft rewrite; a new one
+covering server create/route/backup can be added later.
 
 ## 7. EF migrations
 

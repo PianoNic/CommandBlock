@@ -1,27 +1,22 @@
 # What is CommandBlock?
 
-CommandBlock is a self-hosted platform for provisioning and operating databases. Pick an engine, click Launch, and you get a containerised instance with credentials, a host port, and a connection string already in hand.
+CommandBlock is a self-hosted manager for Minecraft (Java) servers. Pick a loader or a modpack, click Create, and you get a running server in an isolated container - reachable by its own hostname through a single public port.
 
-- **Provision in one click**. 16 engines (Postgres, MySQL, Mongo, Redis, and more), each with opt-in plugins like pgvector and PostGIS.
-- **Browse and query**. Spreadsheet-style in-cell row editing and an ad-hoc SQL console, in the browser.
-- **Container console**. Live log tailing and an interactive shell into any provisioned instance.
-- **Back up and upgrade**. Manual or cron-scheduled dumps; restore or upgrade the engine version in place.
-- **Manage users and access**. Create logins, reset passwords, grant per-database access.
-- **Distribute across nodes**. Provision databases onto remote Docker hosts over a single connection.
-- **Bring your own auth**. OIDC with any provider (Pocket ID, Authentik, Auth0…), or the bundled Keycloak.
-
-There is no limit to the number of databases or nodes you can run.
+- **Create in one click**. Vanilla, Paper, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, or a Modrinth/CurseForge/FTB modpack (installed on first boot).
+- **One port, many servers**. Every server is reached on 25565. The built-in router reads the address from the Minecraft handshake and forwards to the matching server - so `smp.example.com` and `modded.example.com` share one open port.
+- **World backups**. Snapshot a server's world (flushed via RCON for a clean copy) straight into an S3-compatible bucket such as SeaweedFS, and restore it in place.
+- **Lifecycle controls**. Start, stop, and delete servers from the UI; live container state at a glance.
+- **Bring your own auth**. OIDC with any provider (Pocket ID, Authentik, Auth0…), or the bundled mock server for local development.
 
 ## Architecture
 
-CommandBlock runs from one image in one of two roles.
+Each server is provisioned as an isolated **sibling container** (`itzg/minecraft-server`) on the Docker host - not a child of CommandBlock - which is why CommandBlock mounts the Docker socket. Provisioned servers join CommandBlock's Docker network and publish **no** host port of their own; only the router's port is exposed.
 
-| Role | What it does |
-| --- | --- |
-| **Control plane** (default) | The full app: UI, API, metadata database, and the secrets vault. All user interaction flows through it. |
-| **Node** (`CommandBlock__Role=node`) | A stripped, stateless worker that runs database containers on its own host and dials **out** to the control plane over one SignalR connection. Owns no state. |
+```
+Player --TCP 25565--> Router (in CommandBlock) --> mc-container (by hostname)
+```
 
-Each database is provisioned as an isolated **sibling container** on the Docker host - not a child of CommandBlock - which is why CommandBlock mounts the Docker socket.
+The control plane is the whole app: the Angular UI, the ASP.NET Core API, its metadata database (SQLite or Postgres), the secrets vault, and the router.
 
 ## Distributions
 
@@ -29,11 +24,12 @@ CommandBlock ships two ways from the same codebase.
 
 | Distribution | Metadata DB | Auth | Use case |
 | --- | --- | --- | --- |
-| **Docker image** | Postgres or SQLite | OIDC (bring-your-own or bundled Keycloak) | Servers, multi-user, always-on |
+| **Docker image** | Postgres or SQLite | OIDC (bring-your-own or a bundled mock server) | Servers, multi-user, always-on |
 | **Desktop app** | SQLite | Built-in, zero-config | A single user on their own machine |
 
 ## Get started
 
 - **[Self-hosting](./self-host)** - run the image with `docker compose`.
-- **[Desktop app](./desktop)** - the single-user build.
+- **[Servers & modpacks](./servers)** - create and manage servers.
+- **[Hostname routing](./routing)** - how one port serves many servers.
 - **[Developer setup](./dev-setup)** - local dev with `dotnet run` + Bun.

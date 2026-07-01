@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: CommandBlock
-  text: Your database is ready.
-  tagline: One click. One key. A self-hosted database-provisioning platform for 16 engines.
+  text: Every server. Routed and ready.
+  tagline: One click. A self-hosted Minecraft server manager with modpacks and hostname routing through a single port.
   image:
     src: /logo.svg
     alt: CommandBlock
@@ -20,12 +20,12 @@ hero:
       link: https://github.com/PianoNic/CommandBlock
 
 features:
-  - title: 16 engines, one click
-    details: Postgres, MySQL, Mongo, Redis, and 12 more.
-  - title: Browse & query
-    details: In-cell row editing and a SQL console in the browser.
-  - title: Backups & upgrades
-    details: Scheduled backups and in-place version upgrades.
-  - title: Distributed nodes
-    details: Run databases on remote Docker hosts over one connection.
+  - title: One-click servers
+    details: Vanilla, Paper, Fabric, Forge, NeoForge and more - or a Modrinth/CurseForge modpack, installed on first boot.
+  - title: One port, many servers
+    details: Players reach every server on 25565; CommandBlock routes by the hostname in the Minecraft handshake.
+  - title: World backups to S3
+    details: Snapshot a server's world (RCON-flushed) and store it in SeaweedFS or any S3-compatible bucket. Restore in place.
+  - title: Bring your own auth
+    details: OIDC with any provider (Pocket ID, Authentik, Auth0…), or the bundled mock server for local dev.
 ---

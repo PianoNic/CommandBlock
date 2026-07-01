@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 // Cloudflare Pages, so no `base` is needed. Build: `vitepress build` (output: .vitepress/dist).
 export default defineConfig({
   title: 'CommandBlock',
-  description: 'Self-hosted database-provisioning platform. One click. One key. Your database is ready.',
+  description: 'Self-hosted Minecraft server manager. Spin up servers, browse modpacks, and route them all through one port by hostname.',
   lastUpdated: true,
   cleanUrls: true,
   // README-style links elsewhere point at "docs/*.md"; inside the site links resolve fine, but keep
@@ -17,11 +17,10 @@ export default defineConfig({
     nav: [
       { text: 'Intro', link: '/intro' },
       { text: 'Setup', link: '/self-host' },
-      { text: 'Databases', link: '/engines' },
-      { text: 'Nodes', link: '/nodes' },
+      { text: 'Servers', link: '/servers' },
+      { text: 'Routing', link: '/routing' },
       { text: 'Development', link: '/dev-setup' },
     ],
-    // Komodo-style chapters: a flat intro first, then topic categories.
     sidebar: [
       { text: 'What is CommandBlock?', link: '/intro' },
       {
@@ -33,18 +32,12 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Databases',
+        text: 'Guides',
         collapsed: false,
         items: [
-          { text: 'Supported engines', link: '/engines' },
-          { text: 'Declarative instances', link: '/declarative-instances' },
-        ],
-      },
-      {
-        text: 'Nodes',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/nodes' },
+          { text: 'Servers & modpacks', link: '/servers' },
+          { text: 'World backups', link: '/backups' },
+          { text: 'Hostname routing', link: '/routing' },
         ],
       },
       {

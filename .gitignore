@@ -429,3 +429,6 @@ docs/.vitepress/cache/
 commandblock.db
 commandblock.db-shm
 commandblock.db-wal
+
+# Local bind-mount data dirs (postgres, seaweedfs) created by docker compose
+/data/

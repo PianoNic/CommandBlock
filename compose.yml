@@ -9,7 +9,7 @@ services:
     ports:
       - "57460:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - ./data/postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d commandblock"]
       interval: 2s
@@ -36,7 +36,7 @@ services:
       AWS_ACCESS_KEY_ID: commandblock
       AWS_SECRET_ACCESS_KEY: seaweedfs-secret-key
     volumes:
-      - seaweedfs-data:/data
+      - ./data/seaweedfs:/data
     ports:
       - "58333:8333"
 
@@ -80,9 +80,7 @@ services:
       - "25565:25565"
     volumes:
       - //var/run/docker.sock:/var/run/docker.sock
-      - ./backups:/app/backups
+      # Server world data lives in a host folder (no named volumes). Mounted at the identical path
+      # so the control plane and the Docker daemon agree on it when creating server containers.
+      - /data/servers:/data/servers
       - ./commandblock.yaml:/app/commandblock.yaml:ro
-
-volumes:
-  postgres-data:
-  seaweedfs-data:

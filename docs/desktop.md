@@ -27,7 +27,7 @@ On launch the desktop shell (`src-tauri/src/lib.rs`):
 
 ### Why Docker is still required
 
-CommandBlock provisions database instances as **sibling Docker containers**, so the desktop app - like
+CommandBlock provisions Minecraft servers as **sibling Docker containers**, so the desktop app - like
 the server - needs a Docker engine (Docker Desktop on Windows/macOS) running on the host. Auth,
 however, no longer needs Docker: it's the in-process issuer above.
 
@@ -37,7 +37,7 @@ however, no longer needs Docker: it's the in-process issuer above.
   (see <https://v2.tauri.app/start/prerequisites/>).
 - The [.NET 10 SDK](https://dotnet.microsoft.com/download).
 - [Bun](https://bun.sh) (frontend build) and Node.js (runs the sidecar publish script).
-- Docker Desktop / a running Docker engine (for provisioning database instances).
+- Docker Desktop / a running Docker engine (for running Minecraft servers).
 
 Install JS deps and the Tauri CLI once:
 

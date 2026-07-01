@@ -3,9 +3,10 @@ namespace CommandBlock.Application.Options;
 public sealed class CommandBlockOptions
 {
     /// <summary>
-    /// Controls how provisioned servers persist world data. Defaults to per-server named Docker
-    /// volumes (commandblock-mc-{id}-data). Set to HostFolder + provide a HostPath to instead
-    /// bind-mount each server's data directory under {HostPath}/{containerName} on the host.
+    /// Controls how provisioned servers persist world data. Defaults to <see cref="StorageMode.HostFolder"/>:
+    /// each server's /data is bind-mounted to {HostPath}/{containerName} on the Docker host, so the
+    /// world files are directly inspectable and backup-able. Switch to <see cref="StorageMode.Volume"/>
+    /// to use a per-server Docker named volume instead.
     /// </summary>
     public StorageOptions Storage { get; set; } = new();
 
@@ -19,27 +20,32 @@ public sealed class CommandBlockOptions
 
 public enum StorageMode
 {
-    Volume,
+    /// <summary>Per-server host directory bind-mount (the default).</summary>
     HostFolder,
+
+    /// <summary>Per-server Docker named volume.</summary>
+    Volume,
 }
 
 public sealed class StorageOptions
 {
-    public StorageMode Mode { get; set; } = StorageMode.Volume;
+    /// <summary>Defaults to a host folder so worlds live on disk where you can see and back them up.</summary>
+    public StorageMode Mode { get; set; } = StorageMode.HostFolder;
 
     /// <summary>
-    /// Required when Mode = HostFolder. Absolute path on the Docker host (not inside the
-    /// CommandBlock container) under which a subdirectory is created per provisioned server.
-    /// Forward slashes work on Windows hosts too because dockerd normalises them.
+    /// Base directory on the Docker host under which each server gets a data subdirectory (used when
+    /// Mode = HostFolder). For the containerised deployment this same path is bind-mounted into the
+    /// CommandBlock container at the identical path, so the control plane and the daemon agree on it.
+    /// Forward slashes work on Windows hosts too - dockerd normalises them.
     /// </summary>
-    public string? HostPath { get; set; }
+    public string HostPath { get; set; } = "/data/servers";
 
     public string ResolveBindForContainer(string containerName, string dataPath)
     {
         return Mode switch
         {
-            StorageMode.HostFolder => $"{ResolveHostPath()}/{containerName}:{dataPath}",
-            _ => $"{containerName}-data:{dataPath}",
+            StorageMode.Volume => $"{containerName}-data:{dataPath}",
+            _ => $"{ResolveHostPath()}/{containerName}:{dataPath}",
         };
     }
 
@@ -50,8 +56,8 @@ public sealed class StorageOptions
 
     /// <summary>
     /// Non-throwing variant used by cleanup paths (delete) which run even when the server was
-    /// originally provisioned under a different storage mode. Returns null both when the current
-    /// mode is Volume and when HostFolder is misconfigured.
+    /// originally provisioned under a different storage mode. Returns null when the mode is Volume
+    /// or HostPath is missing.
     /// </summary>
     public string? TryResolveHostFolderForContainer(string containerName)
     {
@@ -62,7 +68,7 @@ public sealed class StorageOptions
     private string ResolveHostPath()
     {
         if (string.IsNullOrWhiteSpace(HostPath))
-            throw new InvalidOperationException("storage.mode is HostFolder but storage.host_path is not set in commandblock.yaml.");
+            throw new InvalidOperationException("storage.host_path is not set in commandblock.yaml.");
         return HostPath.TrimEnd('/', '\\');
     }
 }

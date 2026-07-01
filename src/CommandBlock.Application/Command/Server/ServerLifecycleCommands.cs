@@ -75,14 +75,11 @@ namespace CommandBlock.Application.Command.Server
 
                 // Host-folder storage cleanup only applies to local servers - the folder lives on
                 // the node's filesystem otherwise, which this process can't see.
-                if (server.NodeId is null)
+                var hostFolder = options.Value.Storage.TryResolveHostFolderForContainer(server.ContainerName);
+                if (hostFolder is not null && Directory.Exists(hostFolder))
                 {
-                    var hostFolder = options.Value.Storage.TryResolveHostFolderForContainer(server.ContainerName);
-                    if (hostFolder is not null && Directory.Exists(hostFolder))
-                    {
-                        try { Directory.Delete(hostFolder, recursive: true); }
-                        catch { /* not accessible from this process; user can clean up manually */ }
-                    }
+                    try { Directory.Delete(hostFolder, recursive: true); }
+                    catch { /* not accessible from this process; user can clean up manually */ }
                 }
             }
 
