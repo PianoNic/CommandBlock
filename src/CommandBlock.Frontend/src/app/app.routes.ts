@@ -7,6 +7,7 @@ import { Console } from './console/console';
 import { Files } from './files/files';
 import { Backups } from './backups/backups';
 import { Activity } from './activity/activity';
+import { Settings } from './settings/settings';
 
 export const routes: Routes = [
   {
@@ -20,6 +21,7 @@ export const routes: Routes = [
       { path: 'files/:id', component: Files },
       { path: 'backups', component: Backups },
       { path: 'activity', component: Activity },
+      { path: 'settings', component: Settings },
     ],
   },
   { path: '**', redirectTo: '' },

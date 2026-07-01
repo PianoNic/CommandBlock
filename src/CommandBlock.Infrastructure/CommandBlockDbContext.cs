@@ -10,6 +10,7 @@ namespace CommandBlock.Infrastructure
         public DbSet<ServerInstance> ServerInstances => Set<ServerInstance>();
         public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
         public DbSet<BackupEntry> BackupEntries => Set<BackupEntry>();
+        public DbSet<DomainEntry> Domains => Set<DomainEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

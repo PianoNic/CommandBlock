@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideSearch, lucideDownload, lucideCheck } from '@ng-icons/lucide';
-import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import {
@@ -15,7 +14,10 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ServerService } from '../api/api/server.service';
 import { ModpacksService } from '../api/api/modpacks.service';
+import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
+import { DomainsService } from '../api/api/domains.service';
 import { ModpackSearchResult } from '../api/model/modpackSearchResult';
+import { DomainDto } from '../api/model/domainDto';
 
 type DialogContext = { onCreated: () => void };
 
@@ -31,7 +33,7 @@ type DialogContext = { onCreated: () => void };
     HlmLabelImports,
     HlmSelectImports,
   ],
-  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, simpleModrinth, simpleCurseforge, ...PLATFORM_ICONS })],
+  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, ...PLATFORM_ICONS })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -47,7 +49,7 @@ type DialogContext = { onCreated: () => void };
     <div class="grid grid-cols-2 gap-3">
       <div class="flex flex-col gap-1.5">
         <label hlmLabel for="srv-type" class="text-muted-foreground text-xs uppercase tracking-wide">Type</label>
-        <hlm-select [value]="serverType()" (valueChange)="serverType.set($event)">
+        <hlm-select [value]="serverType()" (valueChange)="serverType.set($event)" [itemToString]="typeLabel">
           <hlm-select-trigger id="srv-type" class="w-full">
             <hlm-select-value placeholder="Pick a loader…" />
           </hlm-select-trigger>
@@ -84,15 +86,38 @@ type DialogContext = { onCreated: () => void };
       </div>
 
       <div class="col-span-2 flex flex-col gap-1.5">
-        <label hlmLabel for="srv-host" class="text-muted-foreground text-xs uppercase tracking-wide">Hostname</label>
-        <input
-          hlmInput
-          id="srv-host"
-          placeholder="smp.gaggao.com"
-          [value]="hostname()"
-          (input)="hostname.set($any($event.target).value)"
-        />
-        <span class="text-muted-foreground text-xs">The address players connect with. Must be unique.</span>
+        <label hlmLabel for="srv-sub" class="text-muted-foreground text-xs uppercase tracking-wide">Hostname</label>
+        @if (domains().length > 0) {
+          <div class="flex items-center gap-2">
+            <input
+              hlmInput
+              id="srv-sub"
+              class="flex-1"
+              placeholder="smp"
+              [value]="subdomain()"
+              (input)="subdomain.set($any($event.target).value)"
+            />
+            <span class="text-muted-foreground">.</span>
+            <hlm-select [value]="domain()" (valueChange)="domain.set($event ?? '')">
+              <hlm-select-trigger class="w-44">
+                <hlm-select-value placeholder="domain" />
+              </hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                @for (d of domains(); track d.id) {
+                  <hlm-select-item [value]="d.name">{{ d.name }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </div>
+          <span class="text-muted-foreground text-xs">
+            Players connect to <span class="text-foreground font-mono">{{ fullHostname() || 'sub.domain' }}</span>. Must be unique.
+          </span>
+        } @else {
+          <p class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-sm">
+            No domains yet — add one under <span class="text-foreground font-medium">Settings → Domains</span> first,
+            then choose a subdomain here.
+          </p>
+        }
       </div>
 
       @if (isModpack()) {
@@ -151,13 +176,20 @@ type DialogContext = { onCreated: () => void };
       } @else {
         <div class="col-span-2 flex flex-col gap-1.5">
           <label hlmLabel for="srv-version" class="text-muted-foreground text-xs uppercase tracking-wide">Version</label>
-          <input
-            hlmInput
-            id="srv-version"
-            placeholder="e.g. 1.21.1 (blank = latest)"
-            [value]="version()"
-            (input)="version.set($any($event.target).value)"
-          />
+          <hlm-select [value]="version()" (valueChange)="version.set($event ?? LATEST)" [itemToString]="versionLabel">
+            <hlm-select-trigger id="srv-version" class="w-full">
+              <hlm-select-value placeholder="Latest" />
+            </hlm-select-trigger>
+            <hlm-select-content *hlmSelectPortal>
+              <hlm-select-item [value]="LATEST">Latest (recommended)</hlm-select-item>
+              @for (v of versions(); track v) {
+                <hlm-select-item [value]="v">{{ v }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+          @if (versionsError()) {
+            <span class="text-muted-foreground text-xs">Couldn't load the version list - "Latest" still works.</span>
+          }
         </div>
       }
     </div>
@@ -179,6 +211,8 @@ export class ServerCreateDialog {
   private readonly ctx = injectBrnDialogContext<DialogContext>();
   private readonly api = inject(ServerService);
   private readonly modpacksApi = inject(ModpacksService);
+  private readonly versionsApi = inject(MinecraftVersionsService);
+  private readonly domainsApi = inject(DomainsService);
 
   protected readonly modpackQuery = signal('');
   protected readonly results = signal<ReadonlyArray<ModpackSearchResult>>([]);
@@ -228,14 +262,49 @@ export class ServerCreateDialog {
 
   private static readonly modpackTypes = new Set(['MODRINTH', 'CURSEFORGE', 'FTBA']);
 
+  // Sentinel for "no explicit version" - itzg then pulls the latest release on first boot.
+  protected readonly LATEST = '__latest__';
+  protected readonly versions = signal<ReadonlyArray<string>>([]);
+  protected readonly versionsError = signal(false);
+
+  // Domains come from Settings; the hostname is composed as <subdomain>.<domain>.
+  protected readonly domains = signal<ReadonlyArray<DomainDto>>([]);
+
   protected readonly serverType = signal<string | null>(null);
   protected readonly displayName = signal('');
-  protected readonly hostname = signal('');
+  protected readonly subdomain = signal('');
+  protected readonly domain = signal('');
   protected readonly memory = signal('4G');
-  protected readonly version = signal('');
+  protected readonly version = signal<string>(this.LATEST);
   protected readonly modpackRef = signal('');
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  // Selected-value display for the loader and version dropdowns (otherwise they show the raw
+  // value, e.g. "PAPER" or the "__latest__" sentinel).
+  protected readonly typeLabel = (v: string | null): string => platformLabel(v ?? '');
+  protected readonly versionLabel = (v: string | null): string =>
+    v === this.LATEST ? 'Latest (recommended)' : (v ?? '');
+
+  protected readonly fullHostname = computed(() => {
+    const sub = this.subdomain().trim().toLowerCase().replace(/\.+$/, '');
+    const dom = this.domain();
+    return sub && dom ? `${sub}.${dom}` : '';
+  });
+
+  constructor() {
+    // Versions come live from Mojang's manifest (proxied by the API); the picker defaults to Latest.
+    this.versionsApi.apiMinecraftVersionsGet().subscribe({
+      next: (v) => this.versions.set(v),
+      error: () => this.versionsError.set(true),
+    });
+    this.domainsApi.apiDomainsGet().subscribe({
+      next: (d) => {
+        this.domains.set(d);
+        if (d.length === 1) this.domain.set(d[0].name); // pre-select the only domain
+      },
+    });
+  }
 
   protected readonly isModpack = computed(() => {
     const t = this.serverType();
@@ -247,7 +316,7 @@ export class ServerCreateDialog {
       !this.submitting() &&
       !!this.serverType() &&
       this.displayName().trim() !== '' &&
-      this.hostname().trim() !== '' &&
+      this.fullHostname() !== '' &&
       this.memory().trim() !== '' &&
       (!this.isModpack() || this.modpackRef().trim() !== ''),
   );
@@ -262,9 +331,9 @@ export class ServerCreateDialog {
       .apiServerPost({
         serverType: this.serverType()!,
         displayName: this.displayName().trim(),
-        hostname: this.hostname().trim(),
+        hostname: this.fullHostname(),
         memory: this.memory().trim(),
-        version: modpack || this.version().trim() === '' ? undefined : this.version().trim(),
+        version: modpack || this.version() === this.LATEST ? undefined : this.version(),
         modpackRef: modpack ? this.modpackRef().trim() : undefined,
       })
       .subscribe({

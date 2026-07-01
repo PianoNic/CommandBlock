@@ -47,6 +47,14 @@ builder.Services.AddHttpClient<IModrinthClient, CommandBlock.Infrastructure.Serv
     c.Timeout = TimeSpan.FromSeconds(10);
 });
 
+// Minecraft version list, proxied from Mojang's official manifest and cached in memory.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IMinecraftVersionClient, CommandBlock.Infrastructure.Services.MinecraftVersionClient>(c =>
+{
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("CommandBlock/1.0 (+https://github.com/PianoNic/CommandBlock)");
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // Single-host: every Docker operation runs against the local daemon.
 builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
 

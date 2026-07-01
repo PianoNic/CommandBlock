@@ -102,7 +102,8 @@ app-servers,
 app-console,
 app-files,
 app-backups,
-app-activity {
+app-activity,
+app-settings {
 display: flex;
 flex-direction: column;
 height: 100%;

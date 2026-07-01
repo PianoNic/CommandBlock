@@ -20,6 +20,7 @@ import {
   lucideMoon,
   lucidePlus,
   lucideServer,
+  lucideSettings,
   lucideSun,
 } from '@ng-icons/lucide';
 import { HlmSidebarImports, HlmSidebarService } from '@spartan-ng/helm/sidebar';
@@ -43,6 +44,7 @@ import { ServerCreateDialog } from '../servers/server-create-dialog';
       lucideMoon,
       lucidePlus,
       lucideServer,
+      lucideSettings,
       lucideSun,
     }),
   ],
@@ -106,6 +108,7 @@ export class Sidenav {
     { route: '/servers', label: 'Servers', icon: 'lucideServer' },
     { route: '/backups', label: 'Backups', icon: 'lucideArchive' },
     { route: '/activity', label: 'Activity', icon: 'lucideActivity' },
+    { route: '/settings', label: 'Settings', icon: 'lucideSettings' },
   ];
 
   protected readonly themeOptions: ReadonlyArray<{ mode: ThemeMode; label: string; icon: string }> =
