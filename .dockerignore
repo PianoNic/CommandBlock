@@ -1,0 +1,19 @@
+# The Dockerfile restores/installs inside the build, so none of this belongs in the context.
+# Without this file the frontend node_modules/dist (hundreds of MB) get shipped to the daemon,
+# making every build crawl.
+**/node_modules
+**/dist
+**/.angular
+**/bin
+**/obj
+**/.vs
+**/.git
+**/.claude/worktrees
+src/CommandBlock.Frontend/.angular
+keycloak/keycloakify/node_modules
+keycloak/keycloakify/dist
+backups/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+.env
