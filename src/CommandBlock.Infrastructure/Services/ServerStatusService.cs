@@ -39,15 +39,19 @@ namespace CommandBlock.Infrastructure.Services
                 {
                     try
                     {
+                        // mc-monitor (bundled in the itzg image) reads player counts via the silent
+                        // server-list ping. Unlike `rcon-cli list`, it opens no RCON connection, so it
+                        // doesn't flood the server console with "Thread RCON Client started/shutting
+                        // down" every poll. Output: "host:port : version=… online=0 max=20 motd='…'".
                         var raw = Encoding.UTF8.GetString(
-                            await dockerResolver.Resolve(r.NodeId).ExecCaptureAsync(r.ContainerId, new[] { "rcon-cli", "list" }, cancellationToken));
+                            await dockerResolver.Resolve(r.NodeId).ExecCaptureAsync(r.ContainerId, new[] { "mc-monitor", "status" }, cancellationToken));
                         var m = PlayerCountRegex().Match(raw);
                         if (m.Success) { state = "running"; online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
-                        else state = "starting"; // RCON up but odd output
+                        else state = "starting"; // container up but the server isn't answering pings yet
                     }
                     catch
                     {
-                        // Container runs but RCON isn't answering yet -> the server is still booting.
+                        // Container runs but the server isn't answering pings yet -> still booting.
                         state = "starting";
                     }
                 }
@@ -57,7 +61,7 @@ namespace CommandBlock.Infrastructure.Services
             return result;
         }
 
-        [GeneratedRegex(@"(\d+)\s*(?:of a max of|/)\s*(\d+)")]
+        [GeneratedRegex(@"online=(\d+)\s+max=(\d+)")]
         private static partial Regex PlayerCountRegex();
     }
 }
