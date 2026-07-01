@@ -104,13 +104,7 @@ export class Sidenav {
   protected readonly themeMode = this.theme.mode;
   protected readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
     { route: '/servers', label: 'Servers', icon: 'lucideServer' },
-    { route: '/instances', label: 'Instances', icon: 'lucideDatabase' },
-    { route: '/browser', label: 'Browser', icon: 'lucideTable' },
-    { route: '/backups', label: 'Backups', icon: 'lucideArchive' },
-    { route: '/console', label: 'Console', icon: 'lucideTerminal' },
-    { route: '/nodes', label: 'Nodes', icon: 'lucideNetwork' },
     { route: '/activity', label: 'Activity', icon: 'lucideActivity' },
-    { route: '/settings', label: 'Settings', icon: 'lucideSettings' },
   ];
 
   protected readonly themeOptions: ReadonlyArray<{ mode: ThemeMode; label: string; icon: string }> =

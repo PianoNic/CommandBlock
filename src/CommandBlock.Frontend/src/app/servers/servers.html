@@ -36,6 +36,7 @@
             <th hlmTh>Source</th>
             <th hlmTh>Memory</th>
             <th hlmTh>State</th>
+            <th hlmTh class="text-right">Actions</th>
           </tr>
         </thead>
         <tbody hlmTBody>
@@ -57,6 +58,25 @@
                 <span hlmBadge [variant]="stateVariant(s.state)" class="text-[10px] uppercase">
                   {{ s.state ?? 'unknown' }}
                 </span>
+              </td>
+              <td hlmTd>
+                <div class="flex items-center justify-end gap-1">
+                  @if (isRunning(s)) {
+                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">
+                      <ng-icon name="lucideSquare" size="14" />
+                    </button>
+                  } @else {
+                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start">
+                      <ng-icon name="lucidePlay" size="14" />
+                    </button>
+                  }
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="openBackups(s)" title="Backups">
+                    <ng-icon name="lucideArchive" size="14" />
+                  </button>
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" title="Delete">
+                    <ng-icon name="lucideTrash2" size="14" />
+                  </button>
+                </div>
               </td>
             </tr>
           }

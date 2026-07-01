@@ -12,9 +12,7 @@ import { BackupEntryDtoSizeBytes } from './backupEntryDtoSizeBytes';
 
 export interface BackupEntryDto { 
     id: string;
-    instanceId: string;
-    engine: string;
-    engineVersion: string;
+    serverId: string;
     fileName: string;
     sizeBytes: BackupEntryDtoSizeBytes;
     createdAt: string;

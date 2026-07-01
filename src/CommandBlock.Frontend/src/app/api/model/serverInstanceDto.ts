@@ -7,7 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { DashboardStatsDtoTotalInstances } from './dashboardStatsDtoTotalInstances';
+import { ServerInstanceDtoPort } from './serverInstanceDtoPort';
 
 
 export interface ServerInstanceDto { 
@@ -19,7 +19,7 @@ export interface ServerInstanceDto {
     memory: string;
     displayName: string;
     hostname: string;
-    port: DashboardStatsDtoTotalInstances;
+    port: ServerInstanceDtoPort;
     containerName?: string | null;
     isManaged: boolean;
     isPublic: boolean;

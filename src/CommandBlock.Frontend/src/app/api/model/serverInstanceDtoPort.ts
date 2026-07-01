@@ -9,8 +9,6 @@
  */
 
 
-export interface InsertRowDto { 
-    columns: Array<string>;
-    values: Array<string>;
+export interface ServerInstanceDtoPort { 
 }
 
