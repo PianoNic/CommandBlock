@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucidePlus,
@@ -8,6 +9,7 @@ import {
   lucideSquare,
   lucideTrash2,
   lucideArchive,
+  lucideTerminal,
 } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -24,6 +26,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
   selector: 'app-servers',
   imports: [
     ContentHeader,
+    RouterLink,
     NgIcon,
     HlmBadgeImports,
     HlmButtonImports,
@@ -38,6 +41,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideSquare,
       lucideTrash2,
       lucideArchive,
+      lucideTerminal,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,5 +1,6 @@
 using CommandBlock.API;
 using CommandBlock.API.Extensions;
+using CommandBlock.API.Hubs;
 using CommandBlock.API.OpenApi;
 using CommandBlock.API.Routing;
 using CommandBlock.Infrastructure.Extensions;
@@ -18,6 +19,7 @@ builder.Services.AddCommandBlockConfig(builder.Environment);
 builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; });
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
@@ -74,6 +76,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters.NameClaimType = "name";
         options.TokenValidationParameters.RoleClaimType = "roles";
         options.TokenValidationParameters.ValidateAudience = false;
+
+        // Browser WebSockets can't set the Authorization header, so SignalR passes the token as a
+        // query-string param on /hubs connections. Pull it in so hub auth works.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.Request.Path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -115,6 +130,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ConsoleHub>("/hubs/console").RequireAuthorization();
 
 if (app.Environment.IsProduction())
     app.MapFallbackToFile("index.html").AllowAnonymous();

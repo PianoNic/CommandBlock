@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { AppLayout } from './shared/layouts/app-layout/app-layout';
 import { Servers } from './servers/servers';
+import { Console } from './console/console';
 import { Activity } from './activity/activity';
 
 export const routes: Routes = [
@@ -12,6 +13,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: Servers },
       { path: 'servers', component: Servers },
+      { path: 'console/:id', component: Console },
       { path: 'activity', component: Activity },
     ],
   },

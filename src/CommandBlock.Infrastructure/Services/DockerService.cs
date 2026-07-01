@@ -151,6 +151,37 @@ namespace CommandBlock.Infrastructure.Services
             return stdout.ToArray();
         }
 
+        public async IAsyncEnumerable<string> StreamLogsAsync(string containerId, int tailLines, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var parameters = new ContainerLogsParameters
+            {
+                ShowStdout = true,
+                ShowStderr = true,
+                Follow = true,
+                Tail = tailLines.ToString(),
+                Timestamps = false,
+            };
+
+            using var stream = await client.Containers.GetContainerLogsAsync(containerId, tty: false, parameters, cancellationToken);
+
+            var buffer = new byte[16 * 1024];
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                MultiplexedStream.ReadResult read;
+                try
+                {
+                    read = await stream.ReadOutputAsync(buffer, 0, buffer.Length, cancellationToken);
+                }
+                catch (OperationCanceledException) { yield break; }
+                catch (IOException) { yield break; }
+
+                if (read.EOF) yield break;
+                if (read.Count == 0) continue;
+
+                yield return System.Text.Encoding.UTF8.GetString(buffer, 0, read.Count);
+            }
+        }
+
         public async Task<Stream> GetArchiveAsync(string containerId, string path, CancellationToken cancellationToken = default)
         {
             var response = await client.Containers.GetArchiveFromContainerAsync(

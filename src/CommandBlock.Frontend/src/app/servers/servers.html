@@ -70,6 +70,9 @@
                       <ng-icon name="lucidePlay" size="14" />
                     </button>
                   }
+                  <a hlmBtn size="sm" variant="ghost" [routerLink]="['/console', s.id]" title="Console">
+                    <ng-icon name="lucideTerminal" size="14" />
+                  </a>
                   <button hlmBtn size="sm" variant="ghost" type="button" (click)="openBackups(s)" title="Backups">
                     <ng-icon name="lucideArchive" size="14" />
                   </button>

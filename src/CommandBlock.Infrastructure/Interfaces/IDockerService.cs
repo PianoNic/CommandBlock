@@ -28,6 +28,10 @@ namespace CommandBlock.Infrastructure.Interfaces
         /// <summary>Runs a command inside a running container and returns its stdout as raw bytes.</summary>
         Task<byte[]> ExecCaptureAsync(string containerId, IList<string> command, CancellationToken cancellationToken = default);
 
+        /// <summary>Follows a container's combined stdout/stderr, yielding decoded text chunks until
+        /// the stream ends or is cancelled. Used to stream the live server console.</summary>
+        IAsyncEnumerable<string> StreamLogsAsync(string containerId, int tailLines, CancellationToken cancellationToken = default);
+
         /// <summary>Streams a tar archive of <paramref name="path"/> from a container (Docker "copy
         /// out"). The tar's top-level entry is the basename of the path (e.g. "/data" -&gt; "data/…").</summary>
         Task<Stream> GetArchiveAsync(string containerId, string path, CancellationToken cancellationToken = default);

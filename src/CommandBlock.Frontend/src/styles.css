@@ -98,6 +98,7 @@ overflow: hidden;
    of main. Making the host a flex column with h-full passes the height all the way
    down so flex-1 sections claim the full viewport. */
 app-servers,
+app-console,
 app-activity {
 display: flex;
 flex-direction: column;
