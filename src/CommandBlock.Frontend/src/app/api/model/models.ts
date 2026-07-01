@@ -4,6 +4,7 @@ export * from './appDto';
 export * from './backupEntryDto';
 export * from './backupEntryDtoSizeBytes';
 export * from './createServerDto';
+export * from './modpackSearchResult';
 export * from './problemDetails';
 export * from './problemDetailsStatus';
 export * from './serverInstanceDto';

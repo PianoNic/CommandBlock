@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideSearch, lucideDownload, lucideCheck } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import {
   HlmDialogDescription,
@@ -10,12 +12,15 @@ import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ServerService } from '../api/api/server.service';
+import { ModpacksService } from '../api/api/modpacks.service';
+import { ModpackSearchResult } from '../api/model/modpackSearchResult';
 
 type DialogContext = { onCreated: () => void };
 
 @Component({
   selector: 'app-server-create-dialog',
   imports: [
+    NgIcon,
     HlmButtonImports,
     HlmDialogHeader,
     HlmDialogTitle,
@@ -24,6 +29,7 @@ type DialogContext = { onCreated: () => void };
     HlmLabelImports,
     HlmSelectImports,
   ],
+  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -87,11 +93,53 @@ type DialogContext = { onCreated: () => void };
 
       @if (isModpack()) {
         <div class="col-span-2 flex flex-col gap-1.5">
-          <label hlmLabel for="srv-pack" class="text-muted-foreground text-xs uppercase tracking-wide">Modpack reference</label>
+          <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Search Modrinth</label>
+          <div class="flex gap-2">
+            <input
+              hlmInput
+              class="flex-1"
+              placeholder="e.g. cobblemon, create, all the mods…"
+              [value]="modpackQuery()"
+              (input)="modpackQuery.set($any($event.target).value)"
+              (keydown.enter)="searchModpacks()"
+            />
+            <button hlmBtn variant="outline" type="button" (click)="searchModpacks()" [disabled]="searching()">
+              <ng-icon name="lucideSearch" size="14" />
+              {{ searching() ? 'Searching…' : 'Search' }}
+            </button>
+          </div>
+          @if (searchError(); as se) {
+            <p class="text-destructive text-xs">{{ se }}</p>
+          }
+          @if (results().length > 0) {
+            <ul class="divide-border max-h-56 divide-y overflow-auto rounded-md border">
+              @for (r of results(); track r.slug) {
+                <li
+                  class="hover:bg-accent flex cursor-pointer items-center gap-3 p-2"
+                  [class.bg-accent]="modpackRef() === r.slug"
+                  (click)="pickModpack(r)"
+                >
+                  @if (r.iconUrl) {
+                    <img [src]="r.iconUrl" alt="" class="size-9 shrink-0 rounded" />
+                  }
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="truncate text-sm font-medium">{{ r.title }}</span>
+                      @if (modpackRef() === r.slug) {
+                        <ng-icon name="lucideCheck" size="14" class="text-primary shrink-0" />
+                      }
+                    </div>
+                    <p class="text-muted-foreground truncate text-xs">{{ r.description }}</p>
+                  </div>
+                  <span class="text-muted-foreground shrink-0 font-mono text-[10px]">{{ r.slug }}</span>
+                </li>
+              }
+            </ul>
+          }
           <input
             hlmInput
-            id="srv-pack"
-            placeholder="Modrinth slug, .mrpack URL, or CurseForge ref"
+            class="mt-1"
+            placeholder="…or paste a slug / .mrpack URL"
             [value]="modpackRef()"
             (input)="modpackRef.set($any($event.target).value)"
           />
@@ -126,6 +174,33 @@ export class ServerCreateDialog {
   private readonly ref = inject<BrnDialogRef<unknown>>(BrnDialogRef);
   private readonly ctx = injectBrnDialogContext<DialogContext>();
   private readonly api = inject(ServerService);
+  private readonly modpacksApi = inject(ModpacksService);
+
+  protected readonly modpackQuery = signal('');
+  protected readonly results = signal<ReadonlyArray<ModpackSearchResult>>([]);
+  protected readonly searching = signal(false);
+  protected readonly searchError = signal<string | null>(null);
+
+  protected searchModpacks(): void {
+    const q = this.modpackQuery().trim();
+    if (q === '') return;
+    this.searching.set(true);
+    this.searchError.set(null);
+    this.modpacksApi.apiModpacksGet(q).subscribe({
+      next: (hits) => {
+        this.results.set(hits);
+        this.searching.set(false);
+      },
+      error: () => {
+        this.searchError.set('Search failed - Modrinth may be unreachable.');
+        this.searching.set(false);
+      },
+    });
+  }
+
+  protected pickModpack(r: ModpackSearchResult): void {
+    this.modpackRef.set(r.slug);
+  }
 
   protected readonly serverTypes = [
     'VANILLA',

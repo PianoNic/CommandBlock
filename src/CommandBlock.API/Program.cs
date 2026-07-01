@@ -37,6 +37,14 @@ builder.Services.AddSecrets();
 builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));
 builder.Services.AddScoped<IBackupStorage, CommandBlock.Infrastructure.Services.S3BackupStorage>();
 
+// Modrinth modpack search (public API, no key). Typed HttpClient with the UA Modrinth asks for.
+builder.Services.AddHttpClient<IModrinthClient, CommandBlock.Infrastructure.Services.ModrinthClient>(c =>
+{
+    c.BaseAddress = new Uri("https://api.modrinth.com/");
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("CommandBlock/1.0 (+https://github.com/PianoNic/CommandBlock)");
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // Single-host: every Docker operation runs against the local daemon.
 builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
 
@@ -44,8 +52,11 @@ builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>()
 // address in the client handshake. The resolver is scoped (touches the DbContext); the listener is
 // a singleton hosted service that opens a scope per connection.
 builder.Services.Configure<RouterOptions>(builder.Configuration.GetSection("Router"));
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
+builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
 builder.Services.AddHostedService<MinecraftRouter>();
+builder.Services.AddHostedService<IdleServerMonitor>();
 
 // Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA
 // same-origin from the sidecar, so it needs none; server deployments set it explicitly.

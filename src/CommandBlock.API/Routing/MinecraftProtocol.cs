@@ -90,5 +90,77 @@ namespace CommandBlock.API.Routing
             if (nul >= 0) s = s[..nul];
             return s.Trim().TrimEnd('.').ToLowerInvariant();
         }
+
+        // --- Encoding (for synthetic status / disconnect responses when a server is asleep) ---
+
+        public static byte[] EncodeVarInt(int value)
+        {
+            var bytes = new List<byte>(5);
+            var v = (uint)value;
+            while (true)
+            {
+                if ((v & ~0x7Fu) == 0) { bytes.Add((byte)v); break; }
+                bytes.Add((byte)((v & 0x7F) | 0x80));
+                v >>= 7;
+            }
+            return bytes.ToArray();
+        }
+
+        private static byte[] EncodeString(string s)
+        {
+            var utf8 = Encoding.UTF8.GetBytes(s);
+            return [.. EncodeVarInt(utf8.Length), .. utf8];
+        }
+
+        /// <summary>Frames a packet as [VarInt length][VarInt id][payload].</summary>
+        private static byte[] Packet(int packetId, byte[] payload)
+        {
+            var body = new List<byte>();
+            body.AddRange(EncodeVarInt(packetId));
+            body.AddRange(payload);
+            return [.. EncodeVarInt(body.Count), .. body];
+        }
+
+        /// <summary>A Status Response packet (id 0x00) carrying the given server-list JSON.</summary>
+        public static byte[] StatusResponsePacket(string statusJson) => Packet(0x00, EncodeString(statusJson));
+
+        /// <summary>A Pong packet (id 0x01) echoing the client's ping payload.</summary>
+        public static byte[] PongPacket(byte[] payload) => Packet(0x01, payload);
+
+        /// <summary>A login Disconnect packet (id 0x00) carrying a chat-component JSON reason.</summary>
+        public static byte[] LoginDisconnectPacket(string reason)
+        {
+            var chatJson = "{\"text\":" + JsonString(reason) + "}";
+            return Packet(0x00, EncodeString(chatJson));
+        }
+
+        /// <summary>Builds the server-list status JSON with a custom MOTD (used while a server wakes).</summary>
+        public static string StatusJson(string motd, int protocolVersion) =>
+            "{\"version\":{\"name\":\"CommandBlock\",\"protocol\":" + protocolVersion + "}," +
+            "\"players\":{\"max\":0,\"online\":0}," +
+            "\"description\":{\"text\":" + JsonString(motd) + "}}";
+
+        private static string JsonString(string s)
+        {
+            var sb = new System.Text.StringBuilder(s.Length + 2);
+            sb.Append('"');
+            foreach (var c in s)
+            {
+                switch (c)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
+                        else sb.Append(c);
+                        break;
+                }
+            }
+            sb.Append('"');
+            return sb.ToString();
+        }
     }
 }

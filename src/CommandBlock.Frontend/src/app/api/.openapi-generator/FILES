@@ -6,6 +6,7 @@ api.module.ts
 api/activity.service.ts
 api/api.ts
 api/app.service.ts
+api/modpacks.service.ts
 api/server.service.ts
 configuration.ts
 encoder.ts
@@ -18,6 +19,7 @@ model/backupEntryDto.ts
 model/backupEntryDtoSizeBytes.ts
 model/createServerDto.ts
 model/models.ts
+model/modpackSearchResult.ts
 model/problemDetails.ts
 model/problemDetailsStatus.ts
 model/serverInstanceDto.ts
