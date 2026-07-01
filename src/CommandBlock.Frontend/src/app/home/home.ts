@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity, lucideUsers } from '@ng-icons/lucide';
@@ -68,6 +68,18 @@ export class Home {
   constructor() {
     this.statusStream.start();
     this.load();
+
+    // Live membership: when the status stream reports a server we don't have (created) or drops one
+    // we do have (deleted), re-fetch so the counts and "By type" breakdown stay current.
+    effect(() => {
+      const liveIds = Object.keys(this.statuses());
+      if (liveIds.length === 0) return;
+      const current = new Set(this.servers().map((s) => s.id));
+      const liveSet = new Set(liveIds);
+      const added = liveIds.some((id) => !current.has(id));
+      const removed = this.servers().some((s) => !liveSet.has(s.id));
+      if (added || removed) this.load();
+    });
   }
 
   protected load(): void {
