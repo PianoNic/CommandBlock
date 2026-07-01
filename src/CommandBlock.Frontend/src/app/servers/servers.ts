@@ -76,8 +76,8 @@ export class Servers {
     // we do have (deleted) - anywhere, by anyone - re-fetch the full list. State/players patch live
     // from the stream directly; this only handles rows appearing/disappearing.
     effect(() => {
+      if (!this.statusStream.received()) return; // no snapshot yet - don't churn on startup
       const liveIds = Object.keys(this.statuses());
-      if (liveIds.length === 0) return; // stream not connected yet - don't churn
       const current = new Set(this.servers().map((s) => s.id));
       const liveSet = new Set(liveIds);
       const added = liveIds.some((id) => !current.has(id));

@@ -20,6 +20,9 @@ export class ServerStatusStream {
   private started = false;
 
   readonly statuses = signal<Record<string, ServerStatus>>({});
+  /// True once the stream has delivered at least one snapshot. Lets consumers tell "no data yet"
+  /// (startup) apart from "an empty snapshot" (all servers deleted).
+  readonly received = signal(false);
 
   /// Idempotent: safe to call from every component that wants live status.
   start(): void {
@@ -43,6 +46,7 @@ export class ServerStatusStream {
         const map: Record<string, ServerStatus> = {};
         for (const s of snapshot) map[s.id] = s;
         this.statuses.set(map);
+        this.received.set(true);
       },
       error: () => {},
       complete: () => {},

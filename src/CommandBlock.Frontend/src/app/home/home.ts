@@ -72,8 +72,8 @@ export class Home {
     // Live membership: when the status stream reports a server we don't have (created) or drops one
     // we do have (deleted), re-fetch so the counts and "By type" breakdown stay current.
     effect(() => {
+      if (!this.statusStream.received()) return; // no snapshot yet - don't churn on startup
       const liveIds = Object.keys(this.statuses());
-      if (liveIds.length === 0) return;
       const current = new Set(this.servers().map((s) => s.id));
       const liveSet = new Set(liveIds);
       const added = liveIds.some((id) => !current.has(id));
