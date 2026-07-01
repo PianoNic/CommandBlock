@@ -56,6 +56,8 @@ services:
         condition: service_started
     ports:
       - "56722:8080"
+      # The Minecraft router: the single public port every provisioned server is reached through.
+      - "25565:25565"
     volumes:
       - //var/run/docker.sock:/var/run/docker.sock
       - ./backups:/app/backups

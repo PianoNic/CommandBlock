@@ -33,6 +33,8 @@ RUN dotnet publish "CommandBlock.API/CommandBlock.API.csproj" -c $BUILD_CONFIGUR
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.8-azurelinux3.0 AS final
 WORKDIR /app
 EXPOSE 8080
+# The Minecraft hostname router listens here - one public port fronting every provisioned server.
+EXPOSE 25565
 ENV ASPNETCORE_URLS=http://+:8080 ASPNETCORE_ENVIRONMENT=Production
 
 # Run as root so /var/run/docker.sock is accessible out of the box on every host

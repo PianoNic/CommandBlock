@@ -83,6 +83,13 @@ builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>
 builder.Services.AddHostedService<CommandBlock.API.InstanceReconciliationHostedService>();
 builder.Services.AddHostedService<CommandBlock.API.NodeReconciliationHostedService>();
 
+// Minecraft hostname router: one public TCP port fronting every provisioned server, routed by the
+// address in the client handshake. The resolver is scoped (touches the DbContext); the listener is
+// a singleton hosted service that opens a scope per connection.
+builder.Services.Configure<CommandBlock.API.Routing.RouterOptions>(builder.Configuration.GetSection("Router"));
+builder.Services.AddScoped<CommandBlock.API.Routing.IServerRouteResolver, CommandBlock.API.Routing.DbServerRouteResolver>();
+builder.Services.AddHostedService<CommandBlock.API.Routing.MinecraftRouter>();
+
 // Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA
 // same-origin from the sidecar, so it needs none; server deployments set it explicitly.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
