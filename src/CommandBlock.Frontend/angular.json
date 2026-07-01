@@ -27,10 +27,7 @@
             "styles": [
               "src/styles.css"
             ],
-            "allowedCommonJsDependencies": [
-              "plotly.js-dist-min",
-              "umap-js"
-            ]
+            "allowedCommonJsDependencies": []
           },
           "configurations": {
             "production": {

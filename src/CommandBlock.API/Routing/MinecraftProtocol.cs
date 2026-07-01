@@ -124,9 +124,6 @@ namespace CommandBlock.API.Routing
         /// <summary>A Status Response packet (id 0x00) carrying the given server-list JSON.</summary>
         public static byte[] StatusResponsePacket(string statusJson) => Packet(0x00, EncodeString(statusJson));
 
-        /// <summary>A Pong packet (id 0x01) echoing the client's ping payload.</summary>
-        public static byte[] PongPacket(byte[] payload) => Packet(0x01, payload);
-
         /// <summary>A login Disconnect packet (id 0x00) carrying a chat-component JSON reason.</summary>
         public static byte[] LoginDisconnectPacket(string reason)
         {

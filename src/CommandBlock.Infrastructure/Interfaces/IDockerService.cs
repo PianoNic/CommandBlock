@@ -2,10 +2,6 @@ using Docker.DotNet.Models;
 
 namespace CommandBlock.Infrastructure.Interfaces
 {
-    /// <summary>A container's instantaneous resource use: memory in bytes and CPU as a fraction of
-    /// total host CPU (0-100).</summary>
-    public record ContainerResourceSample(long MemoryBytes, double CpuPercent);
-
     public interface IDockerService
     {
         Task<bool> PingAsync(CancellationToken cancellationToken = default);
@@ -16,13 +12,6 @@ namespace CommandBlock.Infrastructure.Interfaces
         Task<IList<ContainerListResponse>> ListContainersAsync(bool all = true, CancellationToken cancellationToken = default);
 
         Task<ContainerInspectResponse> InspectContainerAsync(string id, CancellationToken cancellationToken = default);
-
-        /// <summary>One-shot stats snapshot (Stream=false). Returns null if the container is stopped or unreachable.</summary>
-        Task<ContainerStatsResponse?> GetContainerStatsOnceAsync(string id, CancellationToken cancellationToken = default);
-
-        /// <summary>Memory bytes + CPU% for a single container, computed from one stats snapshot. Returns
-        /// null if unavailable. Primitive-only so it round-trips when this runs on a remote node.</summary>
-        Task<ContainerResourceSample?> GetContainerResourceUsageAsync(string id, CancellationToken cancellationToken = default);
 
         Task PullImageAsync(string image, string tag = "latest", CancellationToken cancellationToken = default);
 
@@ -36,15 +25,8 @@ namespace CommandBlock.Infrastructure.Interfaces
 
         Task RemoveVolumeAsync(string name, bool force = false, CancellationToken cancellationToken = default);
 
-        /// <summary>Follows a container's combined stdout/stderr, yielding decoded text chunks until
-        /// the stream ends or is cancelled. Used to stream logs (locally, or on a node).</summary>
-        IAsyncEnumerable<string> StreamLogsAsync(string containerId, int tailLines, CancellationToken cancellationToken = default);
-
         /// <summary>Runs a command inside a running container and returns its stdout as raw bytes.</summary>
         Task<byte[]> ExecCaptureAsync(string containerId, IList<string> command, CancellationToken cancellationToken = default);
-
-        /// <summary>Runs a command inside a container, streaming <paramref name="stdin"/> to its stdin and capturing stderr.</summary>
-        Task ExecWithStdinAsync(string containerId, IList<string> command, Stream stdin, CancellationToken cancellationToken = default);
 
         /// <summary>Streams a tar archive of <paramref name="path"/> from a container (Docker "copy
         /// out"). The tar's top-level entry is the basename of the path (e.g. "/data" -&gt; "data/…").</summary>

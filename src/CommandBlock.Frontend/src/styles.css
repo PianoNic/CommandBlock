@@ -97,14 +97,8 @@ overflow: hidden;
    the inner section measures against the auto-sized host (= sum of children) instead
    of main. Making the host a flex column with h-full passes the height all the way
    down so flex-1 sections claim the full viewport. */
-app-home,
 app-servers,
-app-databases,
-app-create,
-app-browser,
-app-backups,
-app-activity,
-app-settings {
+app-activity {
 display: flex;
 flex-direction: column;
 height: 100%;
