@@ -13,6 +13,7 @@ namespace CommandBlock.Application.Command.Server
 
     public record StartServerCommand(Guid Id) : ICommand;
     public record StopServerCommand(Guid Id) : ICommand;
+    public record RestartServerCommand(Guid Id) : ICommand;
     public record DeleteServerCommand(Guid Id) : ICommand;
 
     public class StartServerCommandHandler(
@@ -47,6 +48,27 @@ namespace CommandBlock.Application.Command.Server
 
             await dockerResolver.Resolve(server.NodeId).StopContainerAsync(server.ContainerId, cancellationToken);
             await activity.LogAsync("server.stop", server.ContainerName ?? server.DisplayName, server.Id, server.ServerType, null, cancellationToken);
+            return Unit.Value;
+        }
+    }
+
+    public class RestartServerCommandHandler(
+        CommandBlockDbContext db,
+        IDockerServiceResolver dockerResolver,
+        IActivityLogger activity) : ICommandHandler<RestartServerCommand>
+    {
+        public async ValueTask<Unit> Handle(RestartServerCommand command, CancellationToken cancellationToken)
+        {
+            var server = await db.ServerInstances.FirstOrDefaultAsync(s => s.Id == command.Id, cancellationToken)
+                ?? throw new ServerNotFoundException(command.Id);
+            if (server.ContainerId is null)
+                throw new InvalidOperationException("This server has no container - nothing to restart.");
+
+            // Stop then start: the container's stop timeout lets Minecraft save and shut down cleanly.
+            var docker = dockerResolver.Resolve(server.NodeId);
+            await docker.StopContainerAsync(server.ContainerId, cancellationToken);
+            await docker.StartContainerAsync(server.ContainerId, cancellationToken);
+            await activity.LogAsync("server.restart", server.ContainerName ?? server.DisplayName, server.Id, server.ServerType, null, cancellationToken);
             return Unit.Value;
         }
     }

@@ -67,6 +67,21 @@ namespace CommandBlock.API.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
+        [HttpPost("{id:guid}/restart")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Restart(Guid id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await mediator.Send(new RestartServerCommand(id), cancellationToken);
+                return NoContent();
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
         [HttpDelete("{id:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
