@@ -6,6 +6,7 @@ api.module.ts
 api/activity.service.ts
 api/api.ts
 api/app.service.ts
+api/files.service.ts
 api/modpacks.service.ts
 api/server.service.ts
 configuration.ts
@@ -18,12 +19,17 @@ model/appDto.ts
 model/backupEntryDto.ts
 model/backupEntryDtoSizeBytes.ts
 model/createServerDto.ts
+model/fileContent.ts
+model/fileEntry.ts
 model/models.ts
 model/modpackSearchResult.ts
+model/pathDto.ts
 model/problemDetails.ts
 model/problemDetailsStatus.ts
+model/renameFileDto.ts
 model/serverInstanceDto.ts
 model/serverInstanceDtoPort.ts
+model/writeFileDto.ts
 param.ts
 provide-api.ts
 query.params.ts

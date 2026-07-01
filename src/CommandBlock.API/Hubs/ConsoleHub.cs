@@ -37,7 +37,9 @@ namespace CommandBlock.API.Hubs
             var docker = dockerResolver.Resolve(server.NodeId);
             try
             {
-                var output = await docker.ExecCaptureAsync(server.ContainerId, new[] { "rcon-cli", command.Trim() });
+                // "--" stops rcon-cli's own flag parsing so a command starting with "-" can't be
+                // smuggled in as a CLI flag; it's always treated as the positional MC command.
+                var output = await docker.ExecCaptureAsync(server.ContainerId, new[] { "rcon-cli", "--", command.Trim() });
                 return Encoding.UTF8.GetString(output);
             }
             catch (Exception ex)

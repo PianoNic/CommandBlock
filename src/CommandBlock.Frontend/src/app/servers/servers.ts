@@ -10,6 +10,7 @@ import {
   lucideTrash2,
   lucideArchive,
   lucideTerminal,
+  lucideFolder,
 } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -42,6 +43,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideTrash2,
       lucideArchive,
       lucideTerminal,
+      lucideFolder,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,

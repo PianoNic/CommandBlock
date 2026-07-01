@@ -99,6 +99,7 @@ overflow: hidden;
    down so flex-1 sections claim the full viewport. */
 app-servers,
 app-console,
+app-files,
 app-activity {
 display: flex;
 flex-direction: column;

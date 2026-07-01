@@ -50,6 +50,9 @@ builder.Services.AddHttpClient<IModrinthClient, CommandBlock.Infrastructure.Serv
 // Single-host: every Docker operation runs against the local daemon.
 builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
 
+// Server file browser/editor (Docker copy + exec under each server's /data).
+builder.Services.AddScoped<IServerFilesService, CommandBlock.Infrastructure.Services.ServerFilesService>();
+
 // Minecraft hostname router: one public TCP port fronting every provisioned server, routed by the
 // address in the client handshake. The resolver is scoped (touches the DbContext); the listener is
 // a singleton hosted service that opens a scope per connection.
