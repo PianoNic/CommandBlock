@@ -8,12 +8,8 @@ namespace CommandBlock.Infrastructure
     public class CommandBlockDbContext(DbContextOptions<CommandBlockDbContext> options) : DbContext(options)
     {
         public DbSet<Secret> Secrets => Set<Secret>();
-        public DbSet<DatabaseInstance> DatabaseInstances => Set<DatabaseInstance>();
         public DbSet<ServerInstance> ServerInstances => Set<ServerInstance>();
         public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
-        public DbSet<BackupEntry> BackupEntries => Set<BackupEntry>();
-        public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
-        public DbSet<Node> Nodes => Set<Node>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -20,7 +20,6 @@ namespace CommandBlock.Infrastructure.Extensions
             });
 
             services.AddScoped<IDockerService, DockerService>();
-            services.AddSingleton<IContainerExecRegistry, ContainerExecRegistry>();
 
             return services;
         }

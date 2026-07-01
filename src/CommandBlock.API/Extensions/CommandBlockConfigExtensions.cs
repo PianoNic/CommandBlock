@@ -24,7 +24,6 @@ public static class CommandBlockConfigExtensions
             Console.Error.WriteLine($"[CommandBlock] No {FileName} found (set {EnvVar} or place {FileName} at the content root). Starting with defaults.");
             var defaults = new CommandBlockOptions();
             services.AddSingleton<IOptions<CommandBlockOptions>>(Options.Create(defaults));
-            services.AddSingleton<IInstancesConfigLoader>(_ => new InstancesConfigLoader(env.ContentRootPath, defaults.InstancesFile));
             return services;
         }
 
@@ -39,10 +38,6 @@ public static class CommandBlockConfigExtensions
 
         var options = root.CommandBlock ?? new CommandBlockOptions();
         services.AddSingleton<IOptions<CommandBlockOptions>>(Options.Create(options));
-
-        // Remember where commandblock.yaml lives so InstancesFile (when relative) resolves against it.
-        var configDir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? env.ContentRootPath;
-        services.AddSingleton<IInstancesConfigLoader>(_ => new InstancesConfigLoader(configDir, options.InstancesFile));
         return services;
     }
 
