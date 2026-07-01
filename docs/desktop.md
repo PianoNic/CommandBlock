@@ -16,7 +16,7 @@ frontend build, no API changes.
 
 On launch the desktop shell (`src-tauri/src/lib.rs`):
 
-1. Creates an app-data dir and a stable `vault.key` (AES-256, generated once, reused).
+1. Creates an app-data dir for the SQLite database and server data.
 2. Starts a tiny **in-process OIDC issuer** (`src-tauri/src/oidc.rs`) that auto-issues tokens
    (no login screen) - zero-config local sign-in, no Docker or Java needed.
 3. Spawns `CommandBlock.API` as a **sidecar** with `Database__Provider=Sqlite` and the SQLite file in
