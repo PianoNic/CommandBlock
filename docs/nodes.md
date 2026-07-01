@@ -6,7 +6,7 @@ A **node** runs database containers on a remote host. Provision a database onto 
 Nodes are experimental.
 :::
 
-A node is the *same* KRINT image started in a stripped role. It dials **out** to the control plane (so it works behind NAT and firewalls) and authenticates with a pre-shared token. The control plane keeps all state; the node holds nothing - it just runs the commands it's sent against its own loopback and returns the result.
+A node is the *same* CommandBlock image started in a stripped role. It dials **out** to the control plane (so it works behind NAT and firewalls) and authenticates with a pre-shared token. The control plane keeps all state; the node holds nothing - it just runs the commands it's sent against its own loopback and returns the result.
 
 Connecting a node has 3 steps:
 
@@ -16,8 +16,8 @@ Connecting a node has 3 steps:
 
 ## How it works
 
-- **Control plane** (default role): the full KRINT app - UI, API, database, vault. It exposes the node hub at `/hubs/node` and authorizes nodes by their token.
-- **Node** (`Krint__Role=node`): no UI, no app database, no auth. It bundles the Docker client and the database drivers, connects to the control plane, registers (name, machine, OS, Docker version), and stays connected - executing container lifecycle, queries, dumps/restores, log follows, and interactive shells against its own daemon. Only a `/health` endpoint is served.
+- **Control plane** (default role): the full CommandBlock app - UI, API, database, vault. It exposes the node hub at `/hubs/node` and authorizes nodes by their token.
+- **Node** (`CommandBlock__Role=node`): no UI, no app database, no auth. It bundles the Docker client and the database drivers, connects to the control plane, registers (name, machine, OS, Docker version), and stays connected - executing container lifecycle, queries, dumps/restores, log follows, and interactive shells against its own daemon. Only a `/health` endpoint is served.
 
 A connected node appears on the control plane's **Nodes** page, where you can see its details and **Ping** it to confirm the channel is live. The node pings back every 5 seconds to keep its *last seen* current.
 
@@ -26,16 +26,16 @@ A connected node appears on the control plane's **Nodes** page, where you can se
 Set the public URL this control plane is served on in your **env file** so the Add-node compose is filled in automatically:
 
 ```env
-Krint__PublicUrl=https://krint.example.com
+CommandBlock__PublicUrl=https://commandblock.example.com
 ```
 
 ::: info
-If `Krint__PublicUrl` is unset, the Add-node modal still works but uses a placeholder URL you'll need to edit by hand.
+If `CommandBlock__PublicUrl` is unset, the Add-node modal still works but uses a placeholder URL you'll need to edit by hand.
 :::
 
 ## Add a node
 
-On the **Nodes** page, press **Add node**. KRINT generates a token and a ready-to-deploy compose with the control-plane URL baked in.
+On the **Nodes** page, press **Add node**. CommandBlock generates a token and a ready-to-deploy compose with the control-plane URL baked in.
 
 1. Edit the node name if you like (optional).
 2. Copy the compose.
@@ -50,10 +50,10 @@ The node's identity is derived from its token, so the generated compose needs no
 
 ## Declare nodes in config
 
-Nodes can also be declared up front in `krint.yaml`, just like instances - each is a name and a secret. On startup KRINT ensures a matching node exists (the secret is stored hashed):
+Nodes can also be declared up front in `commandblock.yaml`, just like instances - each is a name and a secret. On startup CommandBlock ensures a matching node exists (the secret is stored hashed):
 
 ```yaml
-krint:
+commandblock:
   nodes:
     - name: node-eu-1
       secret: a-long-random-shared-secret
@@ -69,20 +69,20 @@ Set these on the node process (environment variables; `__` maps to nested config
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `Krint__Role` | Set to `node` to boot in node role. | `control plane` |
-| `Node__ControlPlaneUrl` | Base URL of the control plane, e.g. `https://krint.example.com`. | — |
-| `Node__Token` | The token from the Add-node modal, or the secret you declared in `krint.yaml`. | — |
+| `CommandBlock__Role` | Set to `node` to boot in node role. | `control plane` |
+| `Node__ControlPlaneUrl` | Base URL of the control plane, e.g. `https://commandblock.example.com`. | — |
+| `Node__Token` | The token from the Add-node modal, or the secret you declared in `commandblock.yaml`. | — |
 | `Node__Name` | Display name. Ignored if the node was named in the UI or config. | machine name |
 
 ```yaml
 services:
-  krint-node:
-    image: ghcr.io/pianonic/krint:latest   # or pianonic/krint:latest (Docker Hub)
-    container_name: krint-node
+  commandblock-node:
+    image: ghcr.io/pianonic/commandblock:latest   # or pianonic/commandblock:latest (Docker Hub)
+    container_name: commandblock-node
     restart: unless-stopped
     environment:
-      Krint__Role: "node"
-      Node__ControlPlaneUrl: "https://krint.example.com"
+      CommandBlock__Role: "node"
+      Node__ControlPlaneUrl: "https://commandblock.example.com"
       Node__Token: "a-long-random-shared-secret"
       Node__Name: "node-eu-1"
     volumes:

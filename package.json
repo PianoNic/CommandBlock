@@ -1,8 +1,8 @@
 {
-  "name": "krint-desktop",
+  "name": "commandblock-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Tauri desktop shell for KRINT (wraps KRINT.API as a sidecar).",
+  "description": "Tauri desktop shell for CommandBlock (wraps CommandBlock.API as a sidecar).",
   "scripts": {
     "publish:sidecar": "node scripts/publish-sidecar.mjs",
     "tauri": "tauri",

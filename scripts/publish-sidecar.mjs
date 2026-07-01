@@ -1,4 +1,4 @@
-// Publishes KRINT.API as a self-contained single-file executable and drops it into
+// Publishes CommandBlock.API as a self-contained single-file executable and drops it into
 // src-tauri/binaries/ with the Tauri target-triple suffix that `externalBin` expects.
 //
 // Run automatically by Tauri's `beforeBuildCommand`, or manually:
@@ -19,7 +19,7 @@ const repoRoot = resolve(__dirname, '..');
 // The desktop sidecar serves the SPA itself (Production MapFallbackToFile), but a single-file
 // publish can't embed the loose static files - so we bundle them as a Tauri resource and point
 // the API's content root at it (see src-tauri/src/lib.rs).
-const frontendDir = join(repoRoot, 'src', 'KRINT.Frontend');
+const frontendDir = join(repoRoot, 'src', 'CommandBlock.Frontend');
 const frontendBuild = join(repoRoot, 'src-tauri', 'binaries', 'frontend-build');
 const wwwroot = join(repoRoot, 'src-tauri', 'resources', 'wwwroot');
 
@@ -32,7 +32,7 @@ mkdirSync(wwwroot, { recursive: true });
 cpSync(join(frontendBuild, 'browser'), wwwroot, { recursive: true });
 console.log(`[publish-sidecar] SPA -> ${wwwroot}`);
 
-// ---- 2. Publish KRINT.API as a self-contained single-file sidecar -----------------------
+// ---- 2. Publish CommandBlock.API as a self-contained single-file sidecar -----------------------
 
 // Tauri target triple (what externalBin appends). e.g. x86_64-pc-windows-msvc
 const triple = execSync('rustc --print host-tuple').toString().trim();
@@ -53,7 +53,7 @@ if (!rid) {
   throw new Error(`No .NET RID mapping for target triple "${triple}". Set RID=<rid> to override.`);
 }
 
-const project = join(repoRoot, 'src', 'KRINT.API', 'KRINT.API.csproj');
+const project = join(repoRoot, 'src', 'CommandBlock.API', 'CommandBlock.API.csproj');
 const publishDir = join(repoRoot, 'src-tauri', 'binaries', `publish-${rid}`);
 const binariesDir = join(repoRoot, 'src-tauri', 'binaries');
 mkdirSync(binariesDir, { recursive: true });
@@ -67,11 +67,11 @@ execSync(
   { stdio: 'inherit' },
 );
 
-const built = join(publishDir, `KRINT.API${ext}`);
+const built = join(publishDir, `CommandBlock.API${ext}`);
 if (!existsSync(built)) {
   throw new Error(`Expected published binary not found: ${built}`);
 }
 
-const target = join(binariesDir, `krint-api-${triple}${ext}`);
+const target = join(binariesDir, `commandblock-api-${triple}${ext}`);
 copyFileSync(built, target);
 console.log(`[publish-sidecar] -> ${target}`);

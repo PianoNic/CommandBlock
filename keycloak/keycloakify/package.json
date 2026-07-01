@@ -1,7 +1,7 @@
 {
-    "name": "krint-keycloak-theme",
+    "name": "commandblock-keycloak-theme",
     "version": "0.1.0",
-    "description": "KRINT custom Keycloak theme (Keycloakify 11)",
+    "description": "CommandBlock custom Keycloak theme (Keycloakify 11)",
     "type": "module",
     "scripts": {
         "dev": "vite",

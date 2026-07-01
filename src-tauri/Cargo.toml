@@ -1,20 +1,20 @@
 [package]
-name = "krint-desktop"
+name = "commandblock-desktop"
 version = "2.3.0"
-description = "KRINT desktop app"
-authors = ["KRINT"]
+description = "CommandBlock desktop app"
+authors = ["CommandBlock"]
 edition = "2021"
 
 # The library is what Tauri (and the mobile entry points, if ever added) link against.
 [lib]
-name = "krint_desktop_lib"
+name = "commandblock_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 # "portable": embed the API sidecar + resources into the exe and self-extract on launch, for a
-# single no-install KRINT.exe. Off by default (the installer build uses Tauri's normal sidecar).
+# single no-install CommandBlock.exe. Off by default (the installer build uses Tauri's normal sidecar).
 [features]
 portable = ["dep:include_dir"]
 

@@ -1,10 +1,10 @@
-// KRINT desktop shell.
+// CommandBlock desktop shell.
 //
-// The desktop app is a thin Tauri window around the same `KRINT.API` binary the Docker
+// The desktop app is a thin Tauri window around the same `CommandBlock.API` binary the Docker
 // image runs. On startup we:
 //   1. ensure a stable vault key + SQLite path under the OS app-data dir,
 //   2. start a tiny in-process OIDC issuer (zero-config local sign-in, no Docker/Java),
-//   3. spawn `KRINT.API` as a sidecar configured for SQLite,
+//   3. spawn `CommandBlock.API` as a sidecar configured for SQLite,
 //   4. wait until the API port accepts connections, then point the window at it.
 //
 // The API serves the SPA + OIDC config itself (Production `MapFallbackToFile`), so the
@@ -22,7 +22,7 @@ use tauri_plugin_shell::ShellExt;
 
 // The single OIDC client id. Ports are chosen at runtime (see free_port) so two instances —
 // or anything already bound to a fixed port — can't collide.
-const CLIENT_ID: &str = "krint";
+const CLIENT_ID: &str = "commandblock";
 
 // Lock the webview down to a native-app feel: no right-click context menu and no devtools
 // keyboard shortcuts. Devtools are already off (no `devtools` Cargo feature); this also blocks
@@ -62,7 +62,7 @@ pub fn run() {
                 .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout))
                 .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview))
                 .target(tauri_plugin_log::Target::new(
-                    tauri_plugin_log::TargetKind::LogDir { file_name: Some("krint".into()) },
+                    tauri_plugin_log::TargetKind::LogDir { file_name: Some("commandblock".into()) },
                 ))
                 .build(),
         )
@@ -88,7 +88,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building KRINT desktop app")
+        .expect("error while building CommandBlock desktop app")
         .run(|app, event| {
             // Tear the API sidecar down when the app exits. The OIDC issuer is in-process
             // and stops automatically with the app.
@@ -120,7 +120,7 @@ async fn check_for_updates(app: tauri::AppHandle) {
             let accepted = app
                 .dialog()
                 .message(format!(
-                    "KRINT {} is available. Install it now? The app will restart.",
+                    "CommandBlock {} is available. Install it now? The app will restart.",
                     update.version
                 ))
                 .title("Update available")
@@ -151,7 +151,7 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
     let data_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&data_dir)?;
 
-    let db_path = data_dir.join("krint.db");
+    let db_path = data_dir.join("commandblock.db");
     let vault_key = load_or_create_vault_key(&data_dir)?;
 
     // Pick free ports up front so nothing collides with a port already in use.
@@ -165,18 +165,18 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
     start_oidc(authority.clone(), oidc_port);
     let urls = format!("http://127.0.0.1:{api_port}");
     let conn = format!("Data Source={}", db_path.to_string_lossy());
-    // Where the API binary + its resources (krint.yaml + the SPA's wwwroot) come from: Tauri's
+    // Where the API binary + its resources (commandblock.yaml + the SPA's wwwroot) come from: Tauri's
     // bundled sidecar/resources for the installer build, or a self-extracted copy for the single
     // portable exe. WebRoot defaults to {ContentRoot}/wwwroot, so content_root points at resources/.
-    let (program, content_root, krint_yaml) = resolve_runtime(app, &data_dir)?;
+    let (program, content_root, commandblock_yaml) = resolve_runtime(app, &data_dir)?;
 
     let sidecar = program
         .env("ASPNETCORE_ENVIRONMENT", "Production")
         .env("ASPNETCORE_URLS", &urls)
         .env("ASPNETCORE_CONTENTROOT", content_root.to_string_lossy().to_string())
         .env("Database__Provider", "Sqlite")
-        .env("ConnectionStrings__KrintDatabase", &conn)
-        .env("KRINT_CONFIG", krint_yaml.to_string_lossy().to_string())
+        .env("ConnectionStrings__CommandBlockDatabase", &conn)
+        .env("CommandBlock_CONFIG", commandblock_yaml.to_string_lossy().to_string())
         .env("Vault__MasterKey", vault_key)
         .env("Oidc__Authority", &authority)
         .env("Oidc__InternalAuthority", &authority)
@@ -199,7 +199,7 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(bytes) | CommandEvent::Stderr(bytes) => {
-                    log::info!(target: "krint-api", "{}", String::from_utf8_lossy(&bytes).trim_end());
+                    log::info!(target: "commandblock-api", "{}", String::from_utf8_lossy(&bytes).trim_end());
                 }
                 CommandEvent::Terminated(payload) => {
                     // The backend is the whole app — if it exits, there's nothing to show, so
@@ -233,7 +233,7 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
         if let Some(window) = handle.get_webview_window("main") {
             let _ = window.eval(
                 "document.querySelector('.muted')?.replaceChildren(\
-                 document.createTextNode('Backend did not start. Check that Docker is running, then reopen KRINT.'));",
+                 document.createTextNode('Backend did not start. Check that Docker is running, then reopen CommandBlock.'));",
             );
         }
         log::error!("API did not become ready within timeout");
@@ -242,11 +242,11 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-/// Resolve the API program to spawn plus its content root and krint.yaml path.
+/// Resolve the API program to spawn plus its content root and commandblock.yaml path.
 ///
 /// Installer build: Tauri's bundled sidecar + `resources/` (resolved from the bundle).
 /// Portable build (`portable` feature): the sidecar + resources are embedded in this exe and
-/// self-extracted once into the app-data dir, so a single KRINT.exe runs with no install.
+/// self-extracted once into the app-data dir, so a single CommandBlock.exe runs with no install.
 #[cfg(not(feature = "portable"))]
 fn resolve_runtime(
     app: &tauri::AppHandle,
@@ -255,10 +255,10 @@ fn resolve_runtime(
     let content_root = app
         .path()
         .resolve("resources", tauri::path::BaseDirectory::Resource)?;
-    let krint_yaml = app
+    let commandblock_yaml = app
         .path()
-        .resolve("resources/krint.yaml", tauri::path::BaseDirectory::Resource)?;
-    Ok((app.shell().sidecar("krint-api")?, content_root, krint_yaml))
+        .resolve("resources/commandblock.yaml", tauri::path::BaseDirectory::Resource)?;
+    Ok((app.shell().sidecar("commandblock-api")?, content_root, commandblock_yaml))
 }
 
 #[cfg(feature = "portable")]
@@ -269,9 +269,9 @@ fn resolve_runtime(
     let runtime = extract_payload(data_dir)?;
     let program = app
         .shell()
-        .command(runtime.join("krint-api.exe").to_string_lossy().to_string());
-    let krint_yaml = runtime.join("krint.yaml");
-    Ok((program, runtime, krint_yaml))
+        .command(runtime.join("commandblock-api.exe").to_string_lossy().to_string());
+    let commandblock_yaml = runtime.join("commandblock.yaml");
+    Ok((program, runtime, commandblock_yaml))
 }
 
 /// Self-extract the embedded API sidecar + resources into `{app_data}/runtime-{version}/` once.
@@ -282,11 +282,11 @@ fn extract_payload(data_dir: &std::path::Path) -> Result<PathBuf, Box<dyn std::e
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/resources");
     const SIDECAR: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/binaries/krint-api-x86_64-pc-windows-msvc.exe"
+        "/binaries/commandblock-api-x86_64-pc-windows-msvc.exe"
     ));
 
     let runtime = data_dir.join(concat!("runtime-", env!("CARGO_PKG_VERSION")));
-    let sidecar_exe = runtime.join("krint-api.exe");
+    let sidecar_exe = runtime.join("commandblock-api.exe");
     // The sidecar is written last, so its presence means a previous extraction completed.
     if !sidecar_exe.exists() {
         std::fs::create_dir_all(&runtime)?;

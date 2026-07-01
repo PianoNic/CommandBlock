@@ -1,0 +1,34 @@
+using Mediator;
+using Microsoft.EntityFrameworkCore;
+using CommandBlock.Infrastructure;
+using CommandBlock.Infrastructure.Interfaces;
+
+namespace CommandBlock.Application.Command.DatabaseInstance
+{
+    public record StopInstanceCommand(Guid InstanceId) : ICommand;
+
+    /// <summary>
+    /// Halts the container behind a managed (or Docker-adopted) instance. The Docker daemon
+    /// runs `docker stop` which sends SIGTERM, waits, then SIGKILL if needed. Data volume is
+    /// preserved; the row stays. Externals without a containerId are rejected because there's
+    /// nothing for CommandBlock to stop.
+    /// </summary>
+    public class StopInstanceCommandHandler(CommandBlockDbContext db, IDockerServiceResolver dockerResolver, IActivityLogger activity, ConfigManagedGuard guard)
+        : ICommandHandler<StopInstanceCommand>
+    {
+        public async ValueTask<Unit> Handle(StopInstanceCommand command, CancellationToken cancellationToken)
+        {
+            var instance = await db.DatabaseInstances.FirstOrDefaultAsync(d => d.Id == command.InstanceId, cancellationToken)
+                ?? throw new InstanceNotFoundException(command.InstanceId);
+            guard.EnsureMutable(instance);
+
+            if (instance.ContainerId is null)
+                throw new InvalidOperationException("This instance has no Docker container - nothing to stop.");
+
+            await dockerResolver.Resolve(instance.NodeId).StopContainerAsync(instance.ContainerId, cancellationToken);
+
+            await activity.LogAsync("instance.stop", instance.ContainerName ?? instance.DisplayName, instance.Id, instance.Engine, null, cancellationToken);
+            return Unit.Value;
+        }
+    }
+}

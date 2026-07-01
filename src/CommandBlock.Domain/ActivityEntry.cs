@@ -1,0 +1,14 @@
+namespace CommandBlock.Domain
+{
+    public class ActivityEntry : BaseEntity
+    {
+        public required string Action { get; init; }
+        public required string Target { get; init; }
+        public Guid? InstanceId { get; init; }
+        public string? Engine { get; init; }
+        public string? Details { get; init; }
+        /// <summary>The Keycloak preferred_username (or email) of the user who triggered the
+        /// action. Null for background jobs (scheduler / hosted services).</summary>
+        public string? ActorName { get; init; }
+    }
+}

@@ -7,14 +7,14 @@
       "requestMappings": [
         {
           "requestParam": "client_id",
-          "match": "krint",
+          "match": "commandblock",
           "claims": {
-            "sub": "krint-admin",
+            "sub": "commandblock-admin",
             "name": "Demo Admin",
             "given_name": "Demo",
             "family_name": "Admin",
             "preferred_username": "admin",
-            "email": "admin@krint.local",
+            "email": "admin@commandblock.local",
             "email_verified": true,
             "roles": ["admin"]
           }

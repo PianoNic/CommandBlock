@@ -33,8 +33,8 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tower_http::cors::{Any, CorsLayer};
 
-const KID: &str = "krint-local";
-const SUBJECT: &str = "krint-local-user";
+const KID: &str = "commandblock-local";
+const SUBJECT: &str = "commandblock-local-user";
 // Deterministic DiceBear avatar (always the same image) for the single local desktop user.
 const AVATAR_URL: &str = "https://api.dicebear.com/10.x/notionists-neutral/svg?seed=Hutch79";
 
@@ -79,7 +79,7 @@ struct AppState {
 }
 
 /// The single local user takes its name from the OS account, so the app greets the actual
-/// person instead of a generic "KRINT Local". Returns (display name, username).
+/// person instead of a generic "CommandBlock Local". Returns (display name, username).
 fn local_identity() -> (String, String) {
     let username = std::env::var("USERNAME")
         .or_else(|_| std::env::var("USER"))
@@ -304,7 +304,7 @@ mod tests {
         let keys = Keys::generate().unwrap();
         let state = AppState {
             issuer: "http://localhost:18080".into(),
-            client_id: "krint".into(),
+            client_id: "commandblock".into(),
             keys: Arc::new(keys),
             display_name: "Test User".into(),
             username: "test".into(),

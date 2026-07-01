@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "krint-desktop",
+      "name": "commandblock-desktop",
       "devDependencies": {
         "@tauri-apps/cli": "^2",
       },

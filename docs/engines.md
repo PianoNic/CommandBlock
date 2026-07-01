@@ -1,6 +1,6 @@
 # Supported engines
 
-KRINT supports 16 engines. **Every** engine lets you browse data and use the container console (live
+CommandBlock supports 16 engines. **Every** engine lets you browse data and use the container console (live
 logs + an interactive shell). The table below shows the capabilities that differ between engines.
 
 | Engine | Edit rows | Multiple DBs | Users & grants | Backups | Plugins |

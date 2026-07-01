@@ -10,9 +10,9 @@
 
 import { lazy, Suspense, type ReactNode } from "react";
 
-export type ThemeName = "krint";
+export type ThemeName = "commandblock";
 
-export const themeNames: ThemeName[] = ["krint"];
+export const themeNames: ThemeName[] = ["commandblock"];
 
 export type KcEnvName = never;
 

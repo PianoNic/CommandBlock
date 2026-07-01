@@ -1,4 +1,4 @@
-# KRINT Claude workflow rules
+# CommandBlock Claude workflow rules
 
 Never push to `main`. Every change goes:
 
@@ -9,7 +9,7 @@ Never push to `main`. Every change goes:
 
 ## Branch naming
 
-- ✅ `feature/12_DropKrintAcronym`
+- ✅ `feature/12_DropCommandBlockAcronym`
 - ✅ `fix/8_DockerSocketPermission`
 
 ## PR body
@@ -42,4 +42,4 @@ No `Co-Authored-By:` trailers.
 
 ## Labels
 
-Pick from `gh label list`. KRINT's active set: `feature`, `enhancement`, `bug`, `refactor`, `documentation`, `CI/CD`. Multiple: `--label feature,documentation`.
+Pick from `gh label list`. CommandBlock's active set: `feature`, `enhancement`, `bug`, `refactor`, `documentation`, `CI/CD`. Multiple: `--label feature,documentation`.

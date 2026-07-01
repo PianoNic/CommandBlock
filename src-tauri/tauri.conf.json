@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "KRINT",
+  "productName": "CommandBlock",
   "version": "2.3.0",
-  "identifier": "app.krint.desktop",
+  "identifier": "app.commandblock.desktop",
   "build": {
     "beforeBuildCommand": "node scripts/publish-sidecar.mjs",
     "frontendDist": "loading"
@@ -10,7 +10,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/PianoNic/KRINT/releases/latest/download/latest.json"
+        "https://github.com/PianoNic/CommandBlock/releases/latest/download/latest.json"
       ],
       "pubkey": "REPLACE_WITH_OUTPUT_OF__npx_tauri_signer_generate"
     }
@@ -19,7 +19,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "KRINT",
+        "title": "CommandBlock",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
@@ -42,7 +42,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/krint-api"],
-    "resources": ["resources/krint.yaml", "resources/wwwroot/**/*"]
+    "externalBin": ["binaries/commandblock-api"],
+    "resources": ["resources/commandblock.yaml", "resources/wwwroot/**/*"]
   }
 }

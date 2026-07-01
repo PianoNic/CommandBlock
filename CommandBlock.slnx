@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/CommandBlock.API/CommandBlock.API.csproj" />
+  <Project Path="src/CommandBlock.Application/CommandBlock.Application.csproj" />
+  <Project Path="src/CommandBlock.Domain/CommandBlock.Domain.csproj" />
+  <Project Path="src/CommandBlock.Infrastructure/CommandBlock.Infrastructure.csproj" />
+  <Project Path="src/CommandBlock.Infrastructure.Migrations.Sqlite/CommandBlock.Infrastructure.Migrations.Sqlite.csproj" />
+  <Project Path="src/CommandBlock.Tests/CommandBlock.Tests.csproj" />
+</Solution>

@@ -1,0 +1,34 @@
+using Mediator;
+using CommandBlock.Application.Dtos.InnerUser;
+using CommandBlock.Infrastructure;
+using CommandBlock.Infrastructure.Extensions;
+using CommandBlock.Infrastructure.Interfaces;
+using CommandBlock.Infrastructure.Services;
+
+namespace CommandBlock.Application.Command.InnerUser
+{
+    public record ResetInnerUserPasswordCommand(Guid InstanceId, string Name, string? Password = null) : ICommand<InnerUserPasswordDto>;
+
+    public class ResetInnerUserPasswordCommandHandler(CommandBlockDbContext db, ISecretsVaultService vault, IInnerUserServiceResolver resolver, ISecretGeneratorService secretGenerator, ConfigManagedGuard guard) : ICommandHandler<ResetInnerUserPasswordCommand, InnerUserPasswordDto>
+    {
+        public async ValueTask<InnerUserPasswordDto> Handle(ResetInnerUserPasswordCommand command, CancellationToken cancellationToken)
+        {
+            await guard.EnsureMutableAsync(db, command.InstanceId, cancellationToken);
+            var target = await InnerDatabaseTargetLoader.LoadAsync(db, vault, command.InstanceId, cancellationToken);
+
+            string password;
+            if (!string.IsNullOrEmpty(command.Password))
+            {
+                SafePasswordGuard.Require(command.Password);
+                password = command.Password;
+            }
+            else
+            {
+                password = secretGenerator.Generate();
+            }
+
+            await resolver.Resolve(target.Engine).ResetPasswordAsync(target, command.Name, password, cancellationToken);
+            return new InnerUserPasswordDto { Name = command.Name, Password = password };
+        }
+    }
+}

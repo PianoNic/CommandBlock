@@ -10,7 +10,7 @@ export default defineConfig({
         react(),
         tailwindcss(),
         keycloakify({
-            themeName: "krint",
+            themeName: "commandblock",
             accountThemeImplementation: "none"
         })
     ],

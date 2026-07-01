@@ -1,24 +1,24 @@
 <p align="center">
-  <img src="assets/krint-icon.svg" width="180" alt="KRINT Logo" />
+  <img src="assets/commandblock-icon.svg" width="180" alt="CommandBlock Logo" />
 </p>
 <p align="center">
-  <strong>KRINT</strong><br/>
+  <strong>CommandBlock</strong><br/>
   One click. One key. Your database is ready.
 </p>
 <p align="center">
-  <a href="https://github.com/PianoNic/KRINT"><img src="https://badgetrack.pianonic.ch/badge?tag=krint&label=visits&color=0d1117&style=flat" alt="visits" /></a>
-  <a href="https://docs.krint.pianonic.ch/self-host"><img src="https://img.shields.io/badge/Self--Host-Instructions-0d1117.svg" alt="Self-hosting" /></a>
+  <a href="https://github.com/PianoNic/CommandBlock"><img src="https://badgetrack.pianonic.ch/badge?tag=commandblock&label=visits&color=0d1117&style=flat" alt="visits" /></a>
+  <a href="https://docs.commandblock.pianonic.ch/self-host"><img src="https://img.shields.io/badge/Self--Host-Instructions-0d1117.svg" alt="Self-hosting" /></a>
   <img src="https://img.shields.io/badge/.NET-10-0d1117.svg" alt=".NET 10" />
   <img src="https://img.shields.io/badge/Angular-21-0d1117.svg" alt="Angular 21" />
 </p>
 
 ---
 
-> **Heads up:** KRINT is in early development. Expect rough edges and breaking changes between versions.
+> **Heads up:** CommandBlock is in early development. Expect rough edges and breaking changes between versions.
 
-## What is KRINT?
+## What is CommandBlock?
 
-KRINT is a self-hosted database-provisioning platform. Pick an engine, click Launch, and you get a containerised instance with credentials, a host port, and a connection string in hand. Then browse rows, run queries, manage users, and schedule backups - all from one UI.
+CommandBlock is a self-hosted database-provisioning platform. Pick an engine, click Launch, and you get a containerised instance with credentials, a host port, and a connection string in hand. Then browse rows, run queries, manage users, and schedule backups - all from one UI.
 
 ## Screenshots
 
@@ -67,7 +67,7 @@ KRINT is a self-hosted database-provisioning platform. Pick an engine, click Lau
 
 ## Features
 
-- **[16 engines](https://docs.krint.pianonic.ch/engines)** + opt-in plugins (pgvector, PostGIS, Redis Stack, APOC, and more).
+- **[16 engines](https://docs.commandblock.pianonic.ch/engines)** + opt-in plugins (pgvector, PostGIS, Redis Stack, APOC, and more).
 - **Browse & query**: in-cell row editing and an ad-hoc SQL console.
 - **Container console**: live log tailing and an interactive shell, in the browser.
 - **Backups**: manual, scheduled, or upload your own; restore or upgrade in place.
@@ -77,10 +77,10 @@ KRINT is a self-hosted database-provisioning platform. Pick an engine, click Lau
 
 ## Get started
 
-- 📦 **[Self-hosting guide](https://docs.krint.pianonic.ch/self-host)** - run the image with `docker compose`.
-- 🛠️ **[Developer setup](https://docs.krint.pianonic.ch/dev-setup)** - local dev with `dotnet run` + Bun, migrations, tests.
+- 📦 **[Self-hosting guide](https://docs.commandblock.pianonic.ch/self-host)** - run the image with `docker compose`.
+- 🛠️ **[Developer setup](https://docs.commandblock.pianonic.ch/dev-setup)** - local dev with `dotnet run` + Bun, migrations, tests.
 
-Full documentation: **[docs.krint.pianonic.ch](https://docs.krint.pianonic.ch)**
+Full documentation: **[docs.commandblock.pianonic.ch](https://docs.commandblock.pianonic.ch)**
 
 <details>
 <summary><strong>Tech stack</strong></summary>

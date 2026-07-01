@@ -15,7 +15,7 @@ import companylogo from "./../../assets/img/auth-logo.svg";
 import shape from "./../../assets/img/shape.svg";
 import { useInitializeTemplate } from "./useInitializeTemplate";
 
-const APP_NAME = "KRINT";
+const APP_NAME = "CommandBlock";
 
 export function Template(props: {
     displayInfo?: boolean;

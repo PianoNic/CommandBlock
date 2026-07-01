@@ -1,6 +1,6 @@
-# KRINT desktop app
+# CommandBlock desktop app
 
-KRINT ships two ways from one codebase:
+CommandBlock ships two ways from one codebase:
 
 | Distribution | Database | Auth | Use case |
 | ------------ | -------- | ---- | -------- |
@@ -8,7 +8,7 @@ KRINT ships two ways from one codebase:
 | **Desktop app** (this doc) | SQLite | bundled mock OIDC | Single user on their own machine |
 
 The desktop build is a [Tauri v2](https://v2.tauri.app) window wrapped around the **same
-`KRINT.API` binary** the Docker image runs. The API serves the SPA + its OIDC config itself
+`CommandBlock.API` binary** the Docker image runs. The API serves the SPA + its OIDC config itself
 (Production `MapFallbackToFile`), so the webview just points at the local backend - no separate
 frontend build, no API changes.
 
@@ -19,7 +19,7 @@ On launch the desktop shell (`src-tauri/src/lib.rs`):
 1. Creates an app-data dir and a stable `vault.key` (AES-256, generated once, reused).
 2. Starts a tiny **in-process OIDC issuer** (`src-tauri/src/oidc.rs`) that auto-issues tokens
    (no login screen) - zero-config local sign-in, no Docker or Java needed.
-3. Spawns `KRINT.API` as a **sidecar** with `Database__Provider=Sqlite` and the SQLite file in
+3. Spawns `CommandBlock.API` as a **sidecar** with `Database__Provider=Sqlite` and the SQLite file in
    the app-data dir.
 4. Waits for the API to log `Application started`, then navigates the window to
    `http://127.0.0.1:5111/`.
@@ -27,7 +27,7 @@ On launch the desktop shell (`src-tauri/src/lib.rs`):
 
 ### Why Docker is still required
 
-KRINT provisions database instances as **sibling Docker containers**, so the desktop app - like
+CommandBlock provisions database instances as **sibling Docker containers**, so the desktop app - like
 the server - needs a Docker engine (Docker Desktop on Windows/macOS) running on the host. Auth,
 however, no longer needs Docker: it's the in-process issuer above.
 
@@ -47,7 +47,7 @@ bun install
 
 ## Build & run
 
-The sidecar (`KRINT.API`) is published self-contained and copied into `src-tauri/binaries/` with
+The sidecar (`CommandBlock.API`) is published self-contained and copied into `src-tauri/binaries/` with
 the target-triple suffix Tauri expects. This runs automatically via `beforeBuildCommand`, or
 manually:
 
@@ -67,16 +67,16 @@ bun run desktop:build            # installers under src-tauri/target/release/bun
 ### Portable single exe (Windows)
 
 For a no-install build, compile with the `portable` Cargo feature. It embeds the API sidecar +
-resources into `krint-desktop.exe` and self-extracts them to
-`%APPDATA%/app.krint.desktop/runtime-<version>/` on first launch - one ~150 MB double-clickable file:
+resources into `commandblock-desktop.exe` and self-extracts them to
+`%APPDATA%/app.commandblock.desktop/runtime-<version>/` on first launch - one ~150 MB double-clickable file:
 
 ```bash
 bun run publish:sidecar                                            # produce the sidecar + wwwroot to embed
 cargo build --release --features portable --manifest-path src-tauri/Cargo.toml
-# -> src-tauri/target/release/krint-desktop.exe  (rename to KRINT.exe)
+# -> src-tauri/target/release/commandblock-desktop.exe  (rename to CommandBlock.exe)
 ```
 
-The release workflow builds and uploads this as `KRINT-portable-win-x64.exe` alongside the NSIS installer.
+The release workflow builds and uploads this as `CommandBlock-portable-win-x64.exe` alongside the NSIS installer.
 
 ::: tip
 First run also needs app icons. Generate them once with `bun run tauri icon path/to/icon.png`
@@ -102,7 +102,7 @@ resources included), so one update covers everything.
 
 How it fits together:
 - `tauri.conf.json` → `plugins.updater.endpoints` points at
-  `https://github.com/PianoNic/KRINT/releases/latest/download/latest.json`, and `pubkey` holds
+  `https://github.com/PianoNic/CommandBlock/releases/latest/download/latest.json`, and `pubkey` holds
   the public signing key.
 - `bundle.createUpdaterArtifacts: true` makes `tauri build` emit signed updater bundles + `.sig`.
 - The release workflow signs them and uploads `latest.json` (the update manifest).
@@ -115,7 +115,7 @@ How it fits together:
 
 1. Generate a signing keypair:
    ```bash
-   bunx tauri signer generate -w ~/.tauri/krint-updater.key
+   bunx tauri signer generate -w ~/.tauri/commandblock-updater.key
    ```
 2. Put the **public** key into `tauri.conf.json` → `plugins.updater.pubkey` (replaces the
    `REPLACE_WITH_...` placeholder). The public key is safe to commit.
@@ -133,5 +133,5 @@ work - the rest of the desktop build still does.
 - **Ports** (`5111` API, `18080` OIDC) are currently fixed in `src-tauri/src/lib.rs`. Binding the
   API to port `0` and parsing the chosen port from stdout would avoid collisions - a good
   follow-up.
-- The desktop SQLite database lives in the OS app-data dir (e.g. `%APPDATA%/app.krint.desktop`,
-  `~/Library/Application Support/app.krint.desktop`, `~/.local/share/app.krint.desktop`).
+- The desktop SQLite database lives in the OS app-data dir (e.g. `%APPDATA%/app.commandblock.desktop`,
+  `~/Library/Application Support/app.commandblock.desktop`, `~/.local/share/app.commandblock.desktop`).

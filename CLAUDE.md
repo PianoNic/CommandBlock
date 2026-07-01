@@ -1,4 +1,4 @@
-# KRINT — working conventions
+# CommandBlock — working conventions
 
 ## Workflow (enforced)
 
@@ -25,9 +25,9 @@ Use them whenever one exists — `gh issue create`, `gh pr create`, `npx create-
 
 ## Local dev setup
 
-- `compose.yml` runs KRINT with `mock-oauth2-server` (no Keycloak) on random ephemeral ports.
+- `compose.yml` runs CommandBlock with `mock-oauth2-server` (no Keycloak) on random ephemeral ports.
 - Ports are fixed in `compose.yml` — edit them if they conflict.
-- `Vault__MasterKey` must be set in the `krint` service environment (see compose.yml).
+- `Vault__MasterKey` must be set in the `commandblock` service environment (see compose.yml).
 - The runtime image is `mcr.microsoft.com/dotnet/aspnet:10.0.x-azurelinux3.0` (non-distroless) — required for ICU/globalization support (MSSQL client).
 - `localhost`/`127.0.0.1` in register/probe calls is rewritten to `host.docker.internal` inside the container.
 
@@ -35,11 +35,11 @@ Use them whenever one exists — `gh issue create`, `gh pr create`, `npx create-
 
 After pulling upstream, run:
 ```
-dotnet ef migrations has-pending-model-changes --project src/KRINT.Infrastructure --startup-project src/KRINT.API
+dotnet ef migrations has-pending-model-changes --project src/CommandBlock.Infrastructure --startup-project src/CommandBlock.API
 ```
 If pending, remove any stale local migration and regenerate:
 ```
-dotnet ef migrations remove --project src/KRINT.Infrastructure --startup-project src/KRINT.API --force
-dotnet ef migrations add <Name> --project src/KRINT.Infrastructure --startup-project src/KRINT.API
+dotnet ef migrations remove --project src/CommandBlock.Infrastructure --startup-project src/CommandBlock.API --force
+dotnet ef migrations add <Name> --project src/CommandBlock.Infrastructure --startup-project src/CommandBlock.API
 ```
 Then rebuild the image.

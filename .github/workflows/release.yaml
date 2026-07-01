@@ -148,7 +148,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./src/KRINT.API/Dockerfile
+          file: ./src/CommandBlock.API/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -245,7 +245,7 @@ jobs:
           "
 
       # tauri-action runs the beforeBuildCommand (scripts/publish-sidecar.mjs), which builds the SPA
-      # and publishes KRINT.API self-contained for this runner's RID, then builds the installers and
+      # and publishes CommandBlock.API self-contained for this runner's RID, then builds the installers and
       # uploads them to the release. Auto-update is off (no updater signing key set up).
       - name: Build desktop app and upload installers
         uses: tauri-apps/tauri-action@v0
@@ -258,7 +258,7 @@ jobs:
           args: ${{ runner.os == 'macOS' && '--bundles app' || '' }}
 
       # Single no-install exe: rebuild with the `portable` feature, which embeds the API sidecar +
-      # resources into krint-desktop.exe and self-extracts them on launch.
+      # resources into commandblock-desktop.exe and self-extracts them on launch.
       - name: Build & upload portable single exe (Windows)
         if: matrix.portable == 'zip' && runner.os == 'Windows'
         shell: pwsh
@@ -267,8 +267,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cargo build --release --features portable
-          $out = "KRINT-portable-${{ matrix.rid }}.exe"
-          Copy-Item target/release/krint-desktop.exe $out
+          $out = "CommandBlock-portable-${{ matrix.rid }}.exe"
+          Copy-Item target/release/commandblock-desktop.exe $out
           gh release upload "${{ github.event.release.tag_name }}" $out --clobber
 
       - name: Package portable archive (macOS)
@@ -277,6 +277,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APP=$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name "*.app" | head -1)
-          OUT="KRINT-portable-${{ matrix.rid }}.zip"
+          OUT="CommandBlock-portable-${{ matrix.rid }}.zip"
           ditto -c -k --keepParent "$APP" "$OUT"
           gh release upload "${{ github.event.release.tag_name }}" "$OUT" --clobber

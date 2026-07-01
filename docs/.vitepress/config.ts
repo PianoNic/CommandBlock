@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitepress'
 
-// Docs site for KRINT, built from the markdown in this folder. Served at the domain root on
+// Docs site for CommandBlock, built from the markdown in this folder. Served at the domain root on
 // Cloudflare Pages, so no `base` is needed. Build: `vitepress build` (output: .vitepress/dist).
 export default defineConfig({
-  title: 'KRINT',
+  title: 'CommandBlock',
   description: 'Self-hosted database-provisioning platform. One click. One key. Your database is ready.',
   lastUpdated: true,
   cleanUrls: true,
@@ -23,7 +23,7 @@ export default defineConfig({
     ],
     // Komodo-style chapters: a flat intro first, then topic categories.
     sidebar: [
-      { text: 'What is KRINT?', link: '/intro' },
+      { text: 'What is CommandBlock?', link: '/intro' },
       {
         text: 'Setup',
         collapsed: false,
@@ -56,16 +56,16 @@ export default defineConfig({
       },
     ],
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/PianoNic/KRINT' },
+      { icon: 'github', link: 'https://github.com/PianoNic/CommandBlock' },
     ],
     search: { provider: 'local' },
     editLink: {
-      pattern: 'https://github.com/PianoNic/KRINT/edit/main/docs/:path',
+      pattern: 'https://github.com/PianoNic/CommandBlock/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
     footer: {
       message: 'Made with care by PianoNic.',
-      copyright: 'KRINT',
+      copyright: 'CommandBlock',
     },
   },
 })

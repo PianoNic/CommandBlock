@@ -2,22 +2,22 @@
 layout: home
 
 hero:
-  name: KRINT
+  name: CommandBlock
   text: Your database is ready.
   tagline: One click. One key. A self-hosted database-provisioning platform for 16 engines.
   image:
     src: /logo.svg
-    alt: KRINT
+    alt: CommandBlock
   actions:
     - theme: brand
-      text: Self-host KRINT
+      text: Self-host CommandBlock
       link: /self-host
     - theme: alt
       text: Developer setup
       link: /dev-setup
     - theme: alt
       text: GitHub
-      link: https://github.com/PianoNic/KRINT
+      link: https://github.com/PianoNic/CommandBlock
 
 features:
   - title: 16 engines, one click

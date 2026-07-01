@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capabilities for the KRINT desktop shell.",
+  "description": "Capabilities for the CommandBlock desktop shell.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -12,7 +12,7 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "binaries/krint-api",
+          "name": "binaries/commandblock-api",
           "sidecar": true,
           "args": true
         }

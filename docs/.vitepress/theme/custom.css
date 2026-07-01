@@ -1,4 +1,4 @@
-/* KRINT brand color: #325292 (deep blue). Light mode uses it directly; dark mode lightens the
+/* CommandBlock brand color: #325292 (deep blue). Light mode uses it directly; dark mode lightens the
    link/text shade for contrast while keeping the brand blue on buttons. */
 :root {
   --vp-c-brand-1: #325292;
