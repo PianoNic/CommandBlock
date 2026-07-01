@@ -20,6 +20,31 @@ namespace CommandBlock.Application.Containers
         /// </summary>
         public const string ComposeProject = "commandblock-databases";
 
+        /// <summary>The Compose project provisioned Minecraft servers are grouped under, kept
+        /// separate from the databases cluster and from CommandBlock's own stack.</summary>
+        public const string ServersComposeProject = "commandblock-servers";
+
+        /// <summary>The label the router keys on: its value is the hostname players connect with.
+        /// Discovery maps <c>mc.host</c> -&gt; this container on its Minecraft port.</summary>
+        public const string McHostLabel = "mc.host";
+
+        /// <summary>Labels for a provisioned Minecraft server container. Besides the internal
+        /// <c>commandblock.*</c> markers and the Compose grouping, it stamps <see cref="McHostLabel"/>
+        /// so the router can discover the backend and route <paramref name="hostname"/> to it.</summary>
+        public static Dictionary<string, string> ForServer(string serverType, Guid instanceId, string hostname, string? displayName = null)
+        {
+            return new Dictionary<string, string>
+            {
+                ["commandblock.managed"] = "true",
+                ["commandblock.server-type"] = serverType,
+                ["commandblock.instance-id"] = instanceId.ToString(),
+                [McHostLabel] = hostname,
+                ["com.docker.compose.project"] = ServersComposeProject,
+                ["com.docker.compose.service"] = ServiceName(serverType, displayName),
+                ["com.docker.compose.oneoff"] = "False",
+            };
+        }
+
         public static Dictionary<string, string> For(string engine, Guid instanceId, string? displayName = null)
         {
             return new Dictionary<string, string>
