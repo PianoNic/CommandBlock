@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity, lucideUsers } from '@ng-icons/lucide';
-import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -20,7 +19,7 @@ import { ServerCreateDialog } from '../servers/server-create-dialog';
   providers: [
     provideIcons({
       lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity, lucideUsers,
-      simpleModrinth, simpleCurseforge, ...PLATFORM_ICONS,
+      ...PLATFORM_ICONS,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
