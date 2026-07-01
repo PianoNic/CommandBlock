@@ -51,9 +51,9 @@
                 </span>
               </td>
               <td hlmTd>
-                <span hlmBadge variant="outline" class="inline-flex items-center gap-1.5 text-[10px] uppercase">
+                <span hlmBadge variant="outline" class="inline-flex items-center gap-1.5">
                   <ng-icon [name]="icon(s.serverType)" size="13" />
-                  {{ s.serverType }}
+                  {{ label(s.serverType) }}
                 </span>
               </td>
               <td hlmTd class="text-muted-foreground font-mono text-xs">{{ sourceLabel(s) }}</td>
@@ -64,8 +64,8 @@
               </td>
               <td hlmTd class="font-mono text-xs">{{ s.memory }}</td>
               <td hlmTd>
-                <span hlmBadge [variant]="stateVariant(s.state)" class="text-[10px] uppercase">
-                  {{ s.state ?? 'unknown' }}
+                <span hlmBadge [variant]="stateVariant(stateOf(s))" class="text-[10px] uppercase">
+                  {{ stateOf(s) ?? 'unknown' }}
                 </span>
               </td>
               <td hlmTd>

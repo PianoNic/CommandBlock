@@ -14,7 +14,8 @@ import {
   lucideUsers,
 } from '@ng-icons/lucide';
 import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
-import { PLATFORM_ICONS, platformIcon } from '../shared/icons/platform-icons';
+import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -60,12 +61,15 @@ export class Servers {
   private readonly api = inject(ServerService);
   private readonly dialog = inject(HlmDialogService);
   private readonly confirm = inject(ConfirmService);
+  private readonly statusStream = inject(ServerStatusStream);
+  protected readonly statuses = this.statusStream.statuses;
 
   protected readonly servers = signal<ReadonlyArray<ServerInstanceDto>>([]);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
   constructor() {
+    this.statusStream.start();
     this.load();
   }
 
@@ -124,12 +128,17 @@ export class Servers {
     this.api.apiServerIdDelete(s.id).subscribe({ next: () => this.load() });
   }
 
+  /// Live state from the status stream, falling back to the value from the initial list load.
+  protected stateOf(s: ServerInstanceDto): string | null {
+    return this.statuses()[s.id]?.state ?? s.state ?? null;
+  }
+
   protected stateVariant(state: string | null | undefined): 'default' | 'secondary' | 'outline' {
     return state === 'running' ? 'default' : state ? 'secondary' : 'outline';
   }
 
   protected isRunning(s: ServerInstanceDto): boolean {
-    return s.state === 'running';
+    return this.stateOf(s) === 'running';
   }
 
   protected sourceLabel(s: ServerInstanceDto): string {
@@ -140,10 +149,15 @@ export class Servers {
     return platformIcon(serverType);
   }
 
+  protected label(serverType: string): string {
+    return platformLabel(serverType);
+  }
+
   protected players(s: ServerInstanceDto): string {
-    if (s.playersOnline == null) return '—';
-    const online = Number(s.playersOnline as unknown as number);
-    const max = s.playersMax == null ? null : Number(s.playersMax as unknown as number);
+    const live = this.statuses()[s.id];
+    const online = live ? live.playersOnline : (s.playersOnline == null ? null : Number(s.playersOnline as unknown as number));
+    const max = live ? live.playersMax : (s.playersMax == null ? null : Number(s.playersMax as unknown as number));
+    if (online == null) return '—';
     return max == null ? `${online}` : `${online}/${max}`;
   }
 }

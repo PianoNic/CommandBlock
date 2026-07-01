@@ -53,6 +53,9 @@ builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>()
 // Server file browser/editor (Docker copy + exec under each server's /data).
 builder.Services.AddScoped<IServerFilesService, CommandBlock.Infrastructure.Services.ServerFilesService>();
 
+// Live server status (state + player counts), shared by the list query and the status stream.
+builder.Services.AddScoped<IServerStatusService, CommandBlock.Infrastructure.Services.ServerStatusService>();
+
 // Minecraft hostname router: one public TCP port fronting every provisioned server, routed by the
 // address in the client handshake. The resolver is scoped (touches the DbContext); the listener is
 // a singleton hosted service that opens a scope per connection.
@@ -134,6 +137,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ConsoleHub>("/hubs/console").RequireAuthorization();
+app.MapHub<ServerStatusHub>("/hubs/status").RequireAuthorization();
 
 if (app.Environment.IsProduction())
     app.MapFallbackToFile("index.html").AllowAnonymous();

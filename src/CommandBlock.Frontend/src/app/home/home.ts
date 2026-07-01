@@ -3,7 +3,8 @@ import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucidePlus, lucideServer, lucidePlay, lucideHardDrive, lucideActivity, lucideUsers } from '@ng-icons/lucide';
 import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
-import { PLATFORM_ICONS, platformIcon } from '../shared/icons/platform-icons';
+import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -29,18 +30,26 @@ export class Home {
   private readonly api = inject(ServerService);
   private readonly activityApi = inject(ActivityService);
   private readonly dialog = inject(HlmDialogService);
+  private readonly statusStream = inject(ServerStatusStream);
+  private readonly statuses = this.statusStream.statuses;
 
   protected readonly servers = signal<ReadonlyArray<ServerInstanceDto>>([]);
   protected readonly activity = signal<ReadonlyArray<ActivityEntryDto>>([]);
 
   protected readonly total = computed(() => this.servers().length);
-  protected readonly running = computed(() => this.servers().filter((s) => s.state === 'running').length);
+  protected readonly running = computed(
+    () => this.servers().filter((s) => (this.statuses()[s.id]?.state ?? s.state) === 'running').length,
+  );
   protected readonly memory = computed(() => {
     const mb = this.servers().reduce((sum, s) => sum + parseMemory(s.memory), 0);
     return mb >= 1024 ? `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB` : `${mb} MB`;
   });
   protected readonly players = computed(() =>
-    this.servers().reduce((sum, s) => sum + (s.playersOnline == null ? 0 : Number(s.playersOnline as unknown as number)), 0),
+    this.servers().reduce((sum, s) => {
+      const live = this.statuses()[s.id];
+      const online = live ? live.playersOnline : (s.playersOnline == null ? null : Number(s.playersOnline as unknown as number));
+      return sum + (online ?? 0);
+    }, 0),
   );
   protected readonly byType = computed(() => {
     const counts = new Map<string, number>();
@@ -52,7 +61,12 @@ export class Home {
     return platformIcon(serverType);
   }
 
+  protected label(serverType: string): string {
+    return platformLabel(serverType);
+  }
+
   constructor() {
+    this.statusStream.start();
     this.load();
   }
 

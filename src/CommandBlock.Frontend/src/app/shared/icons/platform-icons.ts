@@ -28,6 +28,24 @@ export const PLATFORM_ICONS = {
   platformQuilt, platformForge, platformNeoforge, platformSpigot,
 };
 
+/// Friendly display name for a server type (itzg TYPEs are uppercase; show them nicely).
+export function platformLabel(serverType: string): string {
+  switch ((serverType ?? '').toUpperCase()) {
+    case 'VANILLA': return 'Vanilla';
+    case 'PAPER': return 'Paper';
+    case 'PURPUR': return 'Purpur';
+    case 'FABRIC': return 'Fabric';
+    case 'QUILT': return 'Quilt';
+    case 'FORGE': return 'Forge';
+    case 'NEOFORGE': return 'NeoForge';
+    case 'SPIGOT': return 'Spigot';
+    case 'MODRINTH': return 'Modrinth';
+    case 'CURSEFORGE':
+    case 'AUTO_CURSEFORGE': return 'CurseForge';
+    default: return serverType;
+  }
+}
+
 /// Maps a server type to the ng-icon name to render for it.
 export function platformIcon(serverType: string): string {
   switch ((serverType ?? '').toUpperCase()) {

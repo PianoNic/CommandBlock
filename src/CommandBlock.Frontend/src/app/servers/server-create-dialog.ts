@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideSearch, lucideDownload, lucideCheck } from '@ng-icons/lucide';
+import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
+import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import {
   HlmDialogDescription,
@@ -29,7 +31,7 @@ type DialogContext = { onCreated: () => void };
     HlmLabelImports,
     HlmSelectImports,
   ],
-  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck })],
+  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, simpleModrinth, simpleCurseforge, ...PLATFORM_ICONS })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -51,7 +53,9 @@ type DialogContext = { onCreated: () => void };
           </hlm-select-trigger>
           <hlm-select-content *hlmSelectPortal>
             @for (t of serverTypes; track t) {
-              <hlm-select-item [value]="t">{{ t }}</hlm-select-item>
+              <hlm-select-item [value]="t">
+                <span class="inline-flex items-center gap-2"><ng-icon [name]="icon(t)" size="15" /> {{ label(t) }}</span>
+              </hlm-select-item>
             }
           </hlm-select-content>
         </hlm-select>
@@ -200,6 +204,14 @@ export class ServerCreateDialog {
 
   protected pickModpack(r: ModpackSearchResult): void {
     this.modpackRef.set(r.slug);
+  }
+
+  protected icon(serverType: string): string {
+    return platformIcon(serverType);
+  }
+
+  protected label(serverType: string): string {
+    return platformLabel(serverType);
   }
 
   protected readonly serverTypes = [
