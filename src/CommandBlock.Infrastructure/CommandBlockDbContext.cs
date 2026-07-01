@@ -9,6 +9,7 @@ namespace CommandBlock.Infrastructure
     {
         public DbSet<Secret> Secrets => Set<Secret>();
         public DbSet<DatabaseInstance> DatabaseInstances => Set<DatabaseInstance>();
+        public DbSet<ServerInstance> ServerInstances => Set<ServerInstance>();
         public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
         public DbSet<BackupEntry> BackupEntries => Set<BackupEntry>();
         public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
