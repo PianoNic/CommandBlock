@@ -13,6 +13,7 @@ import {
   lucideFolder,
   lucideUsers,
   lucideLoaderCircle,
+  lucideHourglass,
 } from '@ng-icons/lucide';
 import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
@@ -51,6 +52,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideFolder,
       lucideUsers,
       lucideLoaderCircle,
+      lucideHourglass,
       simpleModrinth,
       simpleCurseforge,
       ...PLATFORM_ICONS,
@@ -69,6 +71,8 @@ export class Servers {
   protected readonly servers = signal<ReadonlyArray<ServerInstanceDto>>([]);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
+  // Ids with a start/stop in flight, for instant hourglass feedback before the status tick lands.
+  protected readonly busy = signal<ReadonlySet<string>>(new Set());
 
   constructor() {
     this.statusStream.start();
@@ -85,6 +89,24 @@ export class Servers {
       const added = liveIds.some((id) => !current.has(id));
       const removed = this.servers().some((s) => !liveSet.has(s.id));
       if ((added || removed) && !this.loading()) this.load();
+    });
+
+    // Clear the in-flight flag once the server settles into a terminal state.
+    effect(() => {
+      const st = this.statuses();
+      const b = this.busy();
+      if (b.size === 0) return;
+      const next = new Set(b);
+      let changed = false;
+      for (const id of b) {
+        const state = st[id]?.state;
+        // Settled (running/exited/stopped) or the server no longer exists -> drop the flag.
+        if (state === 'running' || state === 'exited' || state === 'stopped' || !(id in st)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) this.busy.set(next);
     });
   }
 
@@ -118,7 +140,8 @@ export class Servers {
   }
 
   protected start(s: ServerInstanceDto): void {
-    this.api.apiServerIdStartPost(s.id).subscribe({ next: () => this.load() });
+    this.mark(s.id);
+    this.api.apiServerIdStartPost(s.id).subscribe({ next: () => this.load(), error: () => this.unmark(s.id) });
   }
 
   protected async stop(s: ServerInstanceDto): Promise<void> {
@@ -129,7 +152,17 @@ export class Servers {
       destructive: true,
     });
     if (!ok) return;
-    this.api.apiServerIdStopPost(s.id).subscribe({ next: () => this.load() });
+    this.mark(s.id);
+    this.api.apiServerIdStopPost(s.id).subscribe({ next: () => this.load(), error: () => this.unmark(s.id) });
+  }
+
+  private mark(id: string): void { this.busy.set(new Set(this.busy()).add(id)); }
+  private unmark(id: string): void { const n = new Set(this.busy()); n.delete(id); this.busy.set(n); }
+
+  /// True while the server is booting or an action is in flight - the start/stop control shows an
+  /// hourglass and is disabled.
+  protected transitioning(s: ServerInstanceDto): boolean {
+    return this.stateOf(s) === 'starting' || this.busy().has(s.id);
   }
 
   protected async remove(s: ServerInstanceDto): Promise<void> {

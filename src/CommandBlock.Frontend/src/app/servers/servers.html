@@ -73,7 +73,11 @@
               </td>
               <td hlmTd>
                 <div class="flex items-center justify-end gap-1">
-                  @if (isRunning(s)) {
+                  @if (transitioning(s)) {
+                    <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working…">
+                      <ng-icon name="lucideHourglass" size="14" class="animate-pulse" />
+                    </button>
+                  } @else if (isRunning(s)) {
                     <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">
                       <ng-icon name="lucideSquare" size="14" />
                     </button>
