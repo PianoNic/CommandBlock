@@ -1,0 +1,67 @@
+<app-content-header />
+
+<section class="flex flex-1 min-h-0 flex-col border-t">
+  <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
+    <h3 class="text-sm font-medium">Minecraft servers</h3>
+    <div class="flex items-center gap-2">
+      <button hlmBtn size="sm" type="button" (click)="createServer()">
+        <ng-icon name="lucidePlus" size="16" />
+        Create server
+      </button>
+      <button hlmBtn variant="outline" size="sm" type="button" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="min-h-0 flex-1 overflow-auto px-4">
+    @if (error(); as err) {
+      <p class="text-destructive py-4 text-sm">{{ err }}</p>
+    } @else if (servers().length === 0 && !loading()) {
+      <div class="text-muted-foreground flex flex-col items-center gap-3 py-16 text-center text-sm">
+        <ng-icon name="lucideServer" size="32" class="opacity-50" />
+        <p>No servers yet. Create your first Minecraft server to get started.</p>
+        <button hlmBtn size="sm" type="button" (click)="createServer()">
+          <ng-icon name="lucidePlus" size="16" />
+          Create server
+        </button>
+      </div>
+    } @else {
+      <table hlmTable class="w-full">
+        <thead hlmTHead>
+          <tr hlmTr>
+            <th hlmTh>Name</th>
+            <th hlmTh>Hostname</th>
+            <th hlmTh>Type</th>
+            <th hlmTh>Source</th>
+            <th hlmTh>Memory</th>
+            <th hlmTh>State</th>
+          </tr>
+        </thead>
+        <tbody hlmTBody>
+          @for (s of servers(); track s.id) {
+            <tr hlmTr>
+              <td hlmTd class="font-medium">{{ s.displayName }}</td>
+              <td hlmTd>
+                <span class="inline-flex items-center gap-1.5 font-mono text-xs">
+                  <ng-icon name="lucideGlobe" size="13" class="opacity-60" />
+                  {{ s.hostname }}
+                </span>
+              </td>
+              <td hlmTd>
+                <span hlmBadge variant="outline" class="text-[10px] uppercase">{{ s.serverType }}</span>
+              </td>
+              <td hlmTd class="text-muted-foreground font-mono text-xs">{{ sourceLabel(s) }}</td>
+              <td hlmTd class="font-mono text-xs">{{ s.memory }}</td>
+              <td hlmTd>
+                <span hlmBadge [variant]="stateVariant(s.state)" class="text-[10px] uppercase">
+                  {{ s.state ?? 'unknown' }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</section>

@@ -424,3 +424,8 @@ FodyWeavers.xsd
 # VitePress docs build
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+# Local dev SQLite database (default provider when the API runs on the host)
+commandblock.db
+commandblock.db-shm
+commandblock.db-wal

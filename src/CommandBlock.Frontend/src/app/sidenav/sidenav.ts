@@ -103,7 +103,8 @@ export class Sidenav {
 
   protected readonly themeMode = this.theme.mode;
   protected readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
-    { route: '/instances', label: 'Instances', icon: 'lucideServer' },
+    { route: '/servers', label: 'Servers', icon: 'lucideServer' },
+    { route: '/instances', label: 'Instances', icon: 'lucideDatabase' },
     { route: '/browser', label: 'Browser', icon: 'lucideTable' },
     { route: '/backups', label: 'Backups', icon: 'lucideArchive' },
     { route: '/console', label: 'Console', icon: 'lucideTerminal' },

@@ -9,6 +9,7 @@ api/backups.service.ts
 api/dashboard.service.ts
 api/database.service.ts
 api/nodes.service.ts
+api/server.service.ts
 api/settings.service.ts
 configuration.ts
 encoder.ts
@@ -31,6 +32,7 @@ model/createDatabaseDto.ts
 model/createInnerDatabaseDto.ts
 model/createInnerUserDto.ts
 model/createNodeRequest.ts
+model/createServerDto.ts
 model/dashboardStatsDto.ts
 model/dashboardStatsDtoTotalCpuPercent.ts
 model/dashboardStatsDtoTotalInstances.ts
@@ -60,6 +62,7 @@ model/renameDatabaseInstanceDto.ts
 model/runQueryColumnDto.ts
 model/runQueryRequestDto.ts
 model/runQueryResultDto.ts
+model/serverInstanceDto.ts
 model/setPasswordDto.ts
 model/setVisibilityDto.ts
 model/settingsDto.ts

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { AppLayout } from './shared/layouts/app-layout/app-layout';
 import { Home } from './home/home';
+import { Servers } from './servers/servers';
 import { Databases } from './databases/databases';
 import { Create } from './create/create';
 import { Browser } from './browser/browser';
@@ -18,6 +19,7 @@ export const routes: Routes = [
     canActivateChild: [autoLoginPartialRoutesGuard],
     children: [
       { path: '', component: Home },
+      { path: 'servers', component: Servers },
       { path: 'create', component: Create },
       { path: 'instances', component: Databases },
       { path: 'browser', component: Browser },
