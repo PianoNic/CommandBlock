@@ -33,6 +33,10 @@ builder.Services.AddCommandBlockDatabase(builder.Configuration);
 builder.Services.AddDocker(builder.Configuration);
 builder.Services.AddSecrets();
 
+// World backups to an S3/SeaweedFS bucket.
+builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));
+builder.Services.AddScoped<IBackupStorage, CommandBlock.Infrastructure.Services.S3BackupStorage>();
+
 // Single-host: every Docker operation runs against the local daemon.
 builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
 

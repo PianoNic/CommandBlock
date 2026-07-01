@@ -27,6 +27,19 @@ services:
     ports:
       - "57538:8080"
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: commandblock-seaweedfs
+    restart: unless-stopped
+    command: "server -s3 -dir=/data"
+    environment:
+      AWS_ACCESS_KEY_ID: commandblock
+      AWS_SECRET_ACCESS_KEY: seaweedfs-secret-key
+    volumes:
+      - seaweedfs-data:/data
+    ports:
+      - "58333:8333"
+
   commandblock:
     image: ghcr.io/pianonic/commandblock:latest
     build:
@@ -49,10 +62,17 @@ services:
       Oidc__Scope: "openid profile email roles"
       Cors__AllowedOrigins__0: "http://localhost:56722"
       Vault__MasterKey: "2P+vvGUw5v3weZdFU04YOicpVNs9eIyRKo6NliiDR4c="
+      Backup__Enabled: "true"
+      Backup__S3Endpoint: "http://seaweedfs:8333"
+      Backup__Bucket: "commandblock-backups"
+      Backup__AccessKey: "commandblock"
+      Backup__SecretKey: "seaweedfs-secret-key"
     depends_on:
       db:
         condition: service_healthy
       mock-oauth2:
+        condition: service_started
+      seaweedfs:
         condition: service_started
     ports:
       - "56722:8080"
@@ -65,3 +85,4 @@ services:
 
 volumes:
   postgres-data:
+  seaweedfs-data:

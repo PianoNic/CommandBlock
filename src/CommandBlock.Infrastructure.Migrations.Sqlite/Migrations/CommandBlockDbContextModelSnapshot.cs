@@ -63,23 +63,15 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Engine")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EngineVersion")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FilePath")
+                    b.Property<string>("ObjectKey")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("InstanceId")
+                    b.Property<Guid>("ServerId")
                         .HasColumnType("TEXT");
 
                     b.Property<long>("SizeBytes")
@@ -90,164 +82,9 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ServerId");
+
                     b.ToTable("BackupEntries");
-                });
-
-            modelBuilder.Entity("CommandBlock.Domain.BackupSchedule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CronExpression")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("InstanceId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastError")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastRunAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastStatus")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("NextRunAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BackupSchedules");
-                });
-
-            modelBuilder.Entity("CommandBlock.Domain.DatabaseInstance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ContainerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ContainerName")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DatabaseName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Engine")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Host")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsConfigManaged")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsManaged")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsPublic")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid?>("MigratedToInstanceId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("NodeId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Port")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PreviousVersion")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Version")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ContainerName")
-                        .IsUnique()
-                        .HasFilter("\"ContainerName\" IS NOT NULL");
-
-                    b.ToTable("DatabaseInstances");
-                });
-
-            modelBuilder.Entity("CommandBlock.Domain.Node", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DockerVersion")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsConfigManaged")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("LastSeenAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MachineName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Os")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TokenHash")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Nodes");
                 });
 
             modelBuilder.Entity("CommandBlock.Domain.Secret", b =>

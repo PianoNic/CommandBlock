@@ -45,5 +45,13 @@ namespace CommandBlock.Infrastructure.Interfaces
 
         /// <summary>Runs a command inside a container, streaming <paramref name="stdin"/> to its stdin and capturing stderr.</summary>
         Task ExecWithStdinAsync(string containerId, IList<string> command, Stream stdin, CancellationToken cancellationToken = default);
+
+        /// <summary>Streams a tar archive of <paramref name="path"/> from a container (Docker "copy
+        /// out"). The tar's top-level entry is the basename of the path (e.g. "/data" -&gt; "data/…").</summary>
+        Task<Stream> GetArchiveAsync(string containerId, string path, CancellationToken cancellationToken = default);
+
+        /// <summary>Extracts a tar archive into <paramref name="path"/> inside a container (Docker
+        /// "copy in"). Pass the parent dir (e.g. "/") of what the tar contains.</summary>
+        Task ExtractArchiveAsync(string containerId, string path, Stream tar, CancellationToken cancellationToken = default);
     }
 }

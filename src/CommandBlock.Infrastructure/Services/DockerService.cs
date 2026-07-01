@@ -285,5 +285,24 @@ namespace CommandBlock.Infrastructure.Services
                 catch { /* best-effort cleanup */ }
             }
         }
+
+        public async Task<Stream> GetArchiveAsync(string containerId, string path, CancellationToken cancellationToken = default)
+        {
+            var response = await client.Containers.GetArchiveFromContainerAsync(
+                containerId,
+                new GetArchiveFromContainerParameters { Path = path },
+                statOnly: false,
+                cancellationToken);
+            return response.Stream;
+        }
+
+        public Task ExtractArchiveAsync(string containerId, string path, Stream tar, CancellationToken cancellationToken = default)
+        {
+            return client.Containers.ExtractArchiveToContainerAsync(
+                containerId,
+                new ContainerPathStatParameters { Path = path, AllowOverwriteDirWithFile = false },
+                tar,
+                cancellationToken);
+        }
     }
 }
