@@ -1,0 +1,15 @@
+export * from './activity.service';
+import { ActivityService } from './activity.service';
+export * from './app.service';
+import { AppService } from './app.service';
+export * from './backups.service';
+import { BackupsService } from './backups.service';
+export * from './dashboard.service';
+import { DashboardService } from './dashboard.service';
+export * from './database.service';
+import { DatabaseService } from './database.service';
+export * from './nodes.service';
+import { NodesService } from './nodes.service';
+export * from './settings.service';
+import { SettingsService } from './settings.service';
+export const APIS = [ActivityService, AppService, BackupsService, DashboardService, DatabaseService, NodesService, SettingsService];

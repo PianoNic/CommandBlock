@@ -1,0 +1,35 @@
+namespace KRINT.Application.Dtos.DatabaseInstance
+{
+    public record DatabaseInstanceDto
+    {
+        public required Guid Id { get; init; }
+        public required string Engine { get; init; }
+        public required string Version { get; init; }
+        /// <summary>Previous version stashed by the upgrade flow; powers the Rollback button.</summary>
+        public string? PreviousVersion { get; init; }
+        /// <summary>User-picked human-readable name. Mutable via PATCH /api/Database/{id}.</summary>
+        public required string DisplayName { get; init; }
+        /// <summary>Null for externally-registered instances.</summary>
+        public string? ContainerName { get; init; }
+        public required string Host { get; init; }
+        public required int Port { get; init; }
+        public required string Username { get; init; }
+        public required string DatabaseName { get; init; }
+        public required DateTime CreatedAt { get; init; }
+        /// <summary>False when this instance was registered as an external database. UI hides
+        /// container-only controls (upgrade, backup, lifecycle) and shows an "External" badge.</summary>
+        public required bool IsManaged { get; init; }
+        /// <summary>True if the container's published port is bound to 0.0.0.0 (LAN-visible);
+        /// false if bound to 127.0.0.1 (localhost only). Mutable via POST .../visibility.</summary>
+        public required bool IsPublic { get; init; }
+        /// <summary>Container state from Docker: "running", "exited", "paused", etc. Null when
+        /// no container is associated (purely remote external) or Docker couldn't be queried.</summary>
+        public string? State { get; init; }
+        /// <summary>True if owned by instances.yaml. The UI hides/disables mutation controls.</summary>
+        public required bool IsConfigManaged { get; init; }
+        /// <summary>The node this instance runs on, or null for the control plane's local Docker.
+        /// The UI shows a node badge and hides the not-yet-supported controls (logs, console,
+        /// backups, upgrade, visibility) for node-hosted instances.</summary>
+        public Guid? NodeId { get; init; }
+    }
+}

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:18.3
+    container_name: krint-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: d4vpas8w0rd13!!!
+      POSTGRES_DB: krint
+    ports:
+      - "57460:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d krint"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mock-oauth2:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    container_name: krint-mock-oauth2
+    restart: unless-stopped
+    environment:
+      JSON_CONFIG_PATH: /app/config.json
+    volumes:
+      - ./e2e/mock-oauth2-config.json:/app/config.json:ro
+    ports:
+      - "57538:8080"
+
+  krint:
+    image: ghcr.io/pianonic/krint:latest
+    build:
+      context: .
+      dockerfile: src/KRINT.API/Dockerfile
+    container_name: krint
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file: .env
+    environment:
+      Database__Provider: "Postgres"
+      ConnectionStrings__KrintDatabase: "Host=db;Port=5432;Database=krint;Username=postgres;Password=d4vpas8w0rd13!!!"
+      Oidc__Authority: "http://localhost:57538/default"
+      Oidc__InternalAuthority: "http://mock-oauth2:8080/default"
+      Oidc__RequireHttpsMetadata: "false"
+      Oidc__ClientId: krint
+      Oidc__RedirectUri: "http://localhost:56722/"
+      Oidc__PostLogoutRedirectUri: "http://localhost:56722/"
+      Oidc__Scope: "openid profile email roles"
+      Cors__AllowedOrigins__0: "http://localhost:56722"
+      Vault__MasterKey: "2P+vvGUw5v3weZdFU04YOicpVNs9eIyRKo6NliiDR4c="
+    depends_on:
+      db:
+        condition: service_healthy
+      mock-oauth2:
+        condition: service_started
+    ports:
+      - "56722:8080"
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+      - ./backups:/app/backups
+      - ./krint.yaml:/app/krint.yaml:ro
+
+volumes:
+  postgres-data:
