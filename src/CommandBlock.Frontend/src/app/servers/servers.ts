@@ -12,6 +12,7 @@ import {
   lucideTerminal,
   lucideFolder,
   lucideUsers,
+  lucideLoaderCircle,
 } from '@ng-icons/lucide';
 import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
@@ -49,6 +50,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideTerminal,
       lucideFolder,
       lucideUsers,
+      lucideLoaderCircle,
       simpleModrinth,
       simpleCurseforge,
       ...PLATFORM_ICONS,

@@ -64,7 +64,10 @@
               </td>
               <td hlmTd class="font-mono text-xs">{{ s.memory }}</td>
               <td hlmTd>
-                <span hlmBadge [variant]="stateVariant(stateOf(s))" class="text-[10px] uppercase">
+                <span hlmBadge [variant]="stateVariant(stateOf(s))" class="inline-flex items-center gap-1 text-[10px] uppercase">
+                  @if (stateOf(s) === 'starting') {
+                    <ng-icon name="lucideLoaderCircle" size="10" class="animate-spin" />
+                  }
                   {{ stateOf(s) ?? 'unknown' }}
                 </span>
               </td>
