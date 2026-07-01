@@ -33,7 +33,7 @@
             <th hlmTh>Name</th>
             <th hlmTh>Hostname</th>
             <th hlmTh>Type</th>
-            <th hlmTh>Source</th>
+            <th hlmTh>Version</th>
             <th hlmTh>Players</th>
             <th hlmTh>Memory</th>
             <th hlmTh>State</th>
@@ -75,7 +75,7 @@
                 <div class="flex items-center justify-end gap-1">
                   @if (transitioning(s)) {
                     <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working…">
-                      <ng-icon name="lucideHourglass" size="14" class="animate-pulse" />
+                      <ng-icon name="lucideHourglass" size="14" />
                     </button>
                   } @else if (isRunning(s)) {
                     <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">

@@ -15,7 +15,6 @@ import {
   lucideLoaderCircle,
   lucideHourglass,
 } from '@ng-icons/lucide';
-import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -53,8 +52,6 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideUsers,
       lucideLoaderCircle,
       lucideHourglass,
-      simpleModrinth,
-      simpleCurseforge,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -159,10 +156,11 @@ export class Servers {
   private mark(id: string): void { this.busy.set(new Set(this.busy()).add(id)); }
   private unmark(id: string): void { const n = new Set(this.busy()); n.delete(id); this.busy.set(n); }
 
-  /// True while the server is booting or an action is in flight - the start/stop control shows an
-  /// hourglass and is disabled.
+  /// True while the server is booting/transitioning or an action is in flight - the start/stop
+  /// control shows an hourglass and is disabled. Covers the whole boot: created -> starting -> running.
   protected transitioning(s: ServerInstanceDto): boolean {
-    return this.stateOf(s) === 'starting' || this.busy().has(s.id);
+    const st = this.stateOf(s);
+    return st === 'created' || st === 'starting' || st === 'restarting' || this.busy().has(s.id);
   }
 
   protected async remove(s: ServerInstanceDto): Promise<void> {
