@@ -4,7 +4,7 @@ namespace CommandBlock.Application.Mappings.Server
 {
     public static class ServerInstanceMappings
     {
-        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null) => new()
+        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null, int? playersOnline = null, int? playersMax = null) => new()
         {
             Id = s.Id,
             ServerType = s.ServerType,
@@ -21,6 +21,8 @@ namespace CommandBlock.Application.Mappings.Server
             State = state,
             IsConfigManaged = s.IsConfigManaged,
             NodeId = s.NodeId,
+            PlayersOnline = playersOnline,
+            PlayersMax = playersMax,
             CreatedAt = s.CreatedAt,
         };
     }

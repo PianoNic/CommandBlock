@@ -34,6 +34,7 @@
             <th hlmTh>Hostname</th>
             <th hlmTh>Type</th>
             <th hlmTh>Source</th>
+            <th hlmTh>Players</th>
             <th hlmTh>Memory</th>
             <th hlmTh>State</th>
             <th hlmTh class="text-right">Actions</th>
@@ -50,9 +51,17 @@
                 </span>
               </td>
               <td hlmTd>
-                <span hlmBadge variant="outline" class="text-[10px] uppercase">{{ s.serverType }}</span>
+                <span hlmBadge variant="outline" class="inline-flex items-center gap-1.5 text-[10px] uppercase">
+                  <ng-icon [name]="icon(s.serverType)" size="13" />
+                  {{ s.serverType }}
+                </span>
               </td>
               <td hlmTd class="text-muted-foreground font-mono text-xs">{{ sourceLabel(s) }}</td>
+              <td hlmTd>
+                <span class="inline-flex items-center gap-1.5 font-mono text-xs">
+                  <ng-icon name="lucideUsers" size="13" class="opacity-60" />{{ players(s) }}
+                </span>
+              </td>
               <td hlmTd class="font-mono text-xs">{{ s.memory }}</td>
               <td hlmTd>
                 <span hlmBadge [variant]="stateVariant(s.state)" class="text-[10px] uppercase">

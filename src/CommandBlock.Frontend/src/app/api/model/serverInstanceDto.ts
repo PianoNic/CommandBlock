@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ProblemDetailsStatus } from './problemDetailsStatus';
 import { ServerInstanceDtoPort } from './serverInstanceDtoPort';
 
 
@@ -26,6 +27,8 @@ export interface ServerInstanceDto {
     state?: string | null;
     isConfigManaged: boolean;
     nodeId?: string | null;
+    playersOnline?: ProblemDetailsStatus | null;
+    playersMax?: ProblemDetailsStatus | null;
     createdAt: string;
 }
 

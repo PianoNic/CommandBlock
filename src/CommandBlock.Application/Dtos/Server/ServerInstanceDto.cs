@@ -31,6 +31,11 @@ namespace CommandBlock.Application.Dtos.Server
         public required bool IsConfigManaged { get; init; }
         /// <summary>The node this server runs on, or null for the control plane's local Docker.</summary>
         public Guid? NodeId { get; init; }
+        /// <summary>Players currently online (via RCON <c>list</c>). Null when the server isn't
+        /// running or RCON isn't reachable yet.</summary>
+        public int? PlayersOnline { get; init; }
+        /// <summary>Configured max players. Null when unknown.</summary>
+        public int? PlayersMax { get; init; }
         public required DateTime CreatedAt { get; init; }
     }
 }

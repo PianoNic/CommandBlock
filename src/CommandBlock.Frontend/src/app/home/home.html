@@ -13,7 +13,7 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <a routerLink="/servers" class="hover:bg-accent rounded-lg border p-4 transition-colors">
         <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
           <ng-icon name="lucideServer" size="14" /> Servers
@@ -30,11 +30,34 @@
       </div>
       <div class="rounded-lg border p-4">
         <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
+          <ng-icon name="lucideUsers" size="14" /> Players online
+        </div>
+        <div class="mt-2 text-3xl font-semibold">{{ players() }}</div>
+      </div>
+      <div class="rounded-lg border p-4">
+        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
           <ng-icon name="lucideHardDrive" size="14" /> Memory allocated
         </div>
         <div class="mt-2 text-3xl font-semibold">{{ memory() }}</div>
       </div>
     </div>
+
+    @if (byType().length > 0) {
+      <div class="rounded-lg border">
+        <header class="border-b px-4 py-2">
+          <h2 class="text-sm font-medium">By type</h2>
+        </header>
+        <div class="flex flex-wrap gap-2 p-4">
+          @for (t of byType(); track t.type) {
+            <span class="bg-muted/50 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+              <ng-icon [name]="icon(t.type)" size="16" />
+              <span class="font-medium">{{ t.type }}</span>
+              <span class="text-muted-foreground">{{ t.count }}</span>
+            </span>
+          }
+        </div>
+      </div>
+    }
 
     <div class="rounded-lg border">
       <header class="flex items-center justify-between border-b px-4 py-2">

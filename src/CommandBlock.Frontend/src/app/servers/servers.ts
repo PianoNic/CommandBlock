@@ -11,7 +11,10 @@ import {
   lucideArchive,
   lucideTerminal,
   lucideFolder,
+  lucideUsers,
 } from '@ng-icons/lucide';
+import { simpleModrinth, simpleCurseforge } from '@ng-icons/simple-icons';
+import { PLATFORM_ICONS, platformIcon } from '../shared/icons/platform-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -44,6 +47,10 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideArchive,
       lucideTerminal,
       lucideFolder,
+      lucideUsers,
+      simpleModrinth,
+      simpleCurseforge,
+      ...PLATFORM_ICONS,
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -127,5 +134,16 @@ export class Servers {
 
   protected sourceLabel(s: ServerInstanceDto): string {
     return s.modpackRef ?? s.version ?? 'latest';
+  }
+
+  protected icon(serverType: string): string {
+    return platformIcon(serverType);
+  }
+
+  protected players(s: ServerInstanceDto): string {
+    if (s.playersOnline == null) return '—';
+    const online = Number(s.playersOnline as unknown as number);
+    const max = s.playersMax == null ? null : Number(s.playersMax as unknown as number);
+    return max == null ? `${online}` : `${online}/${max}`;
   }
 }

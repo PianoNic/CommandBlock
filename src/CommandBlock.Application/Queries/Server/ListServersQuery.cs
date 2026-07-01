@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.RegularExpressions;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using CommandBlock.Application.Dtos.Server;
@@ -9,7 +11,7 @@ namespace CommandBlock.Application.Queries.Server
 {
     public record ListServersQuery : IQuery<IReadOnlyList<ServerInstanceDto>>;
 
-    public class ListServersQueryHandler(CommandBlockDbContext db, IDockerServiceResolver dockerResolver)
+    public partial class ListServersQueryHandler(CommandBlockDbContext db, IDockerServiceResolver dockerResolver)
         : IQueryHandler<ListServersQuery, IReadOnlyList<ServerInstanceDto>>
     {
         public async ValueTask<IReadOnlyList<ServerInstanceDto>> Handle(ListServersQuery query, CancellationToken cancellationToken)
@@ -18,9 +20,7 @@ namespace CommandBlock.Application.Queries.Server
                 .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync(cancellationToken);
 
-            // Container state lives on whichever daemon owns it: the local one for control-plane
-            // servers, the node's for node-hosted ones. Query each distinct target once (a name ->
-            // state map) so a row without a container - or an offline node - just gets a null state.
+            // Container state lives on whichever daemon owns it; query each distinct target once.
             var stateByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var nodeId in rows.Select(s => s.NodeId).Distinct())
             {
@@ -40,11 +40,34 @@ namespace CommandBlock.Application.Queries.Server
                 }
             }
 
-            return rows.Select(s =>
+            var result = new List<ServerInstanceDto>(rows.Count);
+            foreach (var s in rows)
             {
                 var state = s.ContainerName is not null && stateByName.TryGetValue(s.ContainerName, out var st) ? st : null;
-                return s.ToDto(state);
-            }).ToList();
+
+                int? online = null, max = null;
+                if (state == "running" && s.ContainerId is not null)
+                {
+                    try
+                    {
+                        var docker = dockerResolver.Resolve(s.NodeId);
+                        var raw = Encoding.UTF8.GetString(await docker.ExecCaptureAsync(s.ContainerId, new[] { "rcon-cli", "list" }, cancellationToken));
+                        var m = PlayerCountRegex().Match(raw);
+                        if (m.Success) { online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
+                    }
+                    catch
+                    {
+                        // RCON not ready / server still booting - leave counts null.
+                    }
+                }
+
+                result.Add(s.ToDto(state, online, max));
+            }
+            return result;
         }
+
+        // Matches "There are 3 of a max of 20 players online" and the "3/20" shorthand.
+        [GeneratedRegex(@"(\d+)\s*(?:of a max of|/)\s*(\d+)")]
+        private static partial Regex PlayerCountRegex();
     }
 }

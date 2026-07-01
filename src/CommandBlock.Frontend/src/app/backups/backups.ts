@@ -3,29 +3,36 @@ import { DatePipe } from '@angular/common';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArchive, lucideDownload, lucideTrash2 } from '@ng-icons/lucide';
+import { lucideArchive, lucideDownload, lucideTrash2, lucidePlus } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
+import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
+import { BackupCreateDialog } from './backup-create-dialog';
 
 type Row = BackupEntryDto & { serverName: string };
 
 @Component({
   selector: 'app-backups',
   imports: [DatePipe, NgIcon, HlmButtonImports, HlmTableImports, ContentHeader],
-  providers: [provideIcons({ lucideArchive, lucideDownload, lucideTrash2 })],
+  providers: [provideIcons({ lucideArchive, lucideDownload, lucideTrash2, lucidePlus })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-content-header />
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <h3 class="text-sm font-medium">World backups</h3>
-        <button hlmBtn variant="outline" size="sm" (click)="load()" [disabled]="loading()">
-          {{ loading() ? 'Loading…' : 'Refresh' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <button hlmBtn size="sm" (click)="createBackup()">
+            <ng-icon name="lucidePlus" size="16" /> Create backup
+          </button>
+          <button hlmBtn variant="outline" size="sm" (click)="load()" [disabled]="loading()">
+            {{ loading() ? 'Loading…' : 'Refresh' }}
+          </button>
+        </div>
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto px-4">
@@ -71,6 +78,14 @@ type Row = BackupEntryDto & { serverName: string };
 export class Backups {
   private readonly api = inject(ServerService);
   private readonly confirm = inject(ConfirmService);
+  private readonly dialog = inject(HlmDialogService);
+
+  protected createBackup(): void {
+    this.dialog.open(BackupCreateDialog, {
+      context: { onCreated: () => this.load() },
+      contentClass: 'sm:max-w-[480px]',
+    });
+  }
 
   protected readonly rows = signal<ReadonlyArray<Row>>([]);
   protected readonly loading = signal(false);
