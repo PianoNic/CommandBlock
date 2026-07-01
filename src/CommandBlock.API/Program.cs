@@ -31,7 +31,7 @@ builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifet
 
 builder.Services.AddCommandBlockDatabase(builder.Configuration);
 builder.Services.AddDocker(builder.Configuration);
-builder.Services.AddSecrets();
+builder.Services.AddActivityLog();
 
 // World backups to an S3/SeaweedFS bucket.
 builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));

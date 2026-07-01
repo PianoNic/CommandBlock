@@ -15,7 +15,6 @@ mod oidc;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use base64::Engine;
 use tauri::{Manager, RunEvent};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
@@ -152,7 +151,6 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
     std::fs::create_dir_all(&data_dir)?;
 
     let db_path = data_dir.join("commandblock.db");
-    let vault_key = load_or_create_vault_key(&data_dir)?;
 
     // Pick free ports up front so nothing collides with a port already in use.
     let api_port = free_port()?;
@@ -177,7 +175,6 @@ fn start_backend(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error
         .env("Database__Provider", "Sqlite")
         .env("ConnectionStrings__CommandBlockDatabase", &conn)
         .env("CommandBlock_CONFIG", commandblock_yaml.to_string_lossy().to_string())
-        .env("Vault__MasterKey", vault_key)
         .env("Oidc__Authority", &authority)
         .env("Oidc__InternalAuthority", &authority)
         .env("Oidc__RequireHttpsMetadata", "false")
@@ -340,23 +337,6 @@ fn confine_child_to_job(pid: u32) {
 
 #[cfg(not(windows))]
 fn confine_child_to_job(_pid: u32) {}
-
-/// The vault key encrypts all provisioned-instance secrets, so it must stay stable across
-/// runs. Generate a 32-byte AES-256 key once and persist it in the app-data dir.
-fn load_or_create_vault_key(data_dir: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
-    let key_file = data_dir.join("vault.key");
-    if let Ok(existing) = std::fs::read_to_string(&key_file) {
-        let trimmed = existing.trim().to_string();
-        if !trimmed.is_empty() {
-            return Ok(trimmed);
-        }
-    }
-    let mut bytes = [0u8; 32];
-    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut bytes);
-    let key = base64::engine::general_purpose::STANDARD.encode(bytes);
-    std::fs::write(&key_file, &key)?;
-    Ok(key)
-}
 
 /// Start the in-process OIDC issuer on its own thread + Tokio runtime so it's independent
 /// of Tauri's runtime. It auto-issues tokens (no login screen) for zero-config local sign-in.

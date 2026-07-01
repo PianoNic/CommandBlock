@@ -61,7 +61,6 @@ services:
       Oidc__PostLogoutRedirectUri: "http://localhost:56722/"
       Oidc__Scope: "openid profile email roles"
       Cors__AllowedOrigins__0: "http://localhost:56722"
-      Vault__MasterKey: "2P+vvGUw5v3weZdFU04YOicpVNs9eIyRKo6NliiDR4c="
       Backup__Enabled: "true"
       Backup__S3Endpoint: "http://seaweedfs:8333"
       Backup__Bucket: "commandblock-backups"

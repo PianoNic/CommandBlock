@@ -25,11 +25,10 @@ Use them whenever one exists — `gh issue create`, `gh pr create`, `npx create-
 
 ## Local dev setup
 
-- `compose.yml` runs CommandBlock with `mock-oauth2-server` (no Keycloak) on random ephemeral ports.
-- Ports are fixed in `compose.yml` — edit them if they conflict.
-- `Vault__MasterKey` must be set in the `commandblock` service environment (see compose.yml).
-- The runtime image is `mcr.microsoft.com/dotnet/aspnet:10.0.x-azurelinux3.0` (non-distroless) — required for ICU/globalization support (MSSQL client).
-- `localhost`/`127.0.0.1` in register/probe calls is rewritten to `host.docker.internal` inside the container.
+- `compose.yml` runs CommandBlock with `mock-oauth2-server` + Postgres + SeaweedFS. Ports are fixed in `compose.yml` — edit them if they conflict.
+- Server world data is bind-mounted to a host folder (`storage.host_path`, default `/data/servers`); CommandBlock never uses Docker named volumes.
+- World backups go to the S3/SeaweedFS bucket configured via the `Backup__*` env vars.
+- The Minecraft router listens on `25565` — the only game port to open.
 
 ## Migrations
 

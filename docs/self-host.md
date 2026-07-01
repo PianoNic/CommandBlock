@@ -34,7 +34,6 @@ services:
     environment:
       Database__Provider: "Postgres"
       ConnectionStrings__CommandBlockDatabase: "Host=db;Port=5432;Database=commandblock;Username=postgres;Password=${POSTGRES_PASSWORD}"
-      Vault__MasterKey: ${CommandBlock_VAULT_KEY}
       CommandBlock__PublicUrl: ${CommandBlock_PUBLIC_URL}
       Cors__AllowedOrigins__0: ${CommandBlock_PUBLIC_URL}
       Oidc__Authority: ${CommandBlock_OIDC_AUTHORITY}
@@ -85,7 +84,6 @@ services:
 ```env
 POSTGRES_PASSWORD=change-me
 SEAWEEDFS_SECRET=change-me-too
-CommandBlock_VAULT_KEY=GENERATE_ME          # openssl rand -base64 32
 
 # The public URL the web UI is served on. The login redirect URI and CORS origin are derived from it.
 CommandBlock_PUBLIC_URL=http://localhost:5000
@@ -130,7 +128,6 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 
 | Variable | What it does |
 | --- | --- |
-| `Vault__MasterKey` | AES-256 key for the secrets vault. **32 random bytes, base64** (`openssl rand -base64 32`). |
 | `ConnectionStrings__CommandBlockDatabase` | CommandBlock's own metadata DB. Postgres: `Host=db;Port=5432;Database=commandblock;Username=postgres;Password=…`. SQLite: `Data Source=/data/commandblock.db`. |
 | `Database__Provider` | `Postgres` or `Sqlite` (default). |
 | `Oidc__Authority` / `Oidc__ClientId` / `Oidc__Scope` / `Oidc__RequireHttpsMetadata` | OIDC login (public/PKCE client). `Authority` must match the IdP `issuer` byte-for-byte. |
@@ -139,10 +136,6 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | `Router__ListenPort` / `Router__Enabled` / `Router__HandshakeTimeoutSeconds` | The Minecraft router (defaults: `25565`, `true`, `5`). |
 | `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | World backups to S3/SeaweedFS. See [World backups](./backups). |
 | `Docker__Endpoint` | Docker daemon URI. Optional - auto-detected when unset. |
-
-::: danger
-**Never lose or rotate `Vault__MasterKey` once you have data.** There's no recovery and no key-rotation flow.
-:::
 
 </details>
 
@@ -197,7 +190,6 @@ Migrations run on startup; the metadata DB, worlds, and running server container
 
 | Symptom | Fix |
 | --- | --- |
-| `Vault:MasterKey must decode to 32 bytes` | Regenerate with `openssl rand -base64 32`. |
 | `401 invalid_token: issuer is invalid` | `Oidc__Authority` must match the IdP's `issuer` byte-for-byte. |
 | CORS error on `/api/*` | `Cors__AllowedOrigins__0` must match the UI origin (no trailing slash). |
 | `Cannot connect to the Docker daemon` | The `/var/run/docker.sock` bind is missing from the `commandblock` service. |

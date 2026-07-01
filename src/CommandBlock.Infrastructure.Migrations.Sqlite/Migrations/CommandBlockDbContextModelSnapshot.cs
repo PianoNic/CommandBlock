@@ -87,42 +87,6 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
                     b.ToTable("BackupEntries");
                 });
 
-            modelBuilder.Entity("CommandBlock.Domain.Secret", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<byte[]>("Ciphertext")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<byte[]>("Nonce")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
-                    b.Property<byte[]>("Tag")
-                        .IsRequired()
-                        .HasColumnType("BLOB");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Secrets");
-                });
-
             modelBuilder.Entity("CommandBlock.Domain.ServerInstance", b =>
                 {
                     b.Property<Guid>("Id")

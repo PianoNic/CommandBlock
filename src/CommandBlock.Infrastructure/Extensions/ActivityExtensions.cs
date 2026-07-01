@@ -4,12 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CommandBlock.Infrastructure.Extensions
 {
-    public static class SecretsExtensions
+    public static class ActivityExtensions
     {
-        public static IServiceCollection AddSecrets(this IServiceCollection services)
+        /// <summary>Registers the activity-log writer used to record server actions.</summary>
+        public static IServiceCollection AddActivityLog(this IServiceCollection services)
         {
-            services.AddSingleton<ISecretGeneratorService, SecretGeneratorService>();
-            services.AddScoped<ISecretsVaultService, SecretsVaultService>();
             services.AddScoped<IActivityLogger, ActivityLogger>();
             return services;
         }

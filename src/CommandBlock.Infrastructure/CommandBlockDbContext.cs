@@ -7,7 +7,6 @@ namespace CommandBlock.Infrastructure
 {
     public class CommandBlockDbContext(DbContextOptions<CommandBlockDbContext> options) : DbContext(options)
     {
-        public DbSet<Secret> Secrets => Set<Secret>();
         public DbSet<ServerInstance> ServerInstances => Set<ServerInstance>();
         public DbSet<ActivityEntry> ActivityEntries => Set<ActivityEntry>();
         public DbSet<BackupEntry> BackupEntries => Set<BackupEntry>();
