@@ -44,6 +44,7 @@ model/serverPropertiesDto.ts
 model/toggleBackupScheduleDto.ts
 model/updateServerPropertiesDto.ts
 model/updateServerRuntimeDto.ts
+model/updateWakeDto.ts
 model/writeFileDto.ts
 param.ts
 provide-api.ts

@@ -34,7 +34,6 @@
   <ItemGroup>
     <ProjectReference Include="..\CommandBlock.Application\CommandBlock.Application.csproj" />
     <ProjectReference Include="..\CommandBlock.Infrastructure\CommandBlock.Infrastructure.csproj" />
-    <ProjectReference Include="..\CommandBlock.Infrastructure.Migrations.Sqlite\CommandBlock.Infrastructure.Migrations.Sqlite.csproj" />
   </ItemGroup>
 
 </Project>

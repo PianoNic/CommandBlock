@@ -50,6 +50,10 @@ namespace CommandBlock.Application.Dtos.Server
         /// <summary>True when a custom server icon has been uploaded (fetch it from the icon endpoint);
         /// false means the UI should show the platform icon.</summary>
         public required bool HasIcon { get; init; }
+        /// <summary>When true, joining this server while it's stopped starts it (wake-on-connect).</summary>
+        public required bool WakeOnConnect { get; init; }
+        /// <summary>Queue hold window (seconds) when waking on connect; 0 = ask the player to reconnect.</summary>
+        public required int WakeQueueSeconds { get; init; }
         public required DateTime CreatedAt { get; init; }
     }
 }

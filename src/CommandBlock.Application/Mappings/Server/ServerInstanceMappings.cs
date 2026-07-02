@@ -29,6 +29,8 @@ namespace CommandBlock.Application.Mappings.Server
             PlayersMax = playersMax,
             MemoryBytes = memoryBytes,
             HasIcon = s.IconPng != null && s.IconPng.Length > 0,
+            WakeOnConnect = s.WakeOnConnect,
+            WakeQueueSeconds = s.WakeQueueSeconds,
             CreatedAt = s.CreatedAt,
         };
     }

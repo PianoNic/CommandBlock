@@ -20,18 +20,8 @@ namespace CommandBlock.API.Routing
         /// <summary>How long to wait when dialing a backend before treating it as down/asleep.</summary>
         public int BackendConnectTimeoutSeconds { get; set; } = 2;
 
-        /// <summary>Whether a player joining a stopped/asleep server starts its container. Off by
-        /// default, so player connections never spin up containers unless the operator opts in.</summary>
-        public bool WakeOnConnectEnabled { get; set; }
-
-        /// <summary>When waking on connect, hold the joining player for up to this many seconds and let
-        /// them straight in the moment the server is ready (a "queue"), instead of asking them to
-        /// reconnect. 0 disables the queue (ask to reconnect immediately). Capped below the client's
-        /// ~30s login timeout, so slow-booting servers still fall back to the reconnect message.</summary>
-        public int WakeHoldSeconds { get; set; }
-
         /// <summary>Stop servers that have had no players for <see cref="AutoSleepIdleMinutes"/> - this
-        /// is what makes servers sleep. Independent of <see cref="WakeOnConnectEnabled"/>.</summary>
+        /// is what makes servers sleep. Wake-on-connect is configured per server, not here.</summary>
         public bool AutoSleepEnabled { get; set; }
 
         public int AutoSleepIdleMinutes { get; set; } = 10;
@@ -131,14 +121,14 @@ namespace CommandBlock.API.Routing
                     // Server is down or still booting.
                     if (handshake.NextState == 1)
                     {
-                        var motd = _options.WakeOnConnectEnabled
+                        var motd = target.WakeOnConnect
                             ? $"§7{target.DisplayName} is asleep - join to start it."
                             : $"§7{target.DisplayName} is offline.";
                         await SendSleepingStatusAsync(clientStream, motd, handshake.ProtocolVersion, stoppingToken);
                     }
                     else if (handshake.NextState == 2)
                     {
-                        if (!_options.WakeOnConnectEnabled)
+                        if (!target.WakeOnConnect)
                         {
                             await SendLoginDisconnectAsync(clientStream, $"§7{target.DisplayName} is offline.", stoppingToken);
                             return;
@@ -148,7 +138,7 @@ namespace CommandBlock.API.Routing
 
                         // Queue: hold the joining player and pipe them straight in once the server is
                         // up, as long as it boots inside the window (kept under the client login timeout).
-                        var hold = Math.Min(_options.WakeHoldSeconds, 28);
+                        var hold = Math.Min(target.WakeQueueSeconds, 28);
                         if (hold > 0)
                         {
                             backend = await WaitForBackendAsync(target, hold, stoppingToken);

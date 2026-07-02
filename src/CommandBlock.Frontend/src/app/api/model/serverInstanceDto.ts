@@ -36,6 +36,8 @@ export interface ServerInstanceDto {
     playersMax?: ProblemDetailsStatus | null;
     memoryBytes?: ServerInstanceDtoMemoryBytes | null;
     hasIcon: boolean;
+    wakeOnConnect: boolean;
+    wakeQueueSeconds: PlayerListDtoOnline;
     createdAt: string;
 }
 

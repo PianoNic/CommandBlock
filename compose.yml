@@ -66,12 +66,9 @@ services:
       Backup__Bucket: "commandblock-backups"
       Backup__AccessKey: "commandblock"
       Backup__SecretKey: "seaweedfs-secret-key"
-      # Router: how player connections to a stopped server behave. Wake-on-connect is OFF by default;
-      # turn it on to let a player who joins a stopped server start it. WakeHoldSeconds > 0 holds the
-      # joining player and lets them straight in the moment the server is ready (a queue), up to ~28s;
-      # 0 asks them to reconnect. Auto-sleep (stop idle servers to free RAM) is also off by default.
-      Router__WakeOnConnectEnabled: "false"
-      Router__WakeHoldSeconds: "0"
+      # Wake-on-connect (start a stopped server when a player joins) + its join queue are configured
+      # per server in the UI, not here. Auto-sleep (stop idle servers to free RAM) is global and off
+      # by default; enable it to make servers sleep after Router__AutoSleepIdleMinutes with no players.
       Router__AutoSleepEnabled: "false"
       Router__AutoSleepIdleMinutes: "10"
     depends_on:

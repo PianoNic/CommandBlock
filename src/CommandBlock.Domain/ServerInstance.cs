@@ -92,5 +92,14 @@ namespace CommandBlock.Domain
         /// <summary>A user-uploaded server icon, cropped/resized to a 64x64 PNG (the Minecraft
         /// server-icon size). Shown in the UI; null falls back to the platform icon.</summary>
         public byte[]? IconPng { get; set; }
+
+        /// <summary>When true, a player joining this server while it's stopped starts its container
+        /// (wake-on-connect). Off by default - a per-server setting, read live by the router.</summary>
+        public bool WakeOnConnect { get; set; }
+
+        /// <summary>When waking on connect, hold the joining player up to this many seconds and let
+        /// them straight in once the server is ready (a queue). 0 = ask them to reconnect. The router
+        /// caps the effective wait below the client's ~30s login timeout.</summary>
+        public int WakeQueueSeconds { get; set; }
     }
 }

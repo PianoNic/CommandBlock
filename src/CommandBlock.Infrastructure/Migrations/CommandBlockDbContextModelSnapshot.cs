@@ -228,6 +228,12 @@ namespace CommandBlock.Infrastructure.Migrations
                     b.Property<string>("Version")
                         .HasColumnType("text");
 
+                    b.Property<bool>("WakeOnConnect")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("WakeQueueSeconds")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContainerName")

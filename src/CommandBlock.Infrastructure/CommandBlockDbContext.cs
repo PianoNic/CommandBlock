@@ -46,13 +46,12 @@ namespace CommandBlock.Infrastructure
     {
         public CommandBlockDbContext CreateDbContext(string[] args)
         {
-            // Used by the EF Core CLI. Provider and connection string are read straight from
-            // the environment so `dotnet ef` targets the same database the app would at runtime.
+            // Used by the EF Core CLI. The Postgres connection string is read straight from the
+            // environment so `dotnet ef` targets the same database the app would at runtime.
             var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__CommandBlockDatabase");
-            var provider = DatabaseExtensions.ResolveProvider(Environment.GetEnvironmentVariable("Database__Provider"), connectionString);
 
             var optionsBuilder = new DbContextOptionsBuilder<CommandBlockDbContext>();
-            optionsBuilder.ConfigureCommandBlockProvider(provider, connectionString);
+            optionsBuilder.ConfigureCommandBlockProvider(connectionString);
             return new CommandBlockDbContext(optionsBuilder.Options);
         }
     }

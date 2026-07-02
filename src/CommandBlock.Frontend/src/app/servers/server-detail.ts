@@ -18,6 +18,8 @@ import {
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
+import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -33,7 +35,7 @@ import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-server-detail',
-  imports: [RouterLink, NgIcon, HlmButtonImports, ContentHeader, ServerConsole],
+  imports: [RouterLink, NgIcon, HlmButtonImports, HlmCheckboxImports, HlmInputImports, ContentHeader, ServerConsole],
   providers: [
     provideIcons({
       lucideArrowLeft,
@@ -123,6 +125,23 @@ import { environment } from '../shared/environments/environment';
             </span>
           </div>
 
+          <!-- Wake on join: per-server, saved straight to the DB; the router reads it live (no restart) -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b px-4 py-2 text-xs">
+            <label class="inline-flex cursor-pointer items-center gap-2">
+              <hlm-checkbox [checked]="wakeOnConnect()" (checkedChange)="setWake($event)" />
+              <span class="text-foreground">Wake on join</span>
+              <span class="text-muted-foreground">start this server when a player connects</span>
+            </label>
+            @if (wakeOnConnect()) {
+              <span class="inline-flex items-center gap-1.5">
+                <span class="text-muted-foreground">Queue</span>
+                <input hlmInput type="number" min="0" max="28" class="h-7 w-16 text-xs" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
+                <span class="text-muted-foreground">s (hold the player and let them in when ready; 0 = ask to reconnect)</span>
+              </span>
+            }
+            @if (wakeSaving()) { <span class="text-muted-foreground">saving…</span> }
+          </div>
+
           <!-- Online players (read-only, fetched on demand via RCON so it doesn't spam the console) -->
           @if (isRunning()) {
             <div class="flex items-center gap-2 border-b px-4 py-1.5 text-xs">
@@ -172,6 +191,9 @@ export class ServerDetail {
   protected readonly playersLoading = signal(false);
   // Bumped after an icon upload to bust the browser's <img> cache for the same URL.
   protected readonly iconV = signal(0);
+  protected readonly wakeOnConnect = signal(false);
+  protected readonly wakeQueue = signal(0);
+  protected readonly wakeSaving = signal(false);
 
   constructor() {
     this.statusStream.start();
@@ -184,10 +206,34 @@ export class ServerDetail {
       next: (rows) => {
         const found = rows.find((r) => r.id === this.id) ?? null;
         this.server.set(found);
+        if (found) {
+          this.wakeOnConnect.set(!!found.wakeOnConnect);
+          this.wakeQueue.set(Number(found.wakeQueueSeconds ?? 0));
+        }
         this.loading.set(false);
         if (found && (this.statuses()[found.id]?.state ?? found.state) === 'running') this.loadPlayers();
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  protected setWake(enabled: boolean): void {
+    this.wakeOnConnect.set(enabled);
+    this.saveWake();
+  }
+
+  protected setQueue(value: string): void {
+    this.wakeQueue.set(Math.max(0, Math.min(28, Math.floor(+value || 0))));
+    this.saveWake();
+  }
+
+  private saveWake(): void {
+    const s = this.server();
+    if (!s) return;
+    this.wakeSaving.set(true);
+    this.api.apiServerIdWakePut(s.id, { wakeOnConnect: this.wakeOnConnect(), wakeQueueSeconds: this.wakeQueue() }).subscribe({
+      next: () => this.wakeSaving.set(false),
+      error: () => this.wakeSaving.set(false),
     });
   }
 

@@ -25,4 +25,5 @@ export * from './serverPropertiesDto';
 export * from './toggleBackupScheduleDto';
 export * from './updateServerPropertiesDto';
 export * from './updateServerRuntimeDto';
+export * from './updateWakeDto';
 export * from './writeFileDto';

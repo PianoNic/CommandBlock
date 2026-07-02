@@ -187,6 +187,19 @@ namespace CommandBlock.API.Controllers
             return NoContent();
         }
 
+        [HttpPut("{id:guid}/wake")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateWake(Guid id, [FromBody] UpdateWakeDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await mediator.Send(new UpdateWakeCommand(id, body.WakeOnConnect, body.WakeQueueSeconds), cancellationToken);
+                return NoContent();
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+        }
+
         [HttpGet("{id:guid}/backups")]
         [ProducesResponseType(typeof(IReadOnlyList<BackupEntryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListBackups(Guid id, CancellationToken cancellationToken)
