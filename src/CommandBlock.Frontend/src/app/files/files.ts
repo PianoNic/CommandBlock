@@ -1,9 +1,10 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
   OnDestroy,
+  afterNextRender,
   inject,
   signal,
   viewChild,
@@ -23,6 +24,11 @@ import {
   lucideRefreshCw,
 } from '@ng-icons/lucide';
 import { EditorView, basicSetup } from 'codemirror';
+import { StreamLanguage } from '@codemirror/language';
+import { json } from '@codemirror/lang-json';
+import { yaml } from '@codemirror/lang-yaml';
+import { properties } from '@codemirror/legacy-modes/mode/properties';
+import { toml } from '@codemirror/legacy-modes/mode/toml';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -110,11 +116,12 @@ import { FileEntry } from '../api/model/fileEntry';
     </section>
   `,
 })
-export class Files implements AfterViewInit, OnDestroy {
+export class Files implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(FilesService);
   private readonly servers = inject(ServerService);
   private readonly confirm = inject(ConfirmService);
+  private readonly injector = inject(Injector);
 
   private readonly editorHost = viewChild<ElementRef<HTMLDivElement>>('editor');
 
@@ -142,8 +149,6 @@ export class Files implements AfterViewInit, OnDestroy {
     this.load();
   }
 
-  ngAfterViewInit(): void { /* editor is created lazily when a file opens */ }
-
   protected load(): void {
     this.loading.set(true);
     this.error.set(null);
@@ -169,22 +174,46 @@ export class Files implements AfterViewInit, OnDestroy {
         this.binary.set(c.binary);
         this.truncated.set(c.truncated);
         this.dirty.set(false);
-        if (!c.binary) queueMicrotask(() => this.mountEditor(c.content));
+        // Mount only after Angular renders the @if branch holding the #editor host - otherwise the
+        // viewChild is still null and the editor silently never appears (the old queueMicrotask race).
+        if (!c.binary) afterNextRender(() => this.mountEditor(c.content, path), { injector: this.injector });
       },
       error: (e) => this.error.set(messageOf(e)),
     });
   }
 
-  private mountEditor(content: string): void {
+  private mountEditor(content: string, path: string): void {
     const host = this.editorHost()?.nativeElement;
     if (!host) return;
     this.editor?.destroy();
     host.replaceChildren();
     this.editor = new EditorView({
       doc: content,
-      extensions: [basicSetup, EditorView.updateListener.of((u) => { if (u.docChanged) this.dirty.set(true); })],
+      extensions: [
+        basicSetup,
+        this.languageFor(path),
+        EditorView.updateListener.of((u) => { if (u.docChanged) this.dirty.set(true); }),
+      ],
       parent: host,
     });
+  }
+
+  /// Picks a CodeMirror language by extension for the common Minecraft config formats.
+  private languageFor(path: string) {
+    switch (path.split('.').pop()?.toLowerCase()) {
+      case 'json':
+      case 'mcmeta':
+        return json();
+      case 'yml':
+      case 'yaml':
+        return yaml();
+      case 'properties':
+        return StreamLanguage.define(properties);
+      case 'toml':
+        return StreamLanguage.define(toml);
+      default:
+        return [];
+    }
   }
 
   protected save(): void {

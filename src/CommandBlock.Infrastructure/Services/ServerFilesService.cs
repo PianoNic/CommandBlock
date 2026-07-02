@@ -152,15 +152,16 @@ namespace CommandBlock.Infrastructure.Services
             using var reader = new TarReader(buffer, leaveOpen: true);
             while (await reader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
             {
-                if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile && entry.DataStream is not null)
+                if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile)
                 {
+                    // A 0-byte file has a null DataStream - that's an empty file, not an error.
                     var data = new MemoryStream();
-                    await entry.DataStream.CopyToAsync(data, ct);
+                    if (entry.DataStream is not null) await entry.DataStream.CopyToAsync(data, ct);
                     data.Position = 0;
                     return data;
                 }
             }
-            throw new InvalidOperationException("Not a file (or the file is empty).");
+            throw new InvalidOperationException("Not a regular file.");
         }
     }
 }
