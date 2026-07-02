@@ -408,7 +408,10 @@ FodyWeavers.xsd
 .env.*
 !.env.example
 
-.playwright-mcp/
+# Stray screenshots saved to the repo root during local testing (real images live under src/)
+/*.png
+/*.jpg
+/*.jpeg
 
 # Tauri desktop shell
 /src-tauri/target/
