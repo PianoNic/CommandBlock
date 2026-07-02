@@ -20,6 +20,8 @@ model/apiActivityGetLimitParameter.ts
 model/appDto.ts
 model/backupEntryDto.ts
 model/backupEntryDtoSizeBytes.ts
+model/backupScheduleDto.ts
+model/createBackupScheduleDto.ts
 model/createServerDto.ts
 model/domainDto.ts
 model/fileContent.ts
@@ -33,6 +35,7 @@ model/renameFileDto.ts
 model/serverInstanceDto.ts
 model/serverInstanceDtoMemoryBytes.ts
 model/serverInstanceDtoPort.ts
+model/toggleBackupScheduleDto.ts
 model/updateServerRuntimeDto.ts
 model/writeFileDto.ts
 param.ts

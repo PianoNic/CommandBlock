@@ -3,12 +3,14 @@ import { DatePipe, DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive } from '@ng-icons/lucide';
+import { lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive, lucideClock } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
+import { BackupScheduleDto } from '../api/model/backupScheduleDto';
 import { environment } from '../shared/environments/environment';
 
 type DialogContext = { serverId: string; serverName: string };
@@ -19,11 +21,12 @@ type DialogContext = { serverId: string; serverName: string };
     DatePipe,
     NgIcon,
     HlmButtonImports,
+    HlmCheckboxImports,
     HlmDialogHeader,
     HlmDialogTitle,
     HlmDialogDescription,
   ],
-  providers: [provideIcons({ lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive })],
+  providers: [provideIcons({ lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive, lucideClock })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -80,6 +83,41 @@ type DialogContext = { serverId: string; serverName: string };
         }
       </ul>
     }
+
+    <div class="flex flex-col gap-2 border-t pt-3">
+      <span class="inline-flex items-center gap-1.5 text-sm font-medium">
+        <ng-icon name="lucideClock" size="14" /> Scheduled backups
+      </span>
+      <div class="flex flex-wrap items-center gap-1.5">
+        @for (p of presets; track p.cron) {
+          <button hlmBtn size="sm" variant="outline" type="button" (click)="addSchedule(p.cron)" [disabled]="busy()">
+            <ng-icon name="lucidePlus" size="12" /> {{ p.label }}
+          </button>
+        }
+      </div>
+      @if (schedules().length > 0) {
+        <ul class="divide-border divide-y rounded-md border">
+          @for (s of schedules(); track s.id) {
+            <li class="flex items-center gap-3 p-2">
+              <hlm-checkbox [checked]="s.enabled" (checkedChange)="toggleSchedule(s, $event)" />
+              <div class="min-w-0 flex-1">
+                <span class="font-mono text-xs">{{ s.cronExpression }}</span>
+                <span class="text-muted-foreground text-xs"> · {{ describeCron(s.cronExpression) }}</span>
+                <div class="text-muted-foreground text-[11px]">
+                  @if (s.enabled && s.nextRunAt) { next {{ s.nextRunAt | date: 'short' }} } @else { paused }
+                  @if (s.lastStatus === 'error') { · <span class="text-destructive">last run failed</span> }
+                </div>
+              </div>
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="removeSchedule(s)" title="Delete schedule">
+                <ng-icon name="lucideTrash2" size="13" />
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="text-muted-foreground text-xs">No schedules - pick a preset above to back up automatically (times are UTC).</p>
+      }
+    </div>
   `,
 })
 export class ServerBackupsDialog {
@@ -90,15 +128,63 @@ export class ServerBackupsDialog {
   private readonly doc = inject(DOCUMENT);
 
   protected readonly backups = signal<ReadonlyArray<BackupEntryDto>>([]);
+  protected readonly schedules = signal<ReadonlyArray<BackupScheduleDto>>([]);
   protected readonly loading = signal(false);
   protected readonly creating = signal(false);
   protected readonly working = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  // Common cron presets (UTC). describeCron() maps a stored cron back to its label.
+  protected readonly presets = [
+    { label: 'Hourly', cron: '0 * * * *' },
+    { label: 'Every 6h', cron: '0 */6 * * *' },
+    { label: 'Daily 3am', cron: '0 3 * * *' },
+    { label: 'Weekly', cron: '0 4 * * 0' },
+  ] as const;
+
   protected busy = () => this.creating() || this.working() || this.loading();
 
   constructor() {
     this.load();
+    this.loadSchedules();
+  }
+
+  protected loadSchedules(): void {
+    this.api.apiServerIdBackupSchedulesGet(this.ctx.serverId).subscribe({ next: (rows) => this.schedules.set(rows) });
+  }
+
+  protected addSchedule(cron: string): void {
+    this.working.set(true);
+    this.error.set(null);
+    this.api.apiServerIdBackupSchedulesPost(this.ctx.serverId, { cronExpression: cron }).subscribe({
+      next: () => {
+        this.working.set(false);
+        this.loadSchedules();
+      },
+      error: (err: unknown) => {
+        this.working.set(false);
+        this.error.set(messageOf(err));
+      },
+    });
+  }
+
+  protected toggleSchedule(s: BackupScheduleDto, enabled: boolean): void {
+    this.api.apiServerBackupSchedulesScheduleIdPatch(s.id, { enabled }).subscribe({ next: () => this.loadSchedules() });
+  }
+
+  protected async removeSchedule(s: BackupScheduleDto): Promise<void> {
+    const ok = await this.confirm.open({
+      title: 'Delete schedule?',
+      message: `Stop the "${s.cronExpression}" scheduled backup. Existing backups are kept.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    this.api.apiServerBackupSchedulesScheduleIdDelete(s.id).subscribe({ next: () => this.loadSchedules() });
+  }
+
+  protected describeCron(cron: string): string {
+    return this.presets.find((p) => p.cron === cron)?.label ?? 'custom';
   }
 
   protected load(): void {

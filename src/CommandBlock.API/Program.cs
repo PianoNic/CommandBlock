@@ -73,6 +73,7 @@ builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
 builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
 builder.Services.AddHostedService<MinecraftRouter>();
 builder.Services.AddHostedService<IdleServerMonitor>();
+builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>();
 
 // Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA
 // same-origin from the sidecar, so it needs none; server deployments set it explicitly.

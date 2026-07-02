@@ -1,10 +1,13 @@
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
 using CommandBlock.Application.Command.Backup;
+using CommandBlock.Application.Command.BackupSchedule;
 using CommandBlock.Application.Command.Server;
 using CommandBlock.Application.Dtos.Backup;
+using CommandBlock.Application.Dtos.BackupSchedule;
 using CommandBlock.Application.Dtos.Server;
 using CommandBlock.Application.Queries.Backup;
+using CommandBlock.Application.Queries.BackupSchedule;
 using CommandBlock.Application.Queries.Server;
 
 namespace CommandBlock.API.Controllers
@@ -151,6 +154,49 @@ namespace CommandBlock.API.Controllers
             catch (BackupNotFoundException) { return NotFound(); }
             catch (ServerNotFoundException) { return NotFound(); }
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        [HttpGet("{id:guid}/backup-schedules")]
+        [ProducesResponseType(typeof(IReadOnlyList<BackupScheduleDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ListBackupSchedules(Guid id, CancellationToken cancellationToken)
+        {
+            return Ok(await mediator.Send(new ListBackupSchedulesQuery(id), cancellationToken));
+        }
+
+        [HttpPost("{id:guid}/backup-schedules")]
+        [ProducesResponseType(typeof(BackupScheduleDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CreateBackupSchedule(Guid id, [FromBody] CreateBackupScheduleDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await mediator.Send(new CreateBackupScheduleCommand(id, body.CronExpression), cancellationToken);
+                return CreatedAtAction(nameof(ListBackupSchedules), new { id }, result);
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        [HttpPatch("backup-schedules/{scheduleId:guid}")]
+        [ProducesResponseType(typeof(BackupScheduleDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ToggleBackupSchedule(Guid scheduleId, [FromBody] ToggleBackupScheduleDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await mediator.Send(new ToggleBackupScheduleCommand(scheduleId, body.Enabled), cancellationToken);
+                return Ok(result);
+            }
+            catch (BackupScheduleNotFoundException) { return NotFound(); }
+        }
+
+        [HttpDelete("backup-schedules/{scheduleId:guid}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> DeleteBackupSchedule(Guid scheduleId, CancellationToken cancellationToken)
+        {
+            await mediator.Send(new DeleteBackupScheduleCommand(scheduleId), cancellationToken);
+            return NoContent();
         }
 
         [HttpGet("backups/{backupId:guid}/download")]
