@@ -13,6 +13,7 @@ import {
   lucideTrash2,
   lucideGlobe,
   lucideUsers,
+  lucideRefreshCw,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -23,6 +24,7 @@ import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { ServerConsole } from '../console/server-console';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { PlayerListDto } from '../api/model/playerListDto';
 import { ServerBackupsDialog } from './server-backups-dialog';
 import { ServerRuntimeDialog } from './server-runtime-dialog';
 
@@ -42,6 +44,7 @@ import { ServerRuntimeDialog } from './server-runtime-dialog';
       lucideTrash2,
       lucideGlobe,
       lucideUsers,
+      lucideRefreshCw,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -112,6 +115,31 @@ import { ServerRuntimeDialog } from './server-runtime-dialog';
             </span>
           </div>
 
+          <!-- Online players (read-only, fetched on demand via RCON so it doesn't spam the console) -->
+          @if (isRunning()) {
+            <div class="flex items-center gap-2 border-b px-4 py-1.5 text-xs">
+              <span class="text-muted-foreground inline-flex shrink-0 items-center gap-1.5">
+                <ng-icon name="lucideUsers" size="12" /> Players
+              </span>
+              @if (playerList(); as pl) {
+                @if (pl.players.length > 0) {
+                  <div class="flex flex-wrap items-center gap-1">
+                    @for (p of pl.players; track p) {
+                      <span class="bg-secondary rounded px-1.5 py-0.5 font-mono">{{ p }}</span>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-muted-foreground">{{ pl.reachable ? 'No players online' : 'Server not reachable' }}</span>
+                }
+              } @else {
+                <span class="text-muted-foreground">…</span>
+              }
+              <button hlmBtn size="sm" variant="ghost" class="ml-auto h-6 shrink-0 px-2" (click)="loadPlayers()" [disabled]="playersLoading()" title="Refresh players">
+                <ng-icon name="lucideRefreshCw" size="12" [class.animate-spin]="playersLoading()" />
+              </button>
+            </div>
+          }
+
           <!-- Console fills the rest -->
           <app-server-console [serverId]="s.id" class="min-h-0 flex-1" />
         </div>
@@ -132,6 +160,8 @@ export class ServerDetail {
   protected readonly server = signal<ServerInstanceDto | null>(null);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
+  protected readonly playerList = signal<PlayerListDto | null>(null);
+  protected readonly playersLoading = signal(false);
 
   constructor() {
     this.statusStream.start();
@@ -142,10 +172,22 @@ export class ServerDetail {
     this.loading.set(true);
     this.api.apiServerGet().subscribe({
       next: (rows) => {
-        this.server.set(rows.find((r) => r.id === this.id) ?? null);
+        const found = rows.find((r) => r.id === this.id) ?? null;
+        this.server.set(found);
         this.loading.set(false);
+        if (found && (this.statuses()[found.id]?.state ?? found.state) === 'running') this.loadPlayers();
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  protected loadPlayers(): void {
+    const s = this.server();
+    if (!s) return;
+    this.playersLoading.set(true);
+    this.api.apiServerIdPlayersGet(s.id).subscribe({
+      next: (pl) => { this.playerList.set(pl); this.playersLoading.set(false); },
+      error: () => this.playersLoading.set(false),
     });
   }
 

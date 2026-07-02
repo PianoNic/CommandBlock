@@ -9,7 +9,7 @@
  */
 import { ServerInstanceDtoMemoryBytes } from './serverInstanceDtoMemoryBytes';
 import { ProblemDetailsStatus } from './problemDetailsStatus';
-import { ServerInstanceDtoPort } from './serverInstanceDtoPort';
+import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
 export interface ServerInstanceDto { 
@@ -25,7 +25,7 @@ export interface ServerInstanceDto {
     extraEnv?: string | null;
     displayName: string;
     hostname: string;
-    port: ServerInstanceDtoPort;
+    port: PlayerListDtoOnline;
     containerName?: string | null;
     isManaged: boolean;
     isPublic: boolean;

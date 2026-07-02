@@ -117,6 +117,13 @@ namespace CommandBlock.API.Controllers
             catch (ServerNotFoundException) { return NotFound(); }
         }
 
+        [HttpGet("{id:guid}/players")]
+        [ProducesResponseType(typeof(PlayerListDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ListPlayers(Guid id, CancellationToken cancellationToken)
+        {
+            return Ok(await mediator.Send(new ListPlayersQuery(id), cancellationToken));
+        }
+
         [HttpGet("{id:guid}/backups")]
         [ProducesResponseType(typeof(IReadOnlyList<BackupEntryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListBackups(Guid id, CancellationToken cancellationToken)

@@ -33,12 +33,13 @@ model/hostResourcesDto.ts
 model/models.ts
 model/modpackSearchResult.ts
 model/pathDto.ts
+model/playerListDto.ts
+model/playerListDtoOnline.ts
 model/problemDetails.ts
 model/problemDetailsStatus.ts
 model/renameFileDto.ts
 model/serverInstanceDto.ts
 model/serverInstanceDtoMemoryBytes.ts
-model/serverInstanceDtoPort.ts
 model/toggleBackupScheduleDto.ts
 model/updateServerRuntimeDto.ts
 model/writeFileDto.ts
