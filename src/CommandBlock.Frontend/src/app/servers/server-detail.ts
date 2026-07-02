@@ -62,7 +62,7 @@ import { environment } from '../shared/environments/environment';
           <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
             <button type="button" class="hover:bg-accent shrink-0 rounded p-0.5" title="Upload / change server icon (cropped to 64x64)" (click)="iconPicker.click()">
-              <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] rounded-sm" style="image-rendering:pixelated" />
+              <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] rounded-none" style="image-rendering:pixelated" />
             </button>
             <input #iconPicker type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" (change)="uploadIcon($event)" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
