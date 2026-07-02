@@ -153,6 +153,17 @@ namespace CommandBlock.API.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
+        [HttpGet("backups/{backupId:guid}/download")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DownloadBackup(Guid backupId, CancellationToken cancellationToken)
+        {
+            var result = await mediator.Send(new DownloadBackupQuery(backupId), cancellationToken);
+            if (result is null) return NotFound();
+            // File() streams the S3 object straight through and disposes it when done.
+            return File(result.Content, "application/octet-stream", result.FileName);
+        }
+
         [HttpDelete("backups/{backupId:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DOCUMENT } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideDownload, lucideTrash2, lucidePlus, lucideArchive } from '@ng-icons/lucide';
+import { lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
+import { environment } from '../shared/environments/environment';
 
 type DialogContext = { serverId: string; serverName: string };
 
@@ -21,7 +23,7 @@ type DialogContext = { serverId: string; serverName: string };
     HlmDialogTitle,
     HlmDialogDescription,
   ],
-  providers: [provideIcons({ lucideDownload, lucideTrash2, lucidePlus, lucideArchive })],
+  providers: [provideIcons({ lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -64,8 +66,11 @@ type DialogContext = { serverId: string; serverName: string };
             </div>
             <div class="flex items-center gap-1.5">
               <button hlmBtn size="sm" variant="outline" type="button" (click)="restore(b)" [disabled]="busy()" title="Restore this backup">
-                <ng-icon name="lucideDownload" size="13" />
+                <ng-icon name="lucideHistory" size="13" />
                 Restore
+              </button>
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="download(b)" [disabled]="busy()" title="Download this backup">
+                <ng-icon name="lucideDownload" size="13" />
               </button>
               <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(b)" [disabled]="busy()" title="Delete this backup">
                 <ng-icon name="lucideTrash2" size="13" />
@@ -81,6 +86,8 @@ export class ServerBackupsDialog {
   protected readonly ctx = injectBrnDialogContext<DialogContext>();
   private readonly api = inject(ServerService);
   private readonly confirm = inject(ConfirmService);
+  private readonly http = inject(HttpClient);
+  private readonly doc = inject(DOCUMENT);
 
   protected readonly backups = signal<ReadonlyArray<BackupEntryDto>>([]);
   protected readonly loading = signal(false);
@@ -140,6 +147,30 @@ export class ServerBackupsDialog {
         this.error.set(messageOf(err));
       },
     });
+  }
+
+  protected download(b: BackupEntryDto): void {
+    this.working.set(true);
+    this.error.set(null);
+    // The OIDC interceptor adds the bearer token (apiBaseUrl is a secureRoute); we fetch the archive
+    // as a blob and hand it to the browser as a file download.
+    this.http
+      .get(`${environment.apiBaseUrl}/api/Server/backups/${b.id}/download`, { responseType: 'blob' })
+      .subscribe({
+        next: (blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = this.doc.createElement('a');
+          a.href = url;
+          a.download = b.fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.working.set(false);
+        },
+        error: (err: unknown) => {
+          this.working.set(false);
+          this.error.set(messageOf(err));
+        },
+      });
   }
 
   protected async remove(b: BackupEntryDto): Promise<void> {
