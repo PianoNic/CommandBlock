@@ -9,6 +9,7 @@ export interface ServerStatus {
   state?: string | null;
   playersOnline?: number | null;
   playersMax?: number | null;
+  memoryBytes?: number | null;
 }
 
 /// Shared live-status stream. Connects once to /hubs/status and keeps a map of serverId -> status

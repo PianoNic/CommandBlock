@@ -14,6 +14,14 @@ namespace CommandBlock.Application.Dtos.Server
         public string? Version { get; init; }
         /// <summary>Modrinth slug / .mrpack URL / CurseForge ref. Required for modpack types.</summary>
         public string? ModpackRef { get; init; }
+        /// <summary>Java major version ("21"/"17"/"11"/"8"), or null to auto-derive from the version.</summary>
+        public string? JavaVersion { get; init; }
+        /// <summary>Apply Aikar's tuned GC flags (USE_AIKAR_FLAGS).</summary>
+        public bool UseAikarFlags { get; init; }
+        /// <summary>Extra JVM options (JVM_OPTS).</summary>
+        public string? JvmArgs { get; init; }
+        /// <summary>Extra itzg env vars, one KEY=VALUE per line.</summary>
+        public string? ExtraEnv { get; init; }
         /// <summary>Node to run the server on, or null for the control plane's local Docker.</summary>
         public Guid? NodeId { get; init; }
     }

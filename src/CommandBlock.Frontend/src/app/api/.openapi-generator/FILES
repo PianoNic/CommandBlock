@@ -31,7 +31,9 @@ model/problemDetails.ts
 model/problemDetailsStatus.ts
 model/renameFileDto.ts
 model/serverInstanceDto.ts
+model/serverInstanceDtoMemoryBytes.ts
 model/serverInstanceDtoPort.ts
+model/updateServerRuntimeDto.ts
 model/writeFileDto.ts
 param.ts
 provide-api.ts

@@ -13,6 +13,14 @@ namespace CommandBlock.Application.Dtos.Server
         public string? ModpackRef { get; init; }
         /// <summary>Java heap / container memory, e.g. "4G".</summary>
         public required string Memory { get; init; }
+        /// <summary>Java major version ("21"/"17"/"8"), or null when auto-derived from the MC version.</summary>
+        public string? JavaVersion { get; init; }
+        /// <summary>Whether Aikar's tuned GC flags are applied.</summary>
+        public required bool UseAikarFlags { get; init; }
+        /// <summary>Extra JVM options (JVM_OPTS), or null.</summary>
+        public string? JvmArgs { get; init; }
+        /// <summary>Extra itzg env vars, one KEY=VALUE per line, or null.</summary>
+        public string? ExtraEnv { get; init; }
         /// <summary>User-picked human-readable name. Mutable via the rename endpoint.</summary>
         public required string DisplayName { get; init; }
         /// <summary>The hostname players connect with; the router's routing key.</summary>
@@ -36,6 +44,9 @@ namespace CommandBlock.Application.Dtos.Server
         public int? PlayersOnline { get; init; }
         /// <summary>Configured max players. Null when unknown.</summary>
         public int? PlayersMax { get; init; }
+        /// <summary>Current container memory usage in bytes. Null when the server isn't running or
+        /// stats couldn't be sampled. The configured cap is <see cref="Memory"/> (e.g. "4G").</summary>
+        public long? MemoryBytes { get; init; }
         public required DateTime CreatedAt { get; init; }
     }
 }

@@ -28,7 +28,7 @@ type DialogContext = { onAdded: () => void };
         <div>
           <p class="font-medium">Point a wildcard at this server</p>
           <p class="text-muted-foreground text-xs">
-            At your DNS provider add an <span class="font-mono">A</span> record —
+            At your DNS provider add an <span class="font-mono">A</span> record -
             name <span class="font-mono">*.yourdomain</span>, value = this server's public IP.
             Every subdomain then resolves here, so you never touch DNS again per server.
           </p>
@@ -50,7 +50,7 @@ type DialogContext = { onAdded: () => void };
           <p class="font-medium">Open one port</p>
           <p class="text-muted-foreground text-xs">
             Allow inbound TCP <span class="font-mono">25565</span> in your firewall. That single port
-            serves every server through the router — no per-server ports, and no SRV record needed.
+            serves every server through the router - no per-server ports, and no SRV record needed.
           </p>
         </div>
       </li>
@@ -66,7 +66,7 @@ type DialogContext = { onAdded: () => void };
         (input)="name.set($any($event.target).value)"
         (keydown.enter)="submit()"
       />
-      <span class="text-muted-foreground text-xs">Just the root domain — no <span class="font-mono">https://</span>, no <span class="font-mono">*.</span></span>
+      <span class="text-muted-foreground text-xs">Just the root domain - no <span class="font-mono">https://</span>, no <span class="font-mono">*.</span></span>
     </div>
 
     @if (error(); as err) {

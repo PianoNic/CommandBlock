@@ -28,37 +28,42 @@ namespace CommandBlock.Infrastructure.Services
                 catch { /* daemon/node unreachable -> null state */ }
             }
 
-            var result = new List<ServerStatus>(rows.Count);
-            foreach (var r in rows)
+            // Probe every running server concurrently - the per-server Docker calls (mc-monitor +
+            // stats) each take a few hundred ms, so doing them sequentially made list latency scale
+            // with server count. Running them in parallel keeps it flat.
+            var tasks = rows.Select(async r =>
             {
                 var docker = r.ContainerName is not null && stateByName.TryGetValue(r.ContainerName, out var st) ? st : null;
-                string? state = docker;
+                if (docker != "running" || r.ContainerId is null)
+                    return new ServerStatus(r.Id, docker, null, null, null);
+
+                var svc = dockerResolver.Resolve(r.NodeId);
+                string state = "running";
                 int? online = null, max = null;
 
-                if (docker == "running" && r.ContainerId is not null)
-                {
-                    try
-                    {
-                        // mc-monitor (bundled in the itzg image) reads player counts via the silent
-                        // server-list ping. Unlike `rcon-cli list`, it opens no RCON connection, so it
-                        // doesn't flood the server console with "Thread RCON Client started/shutting
-                        // down" every poll. Output: "host:port : version=… online=0 max=20 motd='…'".
-                        var raw = Encoding.UTF8.GetString(
-                            await dockerResolver.Resolve(r.NodeId).ExecCaptureAsync(r.ContainerId, new[] { "mc-monitor", "status" }, cancellationToken));
-                        var m = PlayerCountRegex().Match(raw);
-                        if (m.Success) { state = "running"; online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
-                        else state = "starting"; // container up but the server isn't answering pings yet
-                    }
-                    catch
-                    {
-                        // Container runs but the server isn't answering pings yet -> still booting.
-                        state = "starting";
-                    }
-                }
+                // mc-monitor (bundled in the itzg image) reads player counts via the silent
+                // server-list ping - unlike `rcon-cli list` it opens no RCON connection, so it
+                // doesn't flood the console. Its ping and the stats read are independent, so run
+                // them together. Output: "host:port : version=... online=0 max=20 motd='...'".
+                var monitorTask = SafeExecMonitorAsync(svc, r.ContainerId, cancellationToken);
+                var memTask = svc.GetContainerMemoryBytesAsync(r.ContainerId, cancellationToken);
+                var raw = await monitorTask;
+                var memoryBytes = await memTask;
 
-                result.Add(new ServerStatus(r.Id, state, online, max));
-            }
-            return result;
+                var m = raw is null ? Match.Empty : PlayerCountRegex().Match(raw);
+                if (m.Success) { online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
+                else state = "starting"; // container up but the server isn't answering pings yet
+
+                return new ServerStatus(r.Id, state, online, max, memoryBytes);
+            });
+
+            return await Task.WhenAll(tasks);
+        }
+
+        private static async Task<string?> SafeExecMonitorAsync(IDockerService svc, string containerId, CancellationToken ct)
+        {
+            try { return Encoding.UTF8.GetString(await svc.ExecCaptureAsync(containerId, new[] { "mc-monitor", "status" }, ct)); }
+            catch { return null; }
         }
 
         [GeneratedRegex(@"online=(\d+)\s+max=(\d+)")]

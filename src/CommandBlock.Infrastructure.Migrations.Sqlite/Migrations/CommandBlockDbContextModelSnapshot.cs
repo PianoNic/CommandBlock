@@ -130,6 +130,9 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ExtraEnv")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Hostname")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -142,6 +145,12 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("JavaVersion")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("JvmArgs")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Memory")
                         .IsRequired()
@@ -165,6 +174,9 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("UseAikarFlags")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Version")
                         .HasColumnType("TEXT");

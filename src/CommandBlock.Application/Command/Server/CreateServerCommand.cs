@@ -1,8 +1,6 @@
-using Docker.DotNet.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using CommandBlock.Application.Containers;
 using CommandBlock.Application.Dtos.Server;
 using CommandBlock.Application.Mappings.Server;
 using CommandBlock.Application.Options;
@@ -23,6 +21,10 @@ namespace CommandBlock.Application.Command.Server
         string Memory,
         string? Version = null,
         string? ModpackRef = null,
+        string? JavaVersion = null,
+        bool UseAikarFlags = false,
+        string? JvmArgs = null,
+        string? ExtraEnv = null,
         Guid? NodeId = null) : ICommand<ServerInstanceDto>;
 
     public class CreateServerCommandHandler(
@@ -31,10 +33,6 @@ namespace CommandBlock.Application.Command.Server
         IOptions<CommandBlockOptions> options,
         IActivityLogger activity) : ICommandHandler<CreateServerCommand, ServerInstanceDto>
     {
-        private const string Image = "itzg/minecraft-server";
-        private const string ImageTag = "latest";
-        private const int McPort = 25565;
-
         private readonly CommandBlockOptions _options = options.Value;
 
         public async ValueTask<ServerInstanceDto> Handle(CreateServerCommand command, CancellationToken cancellationToken)
@@ -56,29 +54,26 @@ namespace CommandBlock.Application.Command.Server
             var containerName = $"commandblock-mc-{instanceIdShort}";
             var bindSpec = _options.Storage.ResolveBindForContainer(containerName, "/data");
 
-            await docker.PullImageAsync(Image, ImageTag, cancellationToken);
-
-            var env = BuildEnv(serverType, command.Version, command.ModpackRef, command.Memory);
-
-            var createParams = new CreateContainerParameters
+            var instance = new ServerInstance
             {
-                Image = $"{Image}:{ImageTag}",
-                Name = containerName,
-                Env = env,
-                // Expose the MC port so the router (on the same Docker network) can dial it by
-                // container name. Deliberately no PortBindings: managed servers stay internal and
-                // are reached only through the router, so the host exposes a single public port.
-                ExposedPorts = new Dictionary<string, EmptyStruct>
-                {
-                    [$"{McPort}/tcp"] = default,
-                },
-                HostConfig = new HostConfig
-                {
-                    Binds = new List<string> { bindSpec },
-                    RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
-                },
-                Labels = CommandBlockContainerLabels.ForServer(serverType, instanceId, hostname, command.DisplayName),
+                Id = instanceId,
+                ServerType = serverType,
+                Version = command.Version,
+                ModpackRef = command.ModpackRef,
+                Memory = command.Memory,
+                JavaVersion = string.IsNullOrWhiteSpace(command.JavaVersion) ? null : command.JavaVersion,
+                UseAikarFlags = command.UseAikarFlags,
+                JvmArgs = string.IsNullOrWhiteSpace(command.JvmArgs) ? null : command.JvmArgs,
+                ExtraEnv = string.IsNullOrWhiteSpace(command.ExtraEnv) ? null : command.ExtraEnv,
+                DisplayName = command.DisplayName,
+                Hostname = hostname,
+                Port = ServerContainerSpec.McPort,
+                ContainerName = containerName,
+                NodeId = command.NodeId,
             };
+
+            var createParams = ServerContainerSpec.BuildCreateParams(instance, containerName, bindSpec);
+            await docker.PullImageAsync(ServerContainerSpec.Image, ServerContainerSpec.ImageTag(instance), cancellationToken);
 
             var createResult = await docker.CreateContainerAsync(createParams, cancellationToken);
 
@@ -90,20 +85,7 @@ namespace CommandBlock.Application.Command.Server
             {
                 await docker.StartContainerAsync(createResult.ID, cancellationToken);
 
-                var instance = new ServerInstance
-                {
-                    Id = instanceId,
-                    ServerType = serverType,
-                    Version = command.Version,
-                    ModpackRef = command.ModpackRef,
-                    Memory = command.Memory,
-                    DisplayName = command.DisplayName,
-                    Hostname = hostname,
-                    Port = McPort,
-                    ContainerName = containerName,
-                    ContainerId = createResult.ID,
-                    NodeId = command.NodeId,
-                };
+                instance.ContainerId = createResult.ID;
                 db.ServerInstances.Add(instance);
                 await db.SaveChangesAsync(cancellationToken);
 
@@ -129,52 +111,6 @@ namespace CommandBlock.Application.Command.Server
             if (string.IsNullOrWhiteSpace(serverType))
                 throw new ArgumentException("ServerType is required.", nameof(serverType));
             return serverType.Trim().ToUpperInvariant();
-        }
-
-        /// <summary>Builds the <c>itzg/minecraft-server</c> environment for the chosen loader or
-        /// modpack. Modpack installers derive their own Minecraft version from the pack, so VERSION
-        /// is only sent for plain loaders; each installer reads a different env var for the pack ref.</summary>
-        internal static List<string> BuildEnv(string serverType, string? version, string? modpackRef, string memory)
-        {
-            if (string.IsNullOrWhiteSpace(memory))
-                throw new ArgumentException("Memory is required (e.g. \"4G\").", nameof(memory));
-
-            var env = new List<string>
-            {
-                "EULA=TRUE",
-                $"TYPE={serverType}",
-                $"MEMORY={memory}",
-            };
-
-            switch (serverType)
-            {
-                case "MODRINTH":
-                    RequireModpack(serverType, modpackRef);
-                    env.Add($"MODRINTH_MODPACK={modpackRef}");
-                    break;
-                case "CURSEFORGE":
-                case "AUTO_CURSEFORGE":
-                    RequireModpack(serverType, modpackRef);
-                    // Requires CF_API_KEY on the CommandBlock container to download from CurseForge.
-                    env.Add($"CF_SLUG={modpackRef}");
-                    break;
-                case "FTBA":
-                    RequireModpack(serverType, modpackRef);
-                    env.Add($"FTB_MODPACK_ID={modpackRef}");
-                    break;
-                default:
-                    if (!string.IsNullOrWhiteSpace(version))
-                        env.Add($"VERSION={version}");
-                    break;
-            }
-
-            return env;
-        }
-
-        private static void RequireModpack(string serverType, string? modpackRef)
-        {
-            if (string.IsNullOrWhiteSpace(modpackRef))
-                throw new ArgumentException($"ServerType '{serverType}' requires a modpack reference (ModpackRef).");
         }
     }
 }

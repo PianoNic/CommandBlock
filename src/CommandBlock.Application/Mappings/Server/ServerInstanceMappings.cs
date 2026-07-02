@@ -4,7 +4,7 @@ namespace CommandBlock.Application.Mappings.Server
 {
     public static class ServerInstanceMappings
     {
-        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null, int? playersOnline = null, int? playersMax = null) => new()
+        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null, int? playersOnline = null, int? playersMax = null, long? memoryBytes = null) => new()
         {
             Id = s.Id,
             ServerType = s.ServerType,
@@ -12,6 +12,10 @@ namespace CommandBlock.Application.Mappings.Server
             PreviousVersion = s.PreviousVersion,
             ModpackRef = s.ModpackRef,
             Memory = s.Memory,
+            JavaVersion = s.JavaVersion,
+            UseAikarFlags = s.UseAikarFlags,
+            JvmArgs = s.JvmArgs,
+            ExtraEnv = s.ExtraEnv,
             DisplayName = s.DisplayName,
             Hostname = s.Hostname,
             Port = s.Port,
@@ -23,6 +27,7 @@ namespace CommandBlock.Application.Mappings.Server
             NodeId = s.NodeId,
             PlayersOnline = playersOnline,
             PlayersMax = playersMax,
+            MemoryBytes = memoryBytes,
             CreatedAt = s.CreatedAt,
         };
     }

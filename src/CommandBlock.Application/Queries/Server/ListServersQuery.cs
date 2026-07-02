@@ -23,7 +23,7 @@ namespace CommandBlock.Application.Queries.Server
             return rows.Select(s =>
             {
                 status.TryGetValue(s.Id, out var st);
-                return s.ToDto(st?.State, st?.PlayersOnline, st?.PlayersMax);
+                return s.ToDto(st?.State, st?.PlayersOnline, st?.PlayersMax, st?.MemoryBytes);
             }).ToList();
         }
     }

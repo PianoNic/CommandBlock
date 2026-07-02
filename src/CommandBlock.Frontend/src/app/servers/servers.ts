@@ -216,7 +216,7 @@ export class Servers {
     const live = this.statuses()[s.id];
     const online = live ? live.playersOnline : (s.playersOnline == null ? null : Number(s.playersOnline as unknown as number));
     const max = live ? live.playersMax : (s.playersMax == null ? null : Number(s.playersMax as unknown as number));
-    if (online == null) return '—';
+    if (online == null) return '-';
     return max == null ? `${online}` : `${online}/${max}`;
   }
 }

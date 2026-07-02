@@ -9,6 +9,7 @@ import {
   lucideHourglass,
   lucideFolder,
   lucideArchive,
+  lucideSettings2,
   lucideTrash2,
   lucideGlobe,
   lucideUsers,
@@ -23,6 +24,7 @@ import { ServerConsole } from '../console/server-console';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerBackupsDialog } from './server-backups-dialog';
+import { ServerRuntimeDialog } from './server-runtime-dialog';
 
 @Component({
   selector: 'app-server-detail',
@@ -36,6 +38,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
       lucideHourglass,
       lucideFolder,
       lucideArchive,
+      lucideSettings2,
       lucideTrash2,
       lucideGlobe,
       lucideUsers,
@@ -70,6 +73,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
             }
             <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
             <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
+            <button hlmBtn size="sm" variant="outline" type="button" (click)="editRuntime(s)"><ng-icon name="lucideSettings2" size="14" /> Runtime</button>
             <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
               <ng-icon name="lucideTrash2" size="14" />
             </button>
@@ -101,7 +105,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
               <span class="text-foreground">{{ label(s.serverType) }}</span>
             </span>
             <span class="inline-flex items-center gap-1.5">Version <span class="text-foreground font-mono">{{ sourceLabel(s) }}</span></span>
-            <span class="inline-flex items-center gap-1.5">Memory <span class="text-foreground font-mono">{{ s.memory }}</span></span>
+            <span class="inline-flex items-center gap-1.5">Memory <span class="text-foreground font-mono">{{ memoryUsage(s) }}</span></span>
             <span class="inline-flex items-center gap-1.5">
               <ng-icon name="lucideUsers" size="12" class="opacity-60" />
               <span class="text-foreground font-mono">{{ players() }}</span>
@@ -164,13 +168,21 @@ export class ServerDetail {
     return s.modpackRef ?? s.version ?? 'latest';
   }
 
+  /// "1.2 GB / 4G" when running (live usage / configured cap), else just the configured cap.
+  protected memoryUsage(s: ServerInstanceDto): string {
+    const live = this.statuses()[s.id];
+    const raw = live ? live.memoryBytes : (s.memoryBytes as unknown as number | null | undefined);
+    const bytes = raw == null ? null : Number(raw);
+    return bytes == null ? s.memory : `${formatBytes(bytes)} / ${s.memory}`;
+  }
+
   protected players(): string {
     const s = this.server();
-    if (!s) return '—';
+    if (!s) return '-';
     const live = this.statuses()[s.id];
     const online = live ? live.playersOnline : s.playersOnline;
     const max = live ? live.playersMax : s.playersMax;
-    if (online == null) return '—';
+    if (online == null) return '-';
     return max == null ? `${online}` : `${online}/${max}`;
   }
 
@@ -221,4 +233,23 @@ export class ServerDetail {
       contentClass: 'sm:max-w-[640px]',
     });
   }
+
+  protected editRuntime(s: ServerInstanceDto): void {
+    this.dialog.open(ServerRuntimeDialog, {
+      context: { server: s, onSaved: () => this.load() },
+      contentClass: 'sm:max-w-[560px]',
+    });
+  }
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }

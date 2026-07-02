@@ -1,27 +1,22 @@
 import { Routes } from '@angular/router';
 import { autoLoginPartialRoutesGuard } from 'angular-auth-oidc-client';
 import { AppLayout } from './shared/layouts/app-layout/app-layout';
-import { Home } from './home/home';
-import { Servers } from './servers/servers';
-import { ServerDetail } from './servers/server-detail';
-import { Files } from './files/files';
-import { Backups } from './backups/backups';
-import { Activity } from './activity/activity';
-import { Settings } from './settings/settings';
 
+// Feature routes are lazy so heavy, route-specific deps (xterm for the console, CodeMirror for the
+// file editor) stay out of the initial bundle and only download when their route is visited.
 export const routes: Routes = [
   {
     path: '',
     component: AppLayout,
     canActivateChild: [autoLoginPartialRoutesGuard],
     children: [
-      { path: '', component: Home },
-      { path: 'servers', component: Servers },
-      { path: 'servers/:id', component: ServerDetail },
-      { path: 'files/:id', component: Files },
-      { path: 'backups', component: Backups },
-      { path: 'activity', component: Activity },
-      { path: 'settings', component: Settings },
+      { path: '', loadComponent: () => import('./home/home').then((m) => m.Home) },
+      { path: 'servers', loadComponent: () => import('./servers/servers').then((m) => m.Servers) },
+      { path: 'servers/:id', loadComponent: () => import('./servers/server-detail').then((m) => m.ServerDetail) },
+      { path: 'files/:id', loadComponent: () => import('./files/files').then((m) => m.Files) },
+      { path: 'backups', loadComponent: () => import('./backups/backups').then((m) => m.Backups) },
+      { path: 'activity', loadComponent: () => import('./activity/activity').then((m) => m.Activity) },
+      { path: 'settings', loadComponent: () => import('./settings/settings').then((m) => m.Settings) },
     ],
   },
   { path: '**', redirectTo: '' },

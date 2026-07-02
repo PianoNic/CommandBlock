@@ -13,6 +13,10 @@ namespace CommandBlock.Infrastructure.Interfaces
 
         Task<ContainerInspectResponse> InspectContainerAsync(string id, CancellationToken cancellationToken = default);
 
+        /// <summary>Current memory usage in bytes of a running container, from a one-shot stats
+        /// sample (cache excluded, like `docker stats`). Null when stopped or stats can't be read.</summary>
+        Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default);
+
         Task PullImageAsync(string image, string tag = "latest", CancellationToken cancellationToken = default);
 
         Task<CreateContainerResponse> CreateContainerAsync(CreateContainerParameters parameters, CancellationToken cancellationToken = default);

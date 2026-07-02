@@ -32,6 +32,24 @@ namespace CommandBlock.Domain
         /// "4G". Mutable via the edit endpoint (applied on the next restart).</summary>
         public required string Memory { get; set; }
 
+        /// <summary>Java major version the container runs, e.g. "21", "17", "8". Selects the itzg
+        /// image tag (java runtime is chosen by tag, not env). Null = auto-derive from the Minecraft
+        /// version. Changing it requires recreating the container.</summary>
+        public string? JavaVersion { get; set; }
+
+        /// <summary>When true, passes <c>USE_AIKAR_FLAGS=true</c> so itzg applies Aikar's tuned GC
+        /// flags - the community-standard preset for most servers.</summary>
+        public bool UseAikarFlags { get; set; }
+
+        /// <summary>Free-form extra JVM options passed as <c>JVM_OPTS</c> (e.g. custom -XX/-D flags).
+        /// Null/empty leaves the JVM defaults (plus Aikar flags if enabled).</summary>
+        public string? JvmArgs { get; set; }
+
+        /// <summary>Power-user escape hatch: extra <c>itzg/minecraft-server</c> environment variables,
+        /// one <c>KEY=VALUE</c> per line. Applied last so they can override the derived env. Covers
+        /// any itzg feature we don't surface as a first-class field.</summary>
+        public string? ExtraEnv { get; set; }
+
         /// <summary>Human-readable name set by the user at create time. Mutable via the rename
         /// endpoint. Required - the UI always has a name to render.</summary>
         public required string DisplayName { get; set; }

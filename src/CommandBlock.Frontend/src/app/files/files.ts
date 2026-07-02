@@ -97,9 +97,9 @@ import { FileEntry } from '../api/model/fileEntry';
               </button>
             </div>
             @if (binary()) {
-              <p class="text-muted-foreground p-4 text-sm">Binary file — not editable. Use download instead.</p>
+              <p class="text-muted-foreground p-4 text-sm">Binary file - not editable. Use download instead.</p>
             } @else {
-              @if (truncated()) { <p class="text-amber-600 px-3 pt-2 text-xs">File truncated at 2 MB — saving would lose the rest; download to get the full file.</p> }
+              @if (truncated()) { <p class="text-amber-600 px-3 pt-2 text-xs">File truncated at 2 MB - saving would lose the rest; download to get the full file.</p> }
               <div #editor class="min-h-0 flex-1 overflow-auto text-sm"></div>
             }
           } @else {

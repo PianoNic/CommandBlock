@@ -195,7 +195,7 @@ namespace CommandBlock.API.Routing
         private static async Task SendSleepingStatusAsync(NetworkStream client, string name, int protocol, CancellationToken ct)
         {
             // Read (and ignore) the client's Status Request, reply with our MOTD, then echo the Ping as Pong.
-            var json = MinecraftProtocol.StatusJson($"§7{name} is asleep — join to start it.", protocol);
+            var json = MinecraftProtocol.StatusJson($"§7{name} is asleep - join to start it.", protocol);
             try
             {
                 await ReadPacketAsync(client, ct);                                   // status request (0x00)

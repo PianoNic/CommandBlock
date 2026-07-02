@@ -7,6 +7,7 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { ServerInstanceDtoMemoryBytes } from './serverInstanceDtoMemoryBytes';
 import { ProblemDetailsStatus } from './problemDetailsStatus';
 import { ServerInstanceDtoPort } from './serverInstanceDtoPort';
 
@@ -18,6 +19,10 @@ export interface ServerInstanceDto {
     previousVersion?: string | null;
     modpackRef?: string | null;
     memory: string;
+    javaVersion?: string | null;
+    useAikarFlags: boolean;
+    jvmArgs?: string | null;
+    extraEnv?: string | null;
     displayName: string;
     hostname: string;
     port: ServerInstanceDtoPort;
@@ -29,6 +34,7 @@ export interface ServerInstanceDto {
     nodeId?: string | null;
     playersOnline?: ProblemDetailsStatus | null;
     playersMax?: ProblemDetailsStatus | null;
+    memoryBytes?: ServerInstanceDtoMemoryBytes | null;
     createdAt: string;
 }
 

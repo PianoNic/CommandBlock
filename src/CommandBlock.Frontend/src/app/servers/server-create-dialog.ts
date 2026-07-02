@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideSearch, lucideDownload, lucideCheck } from '@ng-icons/lucide';
+import { lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { ServerRuntimeFields } from './server-runtime-fields';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import {
   HlmDialogDescription,
@@ -32,8 +33,9 @@ type DialogContext = { onCreated: () => void };
     HlmInputImports,
     HlmLabelImports,
     HlmSelectImports,
+    ServerRuntimeFields,
   ],
-  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, ...PLATFORM_ICONS })],
+  providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown, ...PLATFORM_ICONS })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -114,7 +116,7 @@ type DialogContext = { onCreated: () => void };
           </span>
         } @else {
           <p class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-sm">
-            No domains yet — add one under <span class="text-foreground font-medium">Settings → Domains</span> first,
+            No domains yet - add one under <span class="text-foreground font-medium">Settings → Domains</span> first,
             then choose a subdomain here.
           </p>
         }
@@ -191,6 +193,30 @@ type DialogContext = { onCreated: () => void };
             <span class="text-muted-foreground text-xs">Couldn't load the version list - "Latest" still works.</span>
           }
         </div>
+      }
+
+      <div class="col-span-2">
+        <button
+          type="button"
+          class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+          (click)="showAdvanced.set(!showAdvanced())"
+        >
+          <ng-icon [name]="showAdvanced() ? 'lucideChevronDown' : 'lucideChevronRight'" size="14" />
+          Advanced - Java runtime &amp; JVM
+        </button>
+      </div>
+      @if (showAdvanced()) {
+        <app-server-runtime-fields
+          class="col-span-2 rounded-md border p-3"
+          [javaVersion]="javaVersion()"
+          (javaVersionChange)="javaVersion.set($event)"
+          [useAikarFlags]="useAikarFlags()"
+          (useAikarFlagsChange)="useAikarFlags.set($event)"
+          [jvmArgs]="jvmArgs()"
+          (jvmArgsChange)="jvmArgs.set($event)"
+          [extraEnv]="extraEnv()"
+          (extraEnvChange)="extraEnv.set($event)"
+        />
       }
     </div>
 
@@ -270,6 +296,13 @@ export class ServerCreateDialog {
   // Domains come from Settings; the hostname is composed as <subdomain>.<domain>.
   protected readonly domains = signal<ReadonlyArray<DomainDto>>([]);
 
+  // Advanced runtime settings.
+  protected readonly showAdvanced = signal(false);
+  protected readonly javaVersion = signal('auto');
+  protected readonly useAikarFlags = signal(false);
+  protected readonly jvmArgs = signal('');
+  protected readonly extraEnv = signal('');
+
   protected readonly serverType = signal<string | null>(null);
   protected readonly displayName = signal('');
   protected readonly subdomain = signal('');
@@ -335,6 +368,10 @@ export class ServerCreateDialog {
         memory: this.memory().trim(),
         version: modpack || this.version() === this.LATEST ? undefined : this.version(),
         modpackRef: modpack ? this.modpackRef().trim() : undefined,
+        javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
+        useAikarFlags: this.useAikarFlags(),
+        jvmArgs: this.jvmArgs().trim() === '' ? undefined : this.jvmArgs().trim(),
+        extraEnv: this.extraEnv().trim() === '' ? undefined : this.extraEnv(),
       })
       .subscribe({
         next: () => {

@@ -26,7 +26,7 @@ type DialogContext = { serverId: string; serverName: string };
   host: { class: 'flex flex-col gap-4' },
   template: `
     <hlm-dialog-header>
-      <h3 hlmDialogTitle>Backups — {{ ctx.serverName }}</h3>
+      <h3 hlmDialogTitle>Backups - {{ ctx.serverName }}</h3>
       <p hlmDialogDescription>
         World snapshots stored in the configured S3/SeaweedFS bucket. Creating a backup flushes the
         world via RCON first; restoring stops the server, extracts the world, and starts it again.

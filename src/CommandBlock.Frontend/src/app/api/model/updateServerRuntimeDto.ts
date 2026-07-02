@@ -9,17 +9,11 @@
  */
 
 
-export interface CreateServerDto { 
-    serverType: string;
-    displayName: string;
-    hostname: string;
+export interface UpdateServerRuntimeDto { 
     memory: string;
-    version?: string | null;
-    modpackRef?: string | null;
     javaVersion?: string | null;
     useAikarFlags?: boolean;
     jvmArgs?: string | null;
     extraEnv?: string | null;
-    nodeId?: string | null;
 }
 

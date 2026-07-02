@@ -36,7 +36,7 @@ import { DomainAddDialog } from './domain-add-dialog';
           <div class="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center">
             <ng-icon name="lucideGlobe" size="32" class="opacity-50" />
             <p class="text-sm">No domains yet.</p>
-            <p class="text-xs">Add one to route servers under it — you'll get the DNS steps as you go.</p>
+            <p class="text-xs">Add one to route servers under it - you'll get the DNS steps as you go.</p>
             <button hlmBtn size="sm" variant="outline" type="button" (click)="addDomain()" class="mt-1">
               <ng-icon name="lucidePlus" size="14" />
               Add domain

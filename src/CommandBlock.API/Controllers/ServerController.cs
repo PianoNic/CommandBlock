@@ -30,9 +30,28 @@ namespace CommandBlock.API.Controllers
             {
                 var result = await mediator.Send(new CreateServerCommand(
                     body.ServerType, body.DisplayName, body.Hostname, body.Memory,
-                    body.Version, body.ModpackRef, body.NodeId), cancellationToken);
+                    body.Version, body.ModpackRef,
+                    body.JavaVersion, body.UseAikarFlags, body.JvmArgs, body.ExtraEnv,
+                    body.NodeId), cancellationToken);
                 return CreatedAtAction(nameof(Create), new { id = result.Id }, result);
             }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        [HttpPut("{id:guid}/runtime")]
+        [ProducesResponseType(typeof(ServerInstanceDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateRuntime(Guid id, [FromBody] UpdateServerRuntimeDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await mediator.Send(new RecreateServerCommand(
+                    id, body.Memory, body.JavaVersion, body.UseAikarFlags, body.JvmArgs, body.ExtraEnv), cancellationToken);
+                return Ok(result);
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }

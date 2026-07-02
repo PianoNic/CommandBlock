@@ -44,11 +44,10 @@ import { environment } from '../shared/environments/environment';
     </div>
 
     <form class="flex items-center gap-2 border-t p-2" (submit)="send($event)">
-      <span class="text-muted-foreground pl-1 font-mono text-sm">/</span>
       <input
         hlmInput
         class="flex-1 font-mono"
-        placeholder="say hello   ·   whitelist add Steve   ·   op Steve"
+        placeholder="Enter a command"
         [value]="command()"
         (input)="command.set($any($event.target).value)"
         [disabled]="!connected()"

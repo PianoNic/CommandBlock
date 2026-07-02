@@ -35,6 +35,28 @@ namespace CommandBlock.Infrastructure.Services
             return client.Containers.InspectContainerAsync(id, cancellationToken);
         }
 
+        public async Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // OneShot + Stream=false returns a single snapshot immediately. Without OneShot the
+                // daemon samples over a ~1s window (to compute CPU deltas) - we only need memory, so
+                // OneShot avoids that per-container second of latency.
+                ContainerStatsResponse? snap = null;
+                var progress = new Progress<ContainerStatsResponse>(r => snap ??= r);
+                await client.Containers.GetContainerStatsAsync(id, new ContainerStatsParameters { Stream = false, OneShot = true }, progress, cancellationToken);
+                if (snap?.MemoryStats is null) return null;
+
+                // `docker stats` reports usage minus the reclaimable page cache; mirror that so the
+                // number matches what users see elsewhere.
+                var usage = (long)snap.MemoryStats.Usage;
+                if (snap.MemoryStats.Stats is { } st && st.TryGetValue("inactive_file", out var inactive))
+                    usage -= (long)inactive;
+                return usage < 0 ? 0 : usage;
+            }
+            catch { return null; }
+        }
+
         public Task PullImageAsync(string image, string tag = "latest", CancellationToken cancellationToken = default)
         {
             return client.Images.CreateImageAsync(
