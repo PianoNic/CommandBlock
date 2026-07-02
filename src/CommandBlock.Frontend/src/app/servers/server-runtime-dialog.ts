@@ -14,7 +14,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved: () => void };
   selector: 'app-server-runtime-dialog',
   imports: [HlmButtonImports, HlmDialogHeader, HlmDialogTitle, HlmDialogDescription, HlmInputImports, HlmLabelImports, ServerRuntimeFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-4' },
+  host: { class: 'flex max-h-[80svh] flex-col gap-4 overflow-y-auto' },
   template: `
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Runtime settings</h3>

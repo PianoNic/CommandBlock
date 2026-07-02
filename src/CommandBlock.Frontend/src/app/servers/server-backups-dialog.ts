@@ -28,7 +28,7 @@ type DialogContext = { serverId: string; serverName: string };
   ],
   providers: [provideIcons({ lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive, lucideClock })],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-4' },
+  host: { class: 'flex max-h-[80svh] flex-col gap-4 overflow-y-auto' },
   template: `
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Backups - {{ ctx.serverName }}</h3>

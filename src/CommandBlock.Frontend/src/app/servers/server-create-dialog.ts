@@ -40,15 +40,11 @@ type DialogContext = { onCreated: () => void };
   ],
   providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown, ...PLATFORM_ICONS })],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-4' },
+  host: { class: 'flex max-h-[80svh] flex-col gap-4 overflow-y-auto' },
   template: `
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Create Minecraft server</h3>
-      <p hlmDialogDescription>
-        CommandBlock provisions an <span class="font-mono">itzg/minecraft-server</span> container and
-        routes players to it by hostname - no per-server port needed. Modpack types pull the server
-        side of the pack on first boot.
-      </p>
+      <p hlmDialogDescription>Spins up a server and routes players to it by hostname.</p>
     </hlm-dialog-header>
 
     <div class="grid grid-cols-2 gap-3">

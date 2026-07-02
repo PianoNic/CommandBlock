@@ -12,7 +12,7 @@ type DialogContext = { onAdded: () => void };
   selector: 'app-domain-add-dialog',
   imports: [HlmButtonImports, HlmDialogHeader, HlmDialogTitle, HlmDialogDescription, HlmInputImports, HlmLabelImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex flex-col gap-4' },
+  host: { class: 'flex max-h-[80svh] flex-col gap-4 overflow-y-auto' },
   template: `
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Add a domain</h3>
