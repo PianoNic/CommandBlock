@@ -35,6 +35,7 @@ export interface ServerInstanceDto {
     playersOnline?: ProblemDetailsStatus | null;
     playersMax?: ProblemDetailsStatus | null;
     memoryBytes?: ServerInstanceDtoMemoryBytes | null;
+    hasIcon: boolean;
     createdAt: string;
 }
 

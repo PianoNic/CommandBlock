@@ -124,6 +124,69 @@ namespace CommandBlock.API.Controllers
             return Ok(await mediator.Send(new ListPlayersQuery(id), cancellationToken));
         }
 
+        [HttpGet("{id:guid}/properties")]
+        [ProducesResponseType(typeof(ServerPropertiesDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetProperties(Guid id, CancellationToken cancellationToken)
+        {
+            return Ok(await mediator.Send(new GetServerPropertiesQuery(id), cancellationToken));
+        }
+
+        [HttpPut("{id:guid}/properties")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> UpdateProperties(Guid id, [FromBody] UpdateServerPropertiesDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await mediator.Send(new UpdateServerPropertiesCommand(id, body), cancellationToken);
+                return NoContent();
+            }
+            catch (Exception)
+            {
+                // No container yet, or server.properties not generated - the server must run once first.
+                return Conflict(new { error = "server.properties isn't available yet. Start the server once, then edit it." });
+            }
+        }
+
+        // Anonymous so a plain <img> tag can load it (no bearer token on img requests). The icon is
+        // the public in-game server-icon anyway, and ids are unguessable GUIDs.
+        [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+        [HttpGet("{id:guid}/icon")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetIcon(Guid id, CancellationToken cancellationToken)
+        {
+            var png = await mediator.Send(new GetServerIconQuery(id), cancellationToken);
+            if (png is null || png.Length == 0) return NotFound();
+            return File(png, "image/png");
+        }
+
+        [HttpPost("{id:guid}/icon")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetIcon(Guid id, IFormFile file, CancellationToken cancellationToken)
+        {
+            if (file is null || file.Length == 0) return BadRequest(new { error = "No image uploaded." });
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms, cancellationToken);
+            try
+            {
+                await mediator.Send(new SetServerIconCommand(id, ms.ToArray()), cancellationToken);
+                return NoContent();
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+            catch (Exception) { return BadRequest(new { error = "That file isn't a readable image." }); }
+        }
+
+        [HttpDelete("{id:guid}/icon")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> RemoveIcon(Guid id, CancellationToken cancellationToken)
+        {
+            await mediator.Send(new RemoveServerIconCommand(id), cancellationToken);
+            return NoContent();
+        }
+
         [HttpGet("{id:guid}/backups")]
         [ProducesResponseType(typeof(IReadOnlyList<BackupEntryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListBackups(Guid id, CancellationToken cancellationToken)

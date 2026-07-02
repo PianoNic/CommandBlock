@@ -40,7 +40,9 @@ model/problemDetailsStatus.ts
 model/renameFileDto.ts
 model/serverInstanceDto.ts
 model/serverInstanceDtoMemoryBytes.ts
+model/serverPropertiesDto.ts
 model/toggleBackupScheduleDto.ts
+model/updateServerPropertiesDto.ts
 model/updateServerRuntimeDto.ts
 model/writeFileDto.ts
 param.ts

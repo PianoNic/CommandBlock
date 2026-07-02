@@ -47,6 +47,9 @@ namespace CommandBlock.Application.Dtos.Server
         /// <summary>Current container memory usage in bytes. Null when the server isn't running or
         /// stats couldn't be sampled. The configured cap is <see cref="Memory"/> (e.g. "4G").</summary>
         public long? MemoryBytes { get; init; }
+        /// <summary>True when a custom server icon has been uploaded (fetch it from the icon endpoint);
+        /// false means the UI should show the platform icon.</summary>
+        public required bool HasIcon { get; init; }
         public required DateTime CreatedAt { get; init; }
     }
 }

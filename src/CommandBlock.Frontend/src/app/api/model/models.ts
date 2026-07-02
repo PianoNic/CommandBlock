@@ -21,6 +21,8 @@ export * from './problemDetailsStatus';
 export * from './renameFileDto';
 export * from './serverInstanceDto';
 export * from './serverInstanceDtoMemoryBytes';
+export * from './serverPropertiesDto';
 export * from './toggleBackupScheduleDto';
+export * from './updateServerPropertiesDto';
 export * from './updateServerRuntimeDto';
 export * from './writeFileDto';

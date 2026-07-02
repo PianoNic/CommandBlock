@@ -14,6 +14,7 @@ import {
   lucideGlobe,
   lucideUsers,
   lucideRefreshCw,
+  lucideSlidersHorizontal,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -27,6 +28,8 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { PlayerListDto } from '../api/model/playerListDto';
 import { ServerBackupsDialog } from './server-backups-dialog';
 import { ServerRuntimeDialog } from './server-runtime-dialog';
+import { ServerPropertiesDialog } from './server-properties-dialog';
+import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-server-detail',
@@ -45,6 +48,7 @@ import { ServerRuntimeDialog } from './server-runtime-dialog';
       lucideGlobe,
       lucideUsers,
       lucideRefreshCw,
+      lucideSlidersHorizontal,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -57,7 +61,14 @@ import { ServerRuntimeDialog } from './server-runtime-dialog';
         <div class="flex min-w-0 items-center gap-2">
           <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
-            <ng-icon [name]="icon(s.serverType)" size="18" class="shrink-0" />
+            <button type="button" class="hover:bg-accent shrink-0 rounded p-0.5" title="Upload / change server icon (cropped to 64x64)" (click)="iconPicker.click()">
+              @if (s.hasIcon) {
+                <img [src]="iconUrl(s)" alt="" class="h-[22px] w-[22px] rounded-sm" />
+              } @else {
+                <ng-icon [name]="icon(s.serverType)" size="18" />
+              }
+            </button>
+            <input #iconPicker type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" (change)="uploadIcon($event)" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
           } @else {
             <h2 class="text-sm font-medium">Server</h2>
@@ -76,6 +87,7 @@ import { ServerRuntimeDialog } from './server-runtime-dialog';
             }
             <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
             <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
+            <button hlmBtn size="sm" variant="outline" type="button" (click)="openConfig(s)"><ng-icon name="lucideSlidersHorizontal" size="14" /> Config</button>
             <button hlmBtn size="sm" variant="outline" type="button" (click)="editRuntime(s)"><ng-icon name="lucideSettings2" size="14" /> Runtime</button>
             <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
               <ng-icon name="lucideTrash2" size="14" />
@@ -162,6 +174,8 @@ export class ServerDetail {
   protected readonly busy = signal(false);
   protected readonly playerList = signal<PlayerListDto | null>(null);
   protected readonly playersLoading = signal(false);
+  // Bumped after an icon upload to bust the browser's <img> cache for the same URL.
+  protected readonly iconV = signal(0);
 
   constructor() {
     this.statusStream.start();
@@ -280,6 +294,28 @@ export class ServerDetail {
     this.dialog.open(ServerRuntimeDialog, {
       context: { server: s, onSaved: () => this.load() },
       contentClass: 'sm:max-w-[560px]',
+    });
+  }
+
+  protected openConfig(s: ServerInstanceDto): void {
+    this.dialog.open(ServerPropertiesDialog, {
+      context: { server: s },
+      contentClass: 'sm:max-w-[560px]',
+    });
+  }
+
+  protected iconUrl(s: ServerInstanceDto): string {
+    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon?v=${this.iconV()}`;
+  }
+
+  protected uploadIcon(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const s = this.server();
+    if (!file || !s) return;
+    this.api.apiServerIdIconPost(s.id, file).subscribe({
+      next: () => { input.value = ''; this.iconV.update((v) => v + 1); this.load(); },
+      error: () => { input.value = ''; },
     });
   }
 }

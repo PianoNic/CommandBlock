@@ -28,6 +28,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerCreateDialog } from './server-create-dialog';
 import { ServerBackupsDialog } from './server-backups-dialog';
 import { ServersStore } from './servers.store';
+import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-servers',
@@ -144,6 +145,10 @@ export class Servers {
 
   protected sourceLabel(s: ServerInstanceDto): string {
     return s.modpackRef ?? s.version ?? 'latest';
+  }
+
+  protected iconUrl(s: ServerInstanceDto): string {
+    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon`;
   }
 
   protected icon(serverType: string): string {

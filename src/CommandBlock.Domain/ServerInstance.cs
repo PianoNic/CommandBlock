@@ -88,5 +88,9 @@ namespace CommandBlock.Domain
         /// plane's local Docker daemon. When set, all container operations are dispatched to that
         /// node over SignalR (the node executes them locally and returns the result).</summary>
         public Guid? NodeId { get; set; }
+
+        /// <summary>A user-uploaded server icon, cropped/resized to a 64x64 PNG (the Minecraft
+        /// server-icon size). Shown in the UI; null falls back to the platform icon.</summary>
+        public byte[]? IconPng { get; set; }
     }
 }

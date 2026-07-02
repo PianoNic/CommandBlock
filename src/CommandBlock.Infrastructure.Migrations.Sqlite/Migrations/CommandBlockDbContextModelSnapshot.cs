@@ -176,6 +176,9 @@ namespace CommandBlock.Infrastructure.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("IconPng")
+                        .HasColumnType("BLOB");
+
                     b.Property<bool>("IsConfigManaged")
                         .HasColumnType("INTEGER");
 

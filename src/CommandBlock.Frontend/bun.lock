@@ -21,6 +21,7 @@
         "@ng-icons/lucide": ">=32.0.0 <34.0.0",
         "@ng-icons/simple-icons": "^33.2.2",
         "@ngrx/signals": "^21",
+        "@sfirew/minecraft-motd-parser": "^1.1.6",
         "@spartan-ng/brain": "^0.0.1-alpha.695",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
@@ -893,6 +894,8 @@
     "@rspack/plugin-react-refresh": ["@rspack/plugin-react-refresh@1.6.2", "", { "dependencies": { "error-stack-parser": "^2.1.4" }, "peerDependencies": { "react-refresh": ">=0.10.0 <1.0.0", "webpack-hot-middleware": "2.x" }, "optionalPeers": ["webpack-hot-middleware"] }, "sha512-k+/VrfTNgo+KirjI6V+8CWRj6y+DH9jOUWv8JorYY4vKf/9xfnZ8xHzuB4iqCwTtoZl9YnxOaOuoyjJipc2tiQ=="],
 
     "@schematics/angular": ["@schematics/angular@21.2.12", "", { "dependencies": { "@angular-devkit/core": "21.2.12", "@angular-devkit/schematics": "21.2.12", "jsonc-parser": "3.3.1" } }, "sha512-eHoAbxd6Kdw9YIQeZO/6lBXTmKKi10t4WTujY8CM5v4qv1zoJu9yiwVeQp9y3e7/Sybz5Ec3m4FmQ0Tw8iVDiA=="],
+
+    "@sfirew/minecraft-motd-parser": ["@sfirew/minecraft-motd-parser@1.1.6", "", {}, "sha512-DHh7sOD+o2RhzcCBxZGMwvNIq9ciUWNNuJ4ZYVmmSEzgaEI+dYhU1xp94UkEStH+/FFWNVYQm1cdHpsI8NCu5Q=="],
 
     "@sigstore/bundle": ["@sigstore/bundle@4.0.0", "", { "dependencies": { "@sigstore/protobuf-specs": "^0.5.0" } }, "sha512-NwCl5Y0V6Di0NexvkTqdoVfmjTaQwoLM236r89KEojGmq/jMls8S+zb7yOwAPdXvbwfKDlP+lmXgAL4vKSQT+A=="],
 

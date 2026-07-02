@@ -28,6 +28,7 @@ namespace CommandBlock.Application.Mappings.Server
             PlayersOnline = playersOnline,
             PlayersMax = playersMax,
             MemoryBytes = memoryBytes,
+            HasIcon = s.IconPng != null && s.IconPng.Length > 0,
             CreatedAt = s.CreatedAt,
         };
     }

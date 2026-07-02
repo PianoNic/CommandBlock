@@ -41,6 +41,7 @@
     "@ng-icons/lucide": ">=32.0.0 <34.0.0",
     "@ng-icons/simple-icons": "^33.2.2",
     "@ngrx/signals": "^21",
+    "@sfirew/minecraft-motd-parser": "^1.1.6",
     "@spartan-ng/brain": "^0.0.1-alpha.695",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
