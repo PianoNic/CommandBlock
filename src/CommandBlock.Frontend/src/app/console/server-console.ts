@@ -151,16 +151,23 @@ const SECTION_ANSI: Record<string, string> = {
   'l': '\x1b[1m', 'o': '\x1b[3m', 'n': '\x1b[4m', 'm': '\x1b[9m', 'r': RESET, 'k': '',
 };
 
-/// Colourises one Minecraft server log line: dims the timestamp, tints the whole line by log level
-/// (WARN yellow, ERROR red), and converts any § codes to ANSI. Always resets at the end so colour
-/// never bleeds into the next line.
+const GRAY = '\x1b[90m', GREEN = '\x1b[92m', YELLOW = '\x1b[33m', RED = '\x1b[91m';
+
+/// Colourises one Minecraft server log line for xterm. Handles both `[HH:MM:SS] [Thread/LEVEL]:`
+/// (vanilla) and `[HH:MM:SS LEVEL]:` (Paper): dims the bracketed prefix, colours the LEVEL word
+/// (INFO green, WARN yellow, ERROR red), tints the message for warnings/errors, and converts any
+/// § colour codes to ANSI. Always resets so colour never bleeds into the next line.
 function colorizeLogLine(raw: string): string {
   if (raw === '') return '';
+  const isErr = /\b(?:ERROR|SEVERE|FATAL)\b/.test(raw);
+  const isWarn = /\bWARN(?:ING)?\b/.test(raw);
+  const lvlColor = isErr ? RED : isWarn ? YELLOW : GREEN;
+  const msgTint = isErr ? RED : isWarn ? YELLOW : '';
+
   let s = raw.replace(/§([0-9a-fk-orA-FK-OR])/g, (_m, c: string) => SECTION_ANSI[c.toLowerCase()] ?? '');
-  const tint = /\b(ERROR|SEVERE|FATAL)\b/.test(raw) ? '\x1b[91m'
-    : /\bWARN(?:ING)?\b/.test(raw) ? '\x1b[33m'
-    : '';
-  // Dim the leading [HH:MM:SS] timestamp, then fall back to the line tint (or default).
-  s = s.replace(/^(\[[0-9]{2}:[0-9]{2}:[0-9]{2}\])/, `\x1b[90m$1${tint || RESET}`);
-  return tint + s + RESET;
+  // Dim the leading bracket prefix(es) but colour the level word inside them.
+  s = s.replace(/^(?:\[[^\]]*\]\s*)+/, (prefix) =>
+    GRAY + prefix.replace(/\b(INFO|WARN(?:ING)?|ERROR|SEVERE|FATAL|DEBUG)\b/g, `${lvlColor}$1${GRAY}`) + RESET + msgTint,
+  );
+  return msgTint + s + RESET;
 }
