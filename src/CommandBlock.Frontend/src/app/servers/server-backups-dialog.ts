@@ -35,9 +35,7 @@ type DialogContext = { serverId: string; serverName: string };
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Backups - {{ ctx.serverName }}</h3>
       <p hlmDialogDescription>
-        Stored in the configured S3/SeaweedFS bucket (world flushed via RCON first). A <strong>World</strong>
-        backup grabs just the world; a <strong>Server</strong> backup is a full dump that can restore this
-        server or spin up a brand-new one.
+        <strong>World</strong> backs up the world; <strong>Server</strong> backs up everything and can seed a new server.
       </p>
     </hlm-dialog-header>
 
