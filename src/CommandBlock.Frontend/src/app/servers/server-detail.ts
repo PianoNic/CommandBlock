@@ -14,9 +14,11 @@ import {
   lucideGlobe,
   lucideUsers,
   lucideRefreshCw,
+  lucideEllipsisVertical,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -31,7 +33,7 @@ import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-server-detail',
-  imports: [RouterLink, NgIcon, HlmButtonImports, ContentHeader, ServerConsole],
+  imports: [RouterLink, NgIcon, HlmButtonImports, HlmDropdownMenuImports, ContentHeader, ServerConsole],
   providers: [
     provideIcons({
       lucideArrowLeft,
@@ -46,6 +48,7 @@ import { environment } from '../shared/environments/environment';
       lucideGlobe,
       lucideUsers,
       lucideRefreshCw,
+      lucideEllipsisVertical,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -66,27 +69,28 @@ import { environment } from '../shared/environments/environment';
         </div>
 
         @if (server(); as s) {
-          <div class="flex flex-col items-end gap-1.5">
-            <!-- Power actions on their own row -->
-            <div class="flex items-center gap-1.5">
-              @if (transitioning()) {
-                <button hlmBtn size="sm" type="button" disabled><ng-icon name="lucideHourglass" size="14" /> Working…</button>
-              } @else if (isRunning()) {
-                <button hlmBtn size="sm" type="button" (click)="stop(s)"><ng-icon name="lucideSquare" size="14" /> Stop</button>
-                <button hlmBtn size="sm" variant="outline" type="button" (click)="restart(s)"><ng-icon name="lucideRotateCcw" size="14" /> Restart</button>
-              } @else {
-                <button hlmBtn size="sm" type="button" (click)="start(s)"><ng-icon name="lucidePlay" size="14" /> Start</button>
-              }
-            </div>
-            <!-- Files / Backups / Settings / Delete on a second row -->
-            <div class="flex items-center gap-1.5">
-              <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
-              <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
-              <button hlmBtn size="sm" variant="outline" type="button" (click)="openSettings(s)"><ng-icon name="lucideSettings2" size="14" /> Settings</button>
-              <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
-                <ng-icon name="lucideTrash2" size="14" />
-              </button>
-            </div>
+          <div class="flex items-center gap-1.5">
+            @if (transitioning()) {
+              <button hlmBtn size="sm" type="button" disabled><ng-icon name="lucideHourglass" size="14" /> Working…</button>
+            } @else if (isRunning()) {
+              <button hlmBtn size="sm" type="button" (click)="stop(s)"><ng-icon name="lucideSquare" size="14" /> Stop</button>
+              <button hlmBtn size="sm" variant="outline" type="button" (click)="restart(s)"><ng-icon name="lucideRotateCcw" size="14" /> Restart</button>
+            } @else {
+              <button hlmBtn size="sm" type="button" (click)="start(s)"><ng-icon name="lucidePlay" size="14" /> Start</button>
+            }
+            <!-- Everything else behind a kebab menu -->
+            <button hlmBtn size="sm" variant="outline" type="button" [hlmDropdownMenuTrigger]="hdrMenu" align="end" title="More actions">
+              <ng-icon name="lucideEllipsisVertical" size="16" />
+            </button>
+            <ng-template #hdrMenu>
+              <hlm-dropdown-menu class="min-w-44">
+                <a hlmDropdownMenuItem [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
+                <button hlmDropdownMenuItem (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
+                <button hlmDropdownMenuItem (click)="openSettings(s)"><ng-icon name="lucideSettings2" size="14" /> Settings</button>
+                <hlm-dropdown-menu-separator />
+                <button hlmDropdownMenuItem (click)="remove(s)" class="text-destructive"><ng-icon name="lucideTrash2" size="14" /> Delete</button>
+              </hlm-dropdown-menu>
+            </ng-template>
           </div>
         }
       </header>

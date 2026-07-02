@@ -5,6 +5,7 @@ import { injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive, lucideClock } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -21,6 +22,7 @@ type DialogContext = { serverId: string; serverName: string };
     DatePipe,
     NgIcon,
     HlmButtonImports,
+    HlmInputImports,
     HlmCheckboxImports,
     HlmDialogHeader,
     HlmDialogTitle,
@@ -95,6 +97,14 @@ type DialogContext = { serverId: string; serverName: string };
           </button>
         }
       </div>
+      <!-- Custom cron expression -->
+      <div class="flex items-center gap-1.5">
+        <input hlmInput class="h-8 flex-1 font-mono text-xs" placeholder="Custom cron - e.g. 30 4 * * 1-5 (min hour day month weekday, UTC)"
+          [value]="customCron()" (input)="customCron.set($any($event.target).value)" (keydown.enter)="addCustom()" />
+        <button hlmBtn size="sm" variant="outline" type="button" class="h-8 shrink-0" (click)="addCustom()" [disabled]="busy() || customCron().trim() === ''">
+          <ng-icon name="lucidePlus" size="12" /> Add
+        </button>
+      </div>
       @if (schedules().length > 0) {
         <ul class="divide-border divide-y rounded-md border">
           @for (s of schedules(); track s.id) {
@@ -129,6 +139,7 @@ export class ServerBackupsDialog {
 
   protected readonly backups = signal<ReadonlyArray<BackupEntryDto>>([]);
   protected readonly schedules = signal<ReadonlyArray<BackupScheduleDto>>([]);
+  protected readonly customCron = signal('');
   protected readonly loading = signal(false);
   protected readonly creating = signal(false);
   protected readonly working = signal(false);
@@ -153,19 +164,27 @@ export class ServerBackupsDialog {
     this.api.apiServerIdBackupSchedulesGet(this.ctx.serverId).subscribe({ next: (rows) => this.schedules.set(rows) });
   }
 
-  protected addSchedule(cron: string): void {
+  protected addSchedule(cron: string, onSuccess?: () => void): void {
     this.working.set(true);
     this.error.set(null);
     this.api.apiServerIdBackupSchedulesPost(this.ctx.serverId, { cronExpression: cron }).subscribe({
       next: () => {
         this.working.set(false);
         this.loadSchedules();
+        onSuccess?.();
       },
       error: (err: unknown) => {
         this.working.set(false);
         this.error.set(messageOf(err));
       },
     });
+  }
+
+  protected addCustom(): void {
+    const cron = this.customCron().trim();
+    if (cron === '') return;
+    // Clears the field only on success, so an invalid cron (400 from the API) keeps what you typed.
+    this.addSchedule(cron, () => this.customCron.set(''));
   }
 
   protected toggleSchedule(s: BackupScheduleDto, enabled: boolean): void {

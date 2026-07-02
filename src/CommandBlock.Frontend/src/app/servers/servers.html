@@ -98,8 +98,14 @@
 
                 <ng-template #rowMenu>
                   <hlm-dropdown-menu class="min-w-40">
+                    <button hlmDropdownMenuItem (click)="openFiles(s)">
+                      <ng-icon name="lucideFolder" size="14" /> Files
+                    </button>
                     <button hlmDropdownMenuItem (click)="openBackups(s)">
                       <ng-icon name="lucideArchive" size="14" /> Backups
+                    </button>
+                    <button hlmDropdownMenuItem (click)="openSettings(s)">
+                      <ng-icon name="lucideSettings2" size="14" /> Settings
                     </button>
                     <hlm-dropdown-menu-separator />
                     <button hlmDropdownMenuItem (click)="remove(s)" class="text-destructive">

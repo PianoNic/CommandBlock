@@ -31,7 +31,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
     </hlm-dialog-header>
 
     <hlm-tabs tab="general" class="min-h-0 flex-1">
-      <hlm-tabs-list class="w-full justify-start overflow-x-auto" aria-label="Server settings sections">
+      <hlm-tabs-list class="w-full justify-start" aria-label="Server settings sections">
         <button hlmTabsTrigger="general">General / MOTD</button>
         <button hlmTabsTrigger="runtime">Runtime</button>
         <button hlmTabsTrigger="wake">Wake on join</button>

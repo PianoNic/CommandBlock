@@ -14,6 +14,8 @@ import {
   lucideLoaderCircle,
   lucideHourglass,
   lucideEllipsisVertical,
+  lucideFolder,
+  lucideSettings2,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -27,6 +29,7 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerCreateDialog } from './server-create-dialog';
 import { ServerBackupsDialog } from './server-backups-dialog';
+import { ServerSettingsDialog } from './server-settings-dialog';
 import { ServersStore } from './servers.store';
 import { environment } from '../shared/environments/environment';
 
@@ -55,6 +58,8 @@ import { environment } from '../shared/environments/environment';
       lucideLoaderCircle,
       lucideHourglass,
       lucideEllipsisVertical,
+      lucideFolder,
+      lucideSettings2,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -88,10 +93,21 @@ export class Servers {
     this.router.navigate(['/servers', s.id]);
   }
 
+  protected openFiles(s: ServerInstanceDto): void {
+    this.router.navigate(['/files', s.id]);
+  }
+
   protected openBackups(s: ServerInstanceDto): void {
     this.dialog.open(ServerBackupsDialog, {
       context: { serverId: s.id, serverName: s.displayName },
       contentClass: 'sm:max-w-[640px]',
+    });
+  }
+
+  protected openSettings(s: ServerInstanceDto): void {
+    this.dialog.open(ServerSettingsDialog, {
+      context: { server: s, onSaved: () => this.store.load() },
+      contentClass: 'sm:max-w-[680px]',
     });
   }
 
