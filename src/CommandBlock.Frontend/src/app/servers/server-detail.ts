@@ -58,7 +58,7 @@ import { environment } from '../shared/environments/environment';
         <div class="flex min-w-0 items-center gap-2">
           <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
-            <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-none" style="image-rendering:pixelated" />
+            <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-md" style="image-rendering:pixelated" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
           } @else {
             <h2 class="text-sm font-medium">Server</h2>
@@ -66,21 +66,27 @@ import { environment } from '../shared/environments/environment';
         </div>
 
         @if (server(); as s) {
-          <div class="flex items-center gap-1.5">
-            @if (transitioning()) {
-              <button hlmBtn size="sm" type="button" disabled><ng-icon name="lucideHourglass" size="14" /> Working…</button>
-            } @else if (isRunning()) {
-              <button hlmBtn size="sm" type="button" (click)="stop(s)"><ng-icon name="lucideSquare" size="14" /> Stop</button>
-              <button hlmBtn size="sm" variant="outline" type="button" (click)="restart(s)"><ng-icon name="lucideRotateCcw" size="14" /> Restart</button>
-            } @else {
-              <button hlmBtn size="sm" type="button" (click)="start(s)"><ng-icon name="lucidePlay" size="14" /> Start</button>
-            }
-            <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
-            <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
-            <button hlmBtn size="sm" variant="outline" type="button" (click)="openSettings(s)"><ng-icon name="lucideSettings2" size="14" /> Settings</button>
-            <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
-              <ng-icon name="lucideTrash2" size="14" />
-            </button>
+          <div class="flex flex-col items-end gap-1.5">
+            <!-- Power actions on their own row -->
+            <div class="flex items-center gap-1.5">
+              @if (transitioning()) {
+                <button hlmBtn size="sm" type="button" disabled><ng-icon name="lucideHourglass" size="14" /> Working…</button>
+              } @else if (isRunning()) {
+                <button hlmBtn size="sm" type="button" (click)="stop(s)"><ng-icon name="lucideSquare" size="14" /> Stop</button>
+                <button hlmBtn size="sm" variant="outline" type="button" (click)="restart(s)"><ng-icon name="lucideRotateCcw" size="14" /> Restart</button>
+              } @else {
+                <button hlmBtn size="sm" type="button" (click)="start(s)"><ng-icon name="lucidePlay" size="14" /> Start</button>
+              }
+            </div>
+            <!-- Files / Backups / Settings / Delete on a second row -->
+            <div class="flex items-center gap-1.5">
+              <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
+              <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
+              <button hlmBtn size="sm" variant="outline" type="button" (click)="openSettings(s)"><ng-icon name="lucideSettings2" size="14" /> Settings</button>
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
+                <ng-icon name="lucideTrash2" size="14" />
+              </button>
+            </div>
           </div>
         }
       </header>

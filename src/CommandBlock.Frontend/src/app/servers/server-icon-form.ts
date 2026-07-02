@@ -21,7 +21,7 @@ import { environment } from '../shared/environments/environment';
     </p>
 
     <div class="flex items-center gap-4">
-      <img [src]="iconUrl()" alt="" class="h-16 w-16 border rounded-none" style="image-rendering:pixelated" />
+      <img [src]="iconUrl()" alt="" class="h-16 w-16 rounded-md border" style="image-rendering:pixelated" />
       <div class="flex flex-col items-start gap-2">
         <button hlmBtn size="sm" variant="outline" type="button" (click)="picker.click()" [disabled]="busy()">
           <ng-icon name="lucideUpload" size="14" /> {{ hasIcon() ? 'Replace image' : 'Upload image' }}

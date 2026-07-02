@@ -62,7 +62,7 @@ interface MotdToken {
         <input #motdInput hlmInput [value]="motd()" (input)="motd.set($any($event.target).value)" placeholder="A Minecraft Server" />
 
         <div class="flex items-start gap-3 rounded-md border p-2" style="background:#0d0d12">
-          <img [src]="previewIconUrl()" alt="" class="h-16 w-16 shrink-0 rounded-none" style="image-rendering:pixelated" />
+          <img [src]="previewIconUrl()" alt="" class="h-16 w-16 shrink-0 rounded-md" style="image-rendering:pixelated" />
           <div class="min-w-0 flex-1 overflow-hidden"
             style="font-family:'Minecraft',monospace; font-size:15px; line-height:1.4; color:#FFFFFF; white-space:pre-wrap; word-break:break-word">
             @for (t of tokens(); track $index) {

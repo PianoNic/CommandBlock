@@ -8,9 +8,6 @@
         <ng-icon name="lucidePlus" size="16" />
         Create server
       </button>
-      <button hlmBtn variant="outline" size="sm" type="button" (click)="load()" [disabled]="loading()">
-        {{ loading() ? 'Loading…' : 'Refresh' }}
-      </button>
     </div>
   </header>
 
@@ -45,7 +42,7 @@
             <tr hlmTr class="hover:bg-muted/50 cursor-pointer" (click)="openDetail(s)" [hlmContextMenuTrigger]="rowMenu">
               <td hlmTd class="font-medium">
                 <span class="flex items-center gap-2">
-                  <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-5 w-5 shrink-0 rounded-none" style="image-rendering:pixelated" />
+                  <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-5 w-5 shrink-0 rounded-md" style="image-rendering:pixelated" />
                   {{ s.displayName }}
                 </span>
               </td>

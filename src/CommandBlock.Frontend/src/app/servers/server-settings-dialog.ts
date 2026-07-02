@@ -1,14 +1,13 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { injectBrnDialogContext } from '@spartan-ng/brain/dialog';
-import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
+import { HlmTabsImports } from '@spartan-ng/helm/tabs';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerPropertiesForm } from './server-properties-form';
 import { ServerRuntimeForm } from './server-runtime-form';
 import { ServerWakeForm } from './server-wake-form';
 import { ServerIconForm } from './server-icon-form';
 
-type SettingsTab = 'general' | 'runtime' | 'wake' | 'icon';
 type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
 
 /// One wide, tabbed "Server settings" modal that clusters everything that used to be scattered across
@@ -16,9 +15,9 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
 @Component({
   selector: 'app-server-settings-dialog',
   imports: [
-    HlmButtonImports,
     HlmDialogHeader,
     HlmDialogTitle,
+    HlmTabsImports,
     ServerPropertiesForm,
     ServerRuntimeForm,
     ServerWakeForm,
@@ -31,33 +30,31 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
       <h3 hlmDialogTitle>Server settings - {{ ctx.server.displayName }}</h3>
     </hlm-dialog-header>
 
-    <div class="flex flex-wrap gap-1 border-b pb-2">
-      @for (t of tabs; track t.id) {
-        <button hlmBtn size="sm" [variant]="active() === t.id ? 'secondary' : 'ghost'" type="button" (click)="active.set(t.id)">
-          {{ t.label }}
-        </button>
-      }
-    </div>
+    <hlm-tabs tab="general" class="min-h-0 flex-1">
+      <hlm-tabs-list class="w-full justify-start overflow-x-auto" aria-label="Server settings sections">
+        <button hlmTabsTrigger="general">General / MOTD</button>
+        <button hlmTabsTrigger="runtime">Runtime</button>
+        <button hlmTabsTrigger="wake">Wake on join</button>
+        <button hlmTabsTrigger="icon">Icon</button>
+      </hlm-tabs-list>
 
-    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-      @switch (active()) {
-        @case ('general') { <app-server-properties-form [server]="ctx.server" (saved)="onSaved()" /> }
-        @case ('runtime') { <app-server-runtime-form [server]="ctx.server" (saved)="onSaved()" /> }
-        @case ('wake') { <app-server-wake-form [server]="ctx.server" /> }
-        @case ('icon') { <app-server-icon-form [server]="ctx.server" (changed)="onSaved()" /> }
-      }
-    </div>
+      <div hlmTabsContent="general" class="max-h-[65svh] overflow-y-auto pr-1">
+        <app-server-properties-form [server]="ctx.server" (saved)="onSaved()" />
+      </div>
+      <div hlmTabsContent="runtime" class="max-h-[65svh] overflow-y-auto pr-1">
+        <app-server-runtime-form [server]="ctx.server" (saved)="onSaved()" />
+      </div>
+      <div hlmTabsContent="wake" class="max-h-[65svh] overflow-y-auto pr-1">
+        <app-server-wake-form [server]="ctx.server" />
+      </div>
+      <div hlmTabsContent="icon" class="max-h-[65svh] overflow-y-auto pr-1">
+        <app-server-icon-form [server]="ctx.server" (changed)="onSaved()" />
+      </div>
+    </hlm-tabs>
   `,
 })
 export class ServerSettingsDialog {
   protected readonly ctx = injectBrnDialogContext<DialogContext>();
-  protected readonly active = signal<SettingsTab>('general');
-  protected readonly tabs: ReadonlyArray<{ id: SettingsTab; label: string }> = [
-    { id: 'general', label: 'General / MOTD' },
-    { id: 'runtime', label: 'Runtime' },
-    { id: 'wake', label: 'Wake on join' },
-    { id: 'icon', label: 'Icon' },
-  ];
 
   protected onSaved(): void {
     this.ctx.onSaved?.();

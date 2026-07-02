@@ -21,11 +21,8 @@ import { ConnectionDto } from '../api/model/connectionDto';
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <div>
           <h2 class="text-sm font-medium">Connections</h2>
-          <p class="text-muted-foreground text-xs">Live player connections routed through the proxy.</p>
+          <p class="text-muted-foreground text-xs">Live player connections routed through the proxy (updates automatically).</p>
         </div>
-        <button hlmBtn size="sm" variant="outline" type="button" (click)="load()">
-          <ng-icon name="lucideRefreshCw" size="14" /> Refresh
-        </button>
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto">
