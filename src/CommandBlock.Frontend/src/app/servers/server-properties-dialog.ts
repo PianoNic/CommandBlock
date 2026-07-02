@@ -74,12 +74,13 @@ interface MotdToken {
               [class.font-bold]="f.code === 'l'" [class.italic]="f.code === 'o'" [class.underline]="f.code === 'n'" [class.line-through]="f.code === 'm'"
               [title]="f.title" (click)="insert(f.code)">{{ f.label }}</button>
           }
+          <button hlmBtn size="sm" variant="outline" type="button" class="h-6 px-2 text-xs" title="Insert a line break (\\n) - MOTD can be two lines" (click)="insertNewline()">↵ Line</button>
         </div>
 
         <input #motdInput hlmInput [value]="motd()" (input)="motd.set($any($event.target).value)" placeholder="A Minecraft Server" />
 
-        <!-- Server-list-style preview: icon + MOTD in the Minecraft font -->
-        <div class="flex items-center gap-3 rounded-md border p-2" style="background:#0d0d12">
+        <!-- Server-list-style preview: icon + MOTD (top-aligned + wrapping, like the in-game list) -->
+        <div class="flex items-start gap-3 rounded-md border p-2" style="background:#0d0d12">
           <img [src]="previewIconUrl()" alt="" class="h-16 w-16 shrink-0 rounded-sm" style="image-rendering:pixelated" />
           <div class="min-w-0 flex-1 overflow-hidden"
             style="font-family:'Minecraft',monospace; font-size:15px; line-height:1.4; color:#FFFFFF; white-space:pre-wrap; word-break:break-word">
@@ -187,7 +188,10 @@ export class ServerPropertiesDialog {
   protected readonly spawnProtection = signal(16);
 
   // The MOTD rendered as styled tokens (safe: Angular escapes each token's text on interpolation).
-  protected readonly tokens = computed<MotdToken[]>(() => flattenMotd(textToJSON(this.motd() || '')));
+  // server.properties stores a line break as the literal "\n" escape - expand it so the preview wraps.
+  protected readonly tokens = computed<MotdToken[]>(() =>
+    flattenMotd(textToJSON((this.motd() || '').replace(/\\n/g, '\n'))),
+  );
   // Drives the obfuscated-text scramble animation.
   private readonly tick = signal(0);
   private readonly scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789?!@#%&';
@@ -239,8 +243,17 @@ export class ServerPropertiesDialog {
   }
 
   protected insert(code: string): void {
+    this.insertAtCursor(SECTION + code);
+  }
+
+  /// Inserts the literal "\n" escape - server.properties stores line breaks that way, and MC renders
+  /// the MOTD as (up to) two lines. The preview expands it to a real break.
+  protected insertNewline(): void {
+    this.insertAtCursor('\\n');
+  }
+
+  private insertAtCursor(ins: string): void {
     const el = this.motdInput()?.nativeElement;
-    const ins = SECTION + code;
     if (el) {
       const start = el.selectionStart ?? el.value.length;
       const end = el.selectionEnd ?? start;

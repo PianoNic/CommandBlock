@@ -70,7 +70,17 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
   private fit?: FitAddon;
   private connection?: HubConnection;
   private stream?: { dispose: () => void };
+  private lineBuf = '';
   private readonly onResize = () => this.fit?.fit();
+
+  /// Buffers the raw stream into whole lines, then writes each one colourised (MC logs carry no ANSI
+  /// of their own since there's no TTY).
+  private handleChunk(chunk: string): void {
+    this.lineBuf += chunk;
+    const lines = this.lineBuf.split('\n');
+    this.lineBuf = lines.pop() ?? '';
+    for (const line of lines) this.term?.writeln(colorizeLogLine(line.replace(/\r$/, '')));
+  }
 
   async ngAfterViewInit(): Promise<void> {
     this.term = new Terminal({
@@ -101,7 +111,7 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
       await this.connection.start();
       this.connected.set(true);
       this.stream = this.connection.stream('StreamLogs', this.serverId()).subscribe({
-        next: (chunk: string) => this.term?.write(chunk),
+        next: (chunk: string) => this.handleChunk(chunk),
         error: (err: unknown) => this.term?.writeln(`\r\n[stream ended: ${String(err)}]`),
         complete: () => this.term?.writeln('\r\n[log stream closed]'),
       });
@@ -130,4 +140,27 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
     this.connection?.stop();
     this.term?.dispose();
   }
+}
+
+const RESET = '\x1b[0m';
+// Minecraft § colour/format codes -> ANSI SGR (so coloured in-game messages show in the console).
+const SECTION_ANSI: Record<string, string> = {
+  '0': '\x1b[30m', '1': '\x1b[34m', '2': '\x1b[32m', '3': '\x1b[36m', '4': '\x1b[31m', '5': '\x1b[35m',
+  '6': '\x1b[33m', '7': '\x1b[37m', '8': '\x1b[90m', '9': '\x1b[94m', 'a': '\x1b[92m', 'b': '\x1b[96m',
+  'c': '\x1b[91m', 'd': '\x1b[95m', 'e': '\x1b[93m', 'f': '\x1b[97m',
+  'l': '\x1b[1m', 'o': '\x1b[3m', 'n': '\x1b[4m', 'm': '\x1b[9m', 'r': RESET, 'k': '',
+};
+
+/// Colourises one Minecraft server log line: dims the timestamp, tints the whole line by log level
+/// (WARN yellow, ERROR red), and converts any § codes to ANSI. Always resets at the end so colour
+/// never bleeds into the next line.
+function colorizeLogLine(raw: string): string {
+  if (raw === '') return '';
+  let s = raw.replace(/§([0-9a-fk-orA-FK-OR])/g, (_m, c: string) => SECTION_ANSI[c.toLowerCase()] ?? '');
+  const tint = /\b(ERROR|SEVERE|FATAL)\b/.test(raw) ? '\x1b[91m'
+    : /\bWARN(?:ING)?\b/.test(raw) ? '\x1b[33m'
+    : '';
+  // Dim the leading [HH:MM:SS] timestamp, then fall back to the line tint (or default).
+  s = s.replace(/^(\[[0-9]{2}:[0-9]{2}:[0-9]{2}\])/, `\x1b[90m$1${tint || RESET}`);
+  return tint + s + RESET;
 }
