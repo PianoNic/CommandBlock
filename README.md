@@ -20,6 +20,31 @@
 
 CommandBlock is a self-hosted manager for Minecraft (Java) servers. Pick a loader or a modpack, click Create, and you get a running server in its own container - reachable by its own hostname through a single public port. Manage, back up, and restore it all from one UI.
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/home.png" width="49%" alt="Live dashboard" />
+  <img src="assets/screenshots/servers.png" width="49%" alt="Servers list" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/server-detail.png" width="49%" alt="Server detail with embedded console" />
+  <img src="assets/screenshots/create.png" width="49%" alt="Create wizard with host-aware memory slider" />
+</p>
+
+<details>
+<summary><strong>Show more screenshots</strong></summary>
+
+<p align="center">
+  <img src="assets/screenshots/files.png" width="49%" alt="In-browser file manager" />
+  <img src="assets/screenshots/connections.png" width="49%" alt="Live player connections through the router" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/settings.png" width="49%" alt="Domains and DNS settings" />
+  <img src="assets/screenshots/activity.png" width="49%" alt="Activity log" />
+</p>
+
+</details>
+
 ## Features
 
 - **One-click servers**: Vanilla, Paper, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot - or a Modrinth/CurseForge/FTB modpack, installed on first boot (built on [`itzg/minecraft-server`](https://github.com/itzg/docker-minecraft-server)).
