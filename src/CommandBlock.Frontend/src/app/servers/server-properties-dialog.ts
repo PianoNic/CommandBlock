@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
-import { autoToHTML } from '@sfirew/minecraft-motd-parser';
-import DOMPurify from 'dompurify';
+import { textToJSON } from '@sfirew/minecraft-motd-parser';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
@@ -12,10 +12,21 @@ import { BrnSelectImports } from '@spartan-ng/brain/select';
 import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { environment } from '../shared/environments/environment';
 
 type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
 
 const SECTION = '§'; // Minecraft's section sign for colour/format codes
+
+interface MotdToken {
+  text: string;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underlined?: boolean;
+  strikethrough?: boolean;
+  obfuscated?: boolean;
+}
 
 @Component({
   selector: 'app-server-properties-dialog',
@@ -48,21 +59,37 @@ const SECTION = '§'; // Minecraft's section sign for colour/format codes
       <!-- MOTD editor + live preview -->
       <div class="flex flex-col gap-1.5">
         <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">MOTD</label>
+
+        <!-- Colour swatches -->
         <div class="flex flex-wrap items-center gap-1">
           @for (c of colors; track c.code) {
             <button type="button" class="border-border h-5 w-5 rounded border" [style.background]="c.hex"
               [title]="'§' + c.code" (click)="insert(c.code)"></button>
           }
-          <span class="bg-border mx-1 h-4 w-px"></span>
+        </div>
+        <!-- Formatting on its own row -->
+        <div class="flex flex-wrap items-center gap-1">
           @for (f of formats; track f.code) {
             <button hlmBtn size="sm" variant="outline" type="button" class="h-6 px-2 text-xs"
-              [class.font-bold]="f.code === 'l'" [class.italic]="f.code === 'o'" [class.underline]="f.code === 'n'"
-              (click)="insert(f.code)">{{ f.label }}</button>
+              [class.font-bold]="f.code === 'l'" [class.italic]="f.code === 'o'" [class.underline]="f.code === 'n'" [class.line-through]="f.code === 'm'"
+              [title]="f.title" (click)="insert(f.code)">{{ f.label }}</button>
           }
         </div>
+
         <input #motdInput hlmInput [value]="motd()" (input)="motd.set($any($event.target).value)" placeholder="A Minecraft Server" />
-        <div class="rounded-md border p-3 text-center font-mono text-sm leading-tight" style="background:#101014">
-          <div class="whitespace-pre-wrap" [innerHTML]="motdHtml()"></div>
+
+        <!-- Server-list-style preview: icon + MOTD in the Minecraft font -->
+        <div class="flex items-center gap-3 rounded-md border p-2" style="background:#0d0d12">
+          <img [src]="previewIconUrl()" alt="" class="h-16 w-16 shrink-0 rounded-sm" style="image-rendering:pixelated" />
+          <div class="min-w-0 flex-1 overflow-hidden"
+            style="font-family:'Minecraft',monospace; font-size:15px; line-height:1.4; color:#FFFFFF; white-space:pre-wrap; word-break:break-word">
+            @for (t of tokens(); track $index) {
+              <span [style.color]="t.color || '#FFFFFF'" [style.font-weight]="t.bold ? 'bold' : null"
+                [style.font-style]="t.italic ? 'italic' : null" [style.text-decoration]="decoration(t)">{{ t.obfuscated ? scramble(t) : t.text }}</span>
+            } @empty {
+              <span style="color:#6b6b6b">A Minecraft Server</span>
+            }
+          </div>
         </div>
       </div>
 
@@ -120,7 +147,6 @@ const SECTION = '§'; // Minecraft's section sign for colour/format codes
 export class ServerPropertiesDialog {
   protected readonly ctx = injectBrnDialogContext<DialogContext>();
   private readonly api = inject(ServerService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly ref = inject<BrnDialogRef<unknown>>(BrnDialogRef);
 
   private readonly motdInput = viewChild<ElementRef<HTMLInputElement>>('motdInput');
@@ -139,7 +165,12 @@ export class ServerPropertiesDialog {
     { code: 'c', hex: '#FF5555' }, { code: 'd', hex: '#FF55FF' }, { code: 'e', hex: '#FFFF55' }, { code: 'f', hex: '#FFFFFF' },
   ];
   protected readonly formats = [
-    { code: 'l', label: 'B' }, { code: 'o', label: 'I' }, { code: 'n', label: 'U' }, { code: 'm', label: 'S' }, { code: 'r', label: 'Reset' },
+    { code: 'l', label: 'B', title: 'Bold (§l)' },
+    { code: 'o', label: 'I', title: 'Italic (§o)' },
+    { code: 'n', label: 'U', title: 'Underline (§n)' },
+    { code: 'm', label: 'S', title: 'Strikethrough (§m)' },
+    { code: 'k', label: 'obf', title: 'Obfuscated / scramble (§k)' },
+    { code: 'r', label: 'Reset', title: 'Reset formatting (§r)' },
   ];
 
   protected readonly motd = signal('');
@@ -155,13 +186,16 @@ export class ServerPropertiesDialog {
   protected readonly viewDistance = signal(10);
   protected readonly spawnProtection = signal(16);
 
-  // The parser output is DOMPurify-sanitized before we trust it, so a MOTD carrying malicious HTML
-  // (e.g. set via the file editor, then previewed here) can't run script - only safe styled spans survive.
-  protected readonly motdHtml = computed<SafeHtml>(() =>
-    this.sanitizer.bypassSecurityTrustHtml(DOMPurify.sanitize(autoToHTML(this.motd() || ''))),
-  );
+  // The MOTD rendered as styled tokens (safe: Angular escapes each token's text on interpolation).
+  protected readonly tokens = computed<MotdToken[]>(() => flattenMotd(textToJSON(this.motd() || '')));
+  // Drives the obfuscated-text scramble animation.
+  private readonly tick = signal(0);
+  private readonly scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789?!@#%&';
 
   constructor() {
+    // Fast ticker for the §k scramble effect; only causes re-renders while an obfuscated token exists.
+    interval(60).pipe(takeUntilDestroyed()).subscribe(() => this.tick.update((v) => v + 1));
+
     this.api.apiServerIdPropertiesGet(this.ctx.server.id).subscribe({
       next: (p) => {
         this.available.set(p.available);
@@ -183,6 +217,25 @@ export class ServerPropertiesDialog {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  protected decoration(t: MotdToken): string | null {
+    const parts: string[] = [];
+    if (t.underlined) parts.push('underline');
+    if (t.strikethrough) parts.push('line-through');
+    return parts.length ? parts.join(' ') : null;
+  }
+
+  protected scramble(t: MotdToken): string {
+    this.tick(); // establish a dependency so this re-runs each animation tick
+    let out = '';
+    for (const ch of t.text) out += ch === ' ' || ch === '\n' ? ch : this.scrambleChars[Math.floor(Math.random() * this.scrambleChars.length)];
+    return out;
+  }
+
+  protected previewIconUrl(): string {
+    const s = this.ctx.server;
+    return s.hasIcon ? `${environment.apiBaseUrl}/api/Server/${s.id}/icon` : 'default-server-icon.png';
   }
 
   protected insert(code: string): void {
@@ -224,6 +277,25 @@ export class ServerPropertiesDialog {
   protected close(): void {
     this.ref.close();
   }
+}
+
+/// Flattens the parser's Minecraft text-component tree into a flat list of styled tokens, with each
+/// child inheriting its parent's formatting (standard Minecraft JSON text semantics).
+function flattenMotd(node: unknown, inherited: Partial<MotdToken> = {}): MotdToken[] {
+  if (!node || typeof node !== 'object') return [];
+  const n = node as Record<string, unknown>;
+  const props: Partial<MotdToken> = {
+    color: (n['color'] as string) ?? inherited.color,
+    bold: (n['bold'] as boolean) ?? inherited.bold,
+    italic: (n['italic'] as boolean) ?? inherited.italic,
+    underlined: (n['underlined'] as boolean) ?? inherited.underlined,
+    strikethrough: (n['strikethrough'] as boolean) ?? inherited.strikethrough,
+    obfuscated: (n['obfuscated'] as boolean) ?? inherited.obfuscated,
+  };
+  const out: MotdToken[] = [];
+  if (typeof n['text'] === 'string' && (n['text'] as string).length > 0) out.push({ text: n['text'] as string, ...props });
+  for (const child of (n['extra'] as unknown[]) ?? []) out.push(...flattenMotd(child, props));
+  return out;
 }
 
 function messageOf(err: unknown): string {

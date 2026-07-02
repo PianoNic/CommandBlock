@@ -9,6 +9,8 @@
 
 @import "@spartan-ng/brain/hlm-tailwind-preset.css";
 @import "@xterm/xterm/css/xterm.css";
+/* The Minecraft UI font, used for the MOTD preview so it looks like the in-game server list. */
+@import "typeface-minecraft/index.css";
 
 :root {
 color-scheme: light;

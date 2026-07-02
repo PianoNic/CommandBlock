@@ -45,11 +45,7 @@
             <tr hlmTr class="hover:bg-muted/50 cursor-pointer" (click)="openDetail(s)" [hlmContextMenuTrigger]="rowMenu">
               <td hlmTd class="font-medium">
                 <span class="flex items-center gap-2">
-                  @if (s.hasIcon) {
-                    <img [src]="iconUrl(s)" alt="" class="h-5 w-5 shrink-0 rounded-sm" />
-                  } @else {
-                    <ng-icon [name]="icon(s.serverType)" size="16" class="shrink-0 opacity-80" />
-                  }
+                  <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-5 w-5 shrink-0 rounded-sm" style="image-rendering:pixelated" />
                   {{ s.displayName }}
                 </span>
               </td>
