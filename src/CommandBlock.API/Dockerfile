@@ -14,7 +14,6 @@ WORKDIR /src/backend
 COPY ["src/CommandBlock.API/CommandBlock.API.csproj",                       "CommandBlock.API/"]
 COPY ["src/CommandBlock.Application/CommandBlock.Application.csproj",       "CommandBlock.Application/"]
 COPY ["src/CommandBlock.Infrastructure/CommandBlock.Infrastructure.csproj", "CommandBlock.Infrastructure/"]
-COPY ["src/CommandBlock.Infrastructure.Migrations.Sqlite/CommandBlock.Infrastructure.Migrations.Sqlite.csproj", "CommandBlock.Infrastructure.Migrations.Sqlite/"]
 COPY ["src/CommandBlock.Domain/CommandBlock.Domain.csproj",                 "CommandBlock.Domain/"]
 COPY ["src/Directory.Build.props",                            "./"]
 RUN dotnet restore "CommandBlock.API/CommandBlock.API.csproj"

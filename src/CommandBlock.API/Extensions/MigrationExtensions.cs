@@ -15,9 +15,9 @@ namespace CommandBlock.API.Extensions
             const int maxAttempts = 30;
             var delay = TimeSpan.FromSeconds(2);
 
-            // SQLite is a local file, so a failure there is not transient and shouldn't be
-            // retried. Only a networked Postgres needs the wait-for-database retry loop.
-            var retryOnFailure = db.Database.IsNpgsql();
+            // Postgres is networked, so it may not be ready the instant the app starts - retry the
+            // migrate through a short wait-for-database loop.
+            var retryOnFailure = true;
 
             for (var attempt = 1; ; attempt++)
             {
