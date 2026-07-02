@@ -78,7 +78,9 @@ builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>
 // Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA
 // same-origin from the sidecar, so it needs none; server deployments set it explicitly.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+// AllowCredentials is required for cross-origin SignalR (the JS client sends withCredentials); it's
+// harmless when the SPA is same-origin (the container). Needs explicit origins, which we have.
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
