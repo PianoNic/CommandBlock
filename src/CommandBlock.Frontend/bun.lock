@@ -16,6 +16,7 @@
         "@ng-icons/core": ">=32.0.0 <34.0.0",
         "@ng-icons/lucide": ">=32.0.0 <34.0.0",
         "@ng-icons/simple-icons": "^33.2.2",
+        "@ngrx/signals": "^21",
         "@spartan-ng/brain": "^0.0.1-alpha.695",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
@@ -640,6 +641,8 @@
     "@ng-icons/lucide": ["@ng-icons/lucide@33.2.2", "", { "dependencies": { "tslib": "^2.3.0" } }, "sha512-/jse2Z6fnk4WbW3HDH+jSfE/ihBskVr+RHltk5KfxohgQRhqqQ2FOxTP0IhU3xYV1pMwpziH3WpIR+gKkGcryg=="],
 
     "@ng-icons/simple-icons": ["@ng-icons/simple-icons@33.2.2", "", { "dependencies": { "tslib": "^2.3.0" } }, "sha512-1KIGUr5g++t54WgjYLeNWot0k3GOGXn+dma2juymgRKyhFj+OjFPln7stUuIozkeVsCj1QJ3VatWiOeMucxCeQ=="],
+
+    "@ngrx/signals": ["@ngrx/signals@21.1.1", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/core": "^21.0.0", "rxjs": "^6.5.3 || ^7.4.0" }, "optionalPeers": ["rxjs"] }, "sha512-AXxsvO39cJ4gu2GMvLyUHwx+3qHi35Bn7OUqyIfJW0fffi/Af7ML6h0MPMWDHVROo55FBgxzJrYRswwzdew9VA=="],
 
     "@noble/hashes": ["@noble/hashes@1.4.0", "", {}, "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg=="],
 
