@@ -8,6 +8,7 @@ export * from './backupScheduleDto';
 export * from './connectionDto';
 export * from './createBackupScheduleDto';
 export * from './createServerDto';
+export * from './createServerFromBackupDto';
 export * from './domainDto';
 export * from './fileContent';
 export * from './fileEntry';

@@ -15,6 +15,7 @@ export interface BackupEntryDto {
     serverId: string;
     fileName: string;
     sizeBytes: BackupEntryDtoSizeBytes;
+    kind: string;
     createdAt: string;
 }
 

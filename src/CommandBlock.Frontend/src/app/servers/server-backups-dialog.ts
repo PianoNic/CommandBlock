@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe, DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { injectBrnDialogContext } from '@spartan-ng/brain/dialog';
+import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideDownload, lucideHistory, lucideTrash2, lucidePlus, lucideArchive, lucideClock } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
@@ -35,20 +35,26 @@ type DialogContext = { serverId: string; serverName: string };
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Backups - {{ ctx.serverName }}</h3>
       <p hlmDialogDescription>
-        World snapshots stored in the configured S3/SeaweedFS bucket. Creating a backup flushes the
-        world via RCON first; restoring stops the server, extracts the world, and starts it again.
+        Stored in the configured S3/SeaweedFS bucket (world flushed via RCON first). A <strong>World</strong>
+        backup grabs just the world; a <strong>Server</strong> backup is a full dump that can restore this
+        server or spin up a brand-new one.
       </p>
     </hlm-dialog-header>
 
-    <div class="flex items-center justify-between gap-2">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <span class="text-muted-foreground text-xs">
         {{ backups().length }} backup{{ backups().length === 1 ? '' : 's' }}
       </span>
-      <button hlmBtn size="sm" type="button" (click)="create()" [disabled]="busy()">
-        <ng-icon name="lucidePlus" size="14" />
-        {{ creating() ? 'Creating…' : 'Create backup' }}
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button hlmBtn size="sm" variant="outline" type="button" (click)="create('world')" [disabled]="busy()" title="Back up just the world folder">
+          <ng-icon name="lucidePlus" size="14" /> World backup
+        </button>
+        <button hlmBtn size="sm" type="button" (click)="create('server')" [disabled]="busy()" title="Full dump - restorable and can seed a new server">
+          <ng-icon name="lucidePlus" size="14" /> Server backup
+        </button>
+      </div>
     </div>
+    @if (creating()) { <p class="text-muted-foreground text-xs">Creating backup…</p> }
 
     @if (error(); as err) {
       <p class="text-destructive text-sm">{{ err }}</p>
@@ -64,13 +70,26 @@ type DialogContext = { serverId: string; serverName: string };
         @for (b of backups(); track b.id) {
           <li class="flex items-center justify-between gap-3 py-2">
             <div class="min-w-0 flex flex-col">
-              <span class="truncate font-mono text-sm">{{ b.fileName }}</span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                  [class.bg-primary]="b.kind === 'Server'" [class.text-primary-foreground]="b.kind === 'Server'"
+                  [class.bg-secondary]="b.kind !== 'Server'" [class.text-muted-foreground]="b.kind !== 'Server'">
+                  {{ b.kind === 'Server' ? 'Server' : 'World' }}
+                </span>
+                <span class="truncate font-mono text-sm">{{ b.fileName }}</span>
+              </span>
               <span class="text-muted-foreground text-xs">
                 {{ b.createdAt | date: 'medium' }} · {{ humanSize(b) }}
               </span>
             </div>
             <div class="flex items-center gap-1.5">
-              <button hlmBtn size="sm" variant="outline" type="button" (click)="restore(b)" [disabled]="busy()" title="Restore this backup">
+              @if (b.kind === 'Server') {
+                <button hlmBtn size="sm" variant="outline" type="button" (click)="createServerFrom(b)" [disabled]="busy()" title="Create a new server from this backup">
+                  <ng-icon name="lucidePlus" size="13" />
+                  New server
+                </button>
+              }
+              <button hlmBtn size="sm" variant="outline" type="button" (click)="restore(b)" [disabled]="busy()" title="Restore this backup over this server">
                 <ng-icon name="lucideHistory" size="13" />
                 Restore
               </button>
@@ -132,6 +151,7 @@ type DialogContext = { serverId: string; serverName: string };
 })
 export class ServerBackupsDialog {
   protected readonly ctx = injectBrnDialogContext<DialogContext>();
+  private readonly ref = inject<BrnDialogRef<unknown>>(BrnDialogRef);
   private readonly api = inject(ServerService);
   private readonly confirm = inject(ConfirmService);
   private readonly http = inject(HttpClient);
@@ -220,10 +240,10 @@ export class ServerBackupsDialog {
     });
   }
 
-  protected create(): void {
+  protected create(kind: 'world' | 'server'): void {
     this.creating.set(true);
     this.error.set(null);
-    this.api.apiServerIdBackupsPost(this.ctx.serverId).subscribe({
+    this.api.apiServerIdBackupsPost(this.ctx.serverId, kind).subscribe({
       next: () => {
         this.creating.set(false);
         this.load();
@@ -232,6 +252,20 @@ export class ServerBackupsDialog {
         this.creating.set(false);
         this.error.set(messageOf(err));
       },
+    });
+  }
+
+  /// Spins up a brand-new server from a full server backup. Prompts for the new name + hostname.
+  protected createServerFrom(b: BackupEntryDto): void {
+    const name = window.prompt('Name for the new server:', 'Restored ' + this.ctx.serverName);
+    if (!name?.trim()) return;
+    const hostname = window.prompt('Hostname for the new server (must be unique, e.g. restored.example.com):');
+    if (!hostname?.trim()) return;
+    this.working.set(true);
+    this.error.set(null);
+    this.api.apiServerBackupsBackupIdCreateServerPost(b.id, { displayName: name.trim(), hostname: hostname.trim() }).subscribe({
+      next: () => { this.working.set(false); this.ref.close(); },
+      error: (err: unknown) => { this.working.set(false); this.error.set(messageOf(err)); },
     });
   }
 

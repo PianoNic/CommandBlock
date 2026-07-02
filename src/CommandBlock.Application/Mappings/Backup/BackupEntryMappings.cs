@@ -10,6 +10,7 @@ namespace CommandBlock.Application.Mappings.Backup
             ServerId = b.ServerId,
             FileName = b.FileName,
             SizeBytes = b.SizeBytes,
+            Kind = b.Kind.ToString(),
             CreatedAt = b.CreatedAt,
         };
     }

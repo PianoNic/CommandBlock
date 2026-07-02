@@ -212,11 +212,14 @@ namespace CommandBlock.API.Controllers
         [ProducesResponseType(typeof(BackupEntryDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> CreateBackup(Guid id, CancellationToken cancellationToken)
+        public async Task<IActionResult> CreateBackup(Guid id, [FromQuery] string? kind, CancellationToken cancellationToken)
         {
+            var backupKind = string.Equals(kind, "world", StringComparison.OrdinalIgnoreCase)
+                ? CommandBlock.Domain.BackupKind.World
+                : CommandBlock.Domain.BackupKind.Server;
             try
             {
-                var result = await mediator.Send(new CreateBackupCommand(id), cancellationToken);
+                var result = await mediator.Send(new CreateBackupCommand(id, backupKind), cancellationToken);
                 return CreatedAtAction(nameof(ListBackups), new { id }, result);
             }
             catch (ServerNotFoundException) { return NotFound(); }
@@ -236,6 +239,22 @@ namespace CommandBlock.API.Controllers
             }
             catch (BackupNotFoundException) { return NotFound(); }
             catch (ServerNotFoundException) { return NotFound(); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        [HttpPost("backups/{backupId:guid}/create-server")]
+        [ProducesResponseType(typeof(ServerInstanceDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CreateServerFromBackup(Guid backupId, [FromBody] CreateServerFromBackupDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await mediator.Send(new CreateServerFromBackupCommand(backupId, body.DisplayName, body.Hostname), cancellationToken);
+                return StatusCode(StatusCodes.Status201Created, result);
+            }
+            catch (BackupNotFoundException) { return NotFound(); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 

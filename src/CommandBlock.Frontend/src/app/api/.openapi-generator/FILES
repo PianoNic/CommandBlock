@@ -26,6 +26,7 @@ model/backupScheduleDto.ts
 model/connectionDto.ts
 model/createBackupScheduleDto.ts
 model/createServerDto.ts
+model/createServerFromBackupDto.ts
 model/domainDto.ts
 model/fileContent.ts
 model/fileEntry.ts
