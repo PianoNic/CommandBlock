@@ -17,6 +17,10 @@ namespace CommandBlock.Infrastructure.Interfaces
         /// sample (cache excluded, like `docker stats`). Null when stopped or stats can't be read.</summary>
         Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default);
 
+        /// <summary>Total physical memory of the Docker host in bytes (from the daemon's info), or 0
+        /// if it can't be read. Used to bound how much a new server may be allocated.</summary>
+        Task<long> GetHostMemoryTotalBytesAsync(CancellationToken cancellationToken = default);
+
         Task PullImageAsync(string image, string tag = "latest", CancellationToken cancellationToken = default);
 
         Task<CreateContainerResponse> CreateContainerAsync(CreateContainerParameters parameters, CancellationToken cancellationToken = default);

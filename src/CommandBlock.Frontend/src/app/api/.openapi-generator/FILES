@@ -7,6 +7,7 @@ api/api.ts
 api/app.service.ts
 api/domains.service.ts
 api/files.service.ts
+api/host.service.ts
 api/minecraftVersions.service.ts
 api/modpacks.service.ts
 api/server.service.ts
@@ -26,6 +27,7 @@ model/createServerDto.ts
 model/domainDto.ts
 model/fileContent.ts
 model/fileEntry.ts
+model/hostResourcesDto.ts
 model/models.ts
 model/modpackSearchResult.ts
 model/pathDto.ts

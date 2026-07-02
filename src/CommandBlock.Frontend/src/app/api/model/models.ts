@@ -10,6 +10,7 @@ export * from './createServerDto';
 export * from './domainDto';
 export * from './fileContent';
 export * from './fileEntry';
+export * from './hostResourcesDto';
 export * from './modpackSearchResult';
 export * from './pathDto';
 export * from './problemDetails';

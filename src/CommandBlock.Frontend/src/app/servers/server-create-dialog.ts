@@ -13,10 +13,12 @@ import {
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmSliderImports } from '@spartan-ng/helm/slider';
 import { ServerService } from '../api/api/server.service';
 import { ModpacksService } from '../api/api/modpacks.service';
 import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
 import { DomainsService } from '../api/api/domains.service';
+import { HostService } from '../api/api/host.service';
 import { ModpackSearchResult } from '../api/model/modpackSearchResult';
 import { DomainDto } from '../api/model/domainDto';
 
@@ -33,6 +35,7 @@ type DialogContext = { onCreated: () => void };
     HlmInputImports,
     HlmLabelImports,
     HlmSelectImports,
+    HlmSliderImports,
     ServerRuntimeFields,
   ],
   providers: [provideIcons({ lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown, ...PLATFORM_ICONS })],
@@ -49,9 +52,9 @@ type DialogContext = { onCreated: () => void };
     </hlm-dialog-header>
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="flex flex-col gap-1.5">
+      <div class="col-span-2 flex flex-col gap-1.5">
         <label hlmLabel for="srv-type" class="text-muted-foreground text-xs uppercase tracking-wide">Type</label>
-        <hlm-select [value]="serverType()" (valueChange)="serverType.set($event)" [itemToString]="typeLabel">
+        <hlm-select [value]="serverType()" (valueChange)="onTypeChange($event)" [itemToString]="typeLabel">
           <hlm-select-trigger id="srv-type" class="w-full">
             <hlm-select-value placeholder="Pick a loader…" />
           </hlm-select-trigger>
@@ -65,15 +68,15 @@ type DialogContext = { onCreated: () => void };
         </hlm-select>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label hlmLabel for="srv-memory" class="text-muted-foreground text-xs uppercase tracking-wide">Memory</label>
-        <input
-          hlmInput
-          id="srv-memory"
-          placeholder="e.g. 4G"
-          [value]="memory()"
-          (input)="memory.set($any($event.target).value)"
-        />
+      <div class="col-span-2 flex flex-col gap-1.5">
+        <div class="flex items-baseline justify-between">
+          <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Memory</label>
+          <span class="font-mono text-sm">{{ memoryLabel() }}</span>
+        </div>
+        <hlm-slider [value]="sliderValue()" (valueChange)="onMemory($event)" [min]="MIN_MB" [max]="maxMb()" [step]="512" />
+        <span class="text-muted-foreground text-xs">
+          {{ mbLabel(availableMb()) }} free of {{ mbLabel(hostTotalMb()) }} on the host
+        </span>
       </div>
 
       <div class="col-span-2 flex flex-col gap-1.5">
@@ -239,6 +242,7 @@ export class ServerCreateDialog {
   private readonly modpacksApi = inject(ModpacksService);
   private readonly versionsApi = inject(MinecraftVersionsService);
   private readonly domainsApi = inject(DomainsService);
+  private readonly hostApi = inject(HostService);
 
   protected readonly modpackQuery = signal('');
   protected readonly results = signal<ReadonlyArray<ModpackSearchResult>>([]);
@@ -307,7 +311,20 @@ export class ServerCreateDialog {
   protected readonly displayName = signal('');
   protected readonly subdomain = signal('');
   protected readonly domain = signal('');
-  protected readonly memory = signal('4G');
+  // Memory is picked with a slider (in MB) bounded by the host's free RAM so you can't overshoot.
+  protected readonly MIN_MB = 1024;
+  protected readonly memoryMb = signal(4096);
+  protected readonly hostTotalMb = signal(0);
+  protected readonly availableMb = signal(8192); // fallback until host resources load
+  protected readonly maxMb = computed(() => Math.max(this.MIN_MB, this.availableMb()));
+  protected readonly sliderValue = computed(() => [Math.min(this.memoryMb(), this.maxMb())]);
+  protected readonly memoryLabel = computed(() => this.mbLabel(this.memoryMb()));
+
+  // Recommended starting memory per loader (MB).
+  private readonly recommended: Record<string, number> = {
+    VANILLA: 2048, PAPER: 4096, PURPUR: 4096, SPIGOT: 4096, FABRIC: 4096, QUILT: 4096,
+    FORGE: 6144, NEOFORGE: 6144, MODRINTH: 6144, CURSEFORGE: 6144, FTBA: 6144,
+  };
   protected readonly version = signal<string>(this.LATEST);
   protected readonly modpackRef = signal('');
   protected readonly submitting = signal(false);
@@ -337,6 +354,45 @@ export class ServerCreateDialog {
         if (d.length === 1) this.domain.set(d[0].name); // pre-select the only domain
       },
     });
+    // Host memory bounds the slider so total allocations can't exceed the machine.
+    this.hostApi.apiHostResourcesGet().subscribe({
+      next: (r) => {
+        const total = Math.floor(Number(r.totalMemoryBytes) / (1024 * 1024));
+        const avail = Math.floor(Number(r.availableMemoryBytes) / (1024 * 1024));
+        this.hostTotalMb.set(total);
+        if (avail > 0) this.availableMb.set(Math.max(this.MIN_MB, avail));
+        this.clampMemory();
+      },
+    });
+  }
+
+  protected onTypeChange(t: string | null): void {
+    this.serverType.set(t);
+    if (t && this.recommended[t]) this.memoryMb.set(this.clamp(this.recommended[t]));
+  }
+
+  protected onMemory(value: number[]): void {
+    this.memoryMb.set(this.clamp(value[0] ?? this.memoryMb()));
+  }
+
+  private clampMemory(): void {
+    this.memoryMb.set(this.clamp(this.memoryMb()));
+  }
+
+  private clamp(mb: number): number {
+    return Math.min(Math.max(mb, this.MIN_MB), this.maxMb());
+  }
+
+  /// MB -> a compact label ("4 GB", "1.5 GB", "512 MB").
+  protected mbLabel(mb: number): string {
+    if (mb <= 0) return '-';
+    if (mb >= 1024) return `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`;
+    return `${mb} MB`;
+  }
+
+  /// MB -> the itzg MEMORY value ("4G" when whole GB, else "<mb>M").
+  private mbToMemString(mb: number): string {
+    return mb % 1024 === 0 ? `${mb / 1024}G` : `${mb}M`;
   }
 
   protected readonly isModpack = computed(() => {
@@ -350,7 +406,7 @@ export class ServerCreateDialog {
       !!this.serverType() &&
       this.displayName().trim() !== '' &&
       this.fullHostname() !== '' &&
-      this.memory().trim() !== '' &&
+      this.memoryMb() >= this.MIN_MB &&
       (!this.isModpack() || this.modpackRef().trim() !== ''),
   );
 
@@ -365,7 +421,7 @@ export class ServerCreateDialog {
         serverType: this.serverType()!,
         displayName: this.displayName().trim(),
         hostname: this.fullHostname(),
-        memory: this.memory().trim(),
+        memory: this.mbToMemString(this.memoryMb()),
         version: modpack || this.version() === this.LATEST ? undefined : this.version(),
         modpackRef: modpack ? this.modpackRef().trim() : undefined,
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),

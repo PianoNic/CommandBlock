@@ -35,6 +35,16 @@ namespace CommandBlock.Infrastructure.Services
             return client.Containers.InspectContainerAsync(id, cancellationToken);
         }
 
+        public async Task<long> GetHostMemoryTotalBytesAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var info = await client.System.GetSystemInfoAsync(cancellationToken);
+                return info.MemTotal;
+            }
+            catch { return 0; }
+        }
+
         public async Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default)
         {
             try
