@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
-import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { textToJSON } from '@sfirew/minecraft-motd-parser';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
@@ -9,12 +8,9 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BrnSelectImports } from '@spartan-ng/brain/select';
-import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-ng/helm/dialog';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { environment } from '../shared/environments/environment';
-
-type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
 
 const SECTION = '§'; // Minecraft's section sign for colour/format codes
 
@@ -28,26 +24,15 @@ interface MotdToken {
   obfuscated?: boolean;
 }
 
+/// The General / MOTD section of the server-settings modal: the most-used server.properties plus a
+/// live MOTD editor. Standalone form (no dialog chrome) so it can sit inside a tabbed modal.
 @Component({
-  selector: 'app-server-properties-dialog',
-  imports: [
-    HlmButtonImports,
-    HlmInputImports,
-    HlmLabelImports,
-    HlmCheckboxImports,
-    HlmSelectImports,
-    BrnSelectImports,
-    HlmDialogHeader,
-    HlmDialogTitle,
-    HlmDialogDescription,
-  ],
+  selector: 'app-server-properties-form',
+  imports: [HlmButtonImports, HlmInputImports, HlmLabelImports, HlmCheckboxImports, HlmSelectImports, BrnSelectImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'flex max-h-[85svh] flex-col gap-4 overflow-y-auto' },
+  host: { class: 'flex flex-col gap-4' },
   template: `
-    <hlm-dialog-header>
-      <h3 hlmDialogTitle>Server settings - {{ ctx.server.displayName }}</h3>
-      <p hlmDialogDescription>The most-used server.properties. Changes are written to the file and apply on the next restart.</p>
-    </hlm-dialog-header>
+    <p class="text-muted-foreground text-xs">The most-used server.properties. Changes are written to the file and apply on the next restart.</p>
 
     @if (loading()) {
       <p class="text-muted-foreground text-sm">Loading…</p>
@@ -59,15 +44,12 @@ interface MotdToken {
       <!-- MOTD editor + live preview -->
       <div class="flex flex-col gap-1.5">
         <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">MOTD</label>
-
-        <!-- Colour swatches -->
         <div class="flex flex-wrap items-center gap-1">
           @for (c of colors; track c.code) {
             <button type="button" class="border-border h-5 w-5 rounded border" [style.background]="c.hex"
               [title]="'§' + c.code" (click)="insert(c.code)"></button>
           }
         </div>
-        <!-- Formatting on its own row -->
         <div class="flex flex-wrap items-center gap-1">
           @for (f of formats; track f.code) {
             <button hlmBtn size="sm" variant="outline" type="button" class="h-6 px-2 text-xs"
@@ -79,7 +61,6 @@ interface MotdToken {
 
         <input #motdInput hlmInput [value]="motd()" (input)="motd.set($any($event.target).value)" placeholder="A Minecraft Server" />
 
-        <!-- Server-list-style preview: icon + MOTD (top-aligned + wrapping, like the in-game list) -->
         <div class="flex items-start gap-3 rounded-md border p-2" style="background:#0d0d12">
           <img [src]="previewIconUrl()" alt="" class="h-16 w-16 shrink-0 rounded-none" style="image-rendering:pixelated" />
           <div class="min-w-0 flex-1 overflow-hidden"
@@ -138,23 +119,24 @@ interface MotdToken {
 
       @if (error(); as e) { <p class="text-destructive text-sm">{{ e }}</p> }
 
-      <div class="flex justify-end gap-2">
-        <button hlmBtn variant="outline" size="sm" type="button" (click)="close()">Cancel</button>
+      <div class="flex items-center justify-end gap-2">
+        @if (savedOk()) { <span class="text-primary text-xs">Saved</span> }
         <button hlmBtn size="sm" type="button" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
       </div>
     }
   `,
 })
-export class ServerPropertiesDialog {
-  protected readonly ctx = injectBrnDialogContext<DialogContext>();
-  private readonly api = inject(ServerService);
-  private readonly ref = inject<BrnDialogRef<unknown>>(BrnDialogRef);
+export class ServerPropertiesForm implements OnInit {
+  readonly server = input.required<ServerInstanceDto>();
+  readonly saved = output<void>();
 
+  private readonly api = inject(ServerService);
   private readonly motdInput = viewChild<ElementRef<HTMLInputElement>>('motdInput');
 
   protected readonly loading = signal(true);
   protected readonly available = signal(false);
   protected readonly saving = signal(false);
+  protected readonly savedOk = signal(false);
   protected readonly error = signal<string | null>(null);
 
   protected readonly difficulties = ['peaceful', 'easy', 'normal', 'hard'] as const;
@@ -187,20 +169,18 @@ export class ServerPropertiesDialog {
   protected readonly viewDistance = signal(10);
   protected readonly spawnProtection = signal(16);
 
-  // The MOTD rendered as styled tokens (safe: Angular escapes each token's text on interpolation).
-  // server.properties stores a line break as the literal "\n" escape - expand it so the preview wraps.
   protected readonly tokens = computed<MotdToken[]>(() =>
     flattenMotd(textToJSON((this.motd() || '').replace(/\\n/g, '\n'))),
   );
-  // Drives the obfuscated-text scramble animation.
   private readonly tick = signal(0);
   private readonly scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789?!@#%&';
 
   constructor() {
-    // Fast ticker for the §k scramble effect; only causes re-renders while an obfuscated token exists.
     interval(60).pipe(takeUntilDestroyed()).subscribe(() => this.tick.update((v) => v + 1));
+  }
 
-    this.api.apiServerIdPropertiesGet(this.ctx.server.id).subscribe({
+  ngOnInit(): void {
+    this.api.apiServerIdPropertiesGet(this.server().id).subscribe({
       next: (p) => {
         this.available.set(p.available);
         if (p.available) {
@@ -231,14 +211,14 @@ export class ServerPropertiesDialog {
   }
 
   protected scramble(t: MotdToken): string {
-    this.tick(); // establish a dependency so this re-runs each animation tick
+    this.tick();
     let out = '';
     for (const ch of t.text) out += ch === ' ' || ch === '\n' ? ch : this.scrambleChars[Math.floor(Math.random() * this.scrambleChars.length)];
     return out;
   }
 
   protected previewIconUrl(): string {
-    const s = this.ctx.server;
+    const s = this.server();
     return s.hasIcon ? `${environment.apiBaseUrl}/api/Server/${s.id}/icon` : 'default-server-icon.png';
   }
 
@@ -246,8 +226,6 @@ export class ServerPropertiesDialog {
     this.insertAtCursor(SECTION + code);
   }
 
-  /// Inserts the literal "\n" escape - server.properties stores line breaks that way, and MC renders
-  /// the MOTD as (up to) two lines. The preview expands it to a real break.
   protected insertNewline(): void {
     this.insertAtCursor('\\n');
   }
@@ -267,8 +245,9 @@ export class ServerPropertiesDialog {
 
   protected save(): void {
     this.saving.set(true);
+    this.savedOk.set(false);
     this.error.set(null);
-    this.api.apiServerIdPropertiesPut(this.ctx.server.id, {
+    this.api.apiServerIdPropertiesPut(this.server().id, {
       motd: this.motd(),
       maxPlayers: this.maxPlayers(),
       difficulty: this.difficulty(),
@@ -282,18 +261,12 @@ export class ServerPropertiesDialog {
       viewDistance: this.viewDistance(),
       spawnProtection: this.spawnProtection(),
     }).subscribe({
-      next: () => { this.saving.set(false); this.ctx.onSaved?.(); this.close(); },
+      next: () => { this.saving.set(false); this.savedOk.set(true); this.saved.emit(); },
       error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err)); },
     });
   }
-
-  protected close(): void {
-    this.ref.close();
-  }
 }
 
-/// Flattens the parser's Minecraft text-component tree into a flat list of styled tokens, with each
-/// child inheriting its parent's formatting (standard Minecraft JSON text semantics).
 function flattenMotd(node: unknown, inherited: Partial<MotdToken> = {}): MotdToken[] {
   if (!node || typeof node !== 'object') return [];
   const n = node as Record<string, unknown>;

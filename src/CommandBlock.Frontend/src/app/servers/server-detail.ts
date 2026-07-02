@@ -14,12 +14,9 @@ import {
   lucideGlobe,
   lucideUsers,
   lucideRefreshCw,
-  lucideSlidersHorizontal,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
-import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
-import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
@@ -29,13 +26,12 @@ import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { PlayerListDto } from '../api/model/playerListDto';
 import { ServerBackupsDialog } from './server-backups-dialog';
-import { ServerRuntimeDialog } from './server-runtime-dialog';
-import { ServerPropertiesDialog } from './server-properties-dialog';
+import { ServerSettingsDialog } from './server-settings-dialog';
 import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-server-detail',
-  imports: [RouterLink, NgIcon, HlmButtonImports, HlmCheckboxImports, HlmInputImports, ContentHeader, ServerConsole],
+  imports: [RouterLink, NgIcon, HlmButtonImports, ContentHeader, ServerConsole],
   providers: [
     provideIcons({
       lucideArrowLeft,
@@ -50,7 +46,6 @@ import { environment } from '../shared/environments/environment';
       lucideGlobe,
       lucideUsers,
       lucideRefreshCw,
-      lucideSlidersHorizontal,
       ...PLATFORM_ICONS,
     }),
   ],
@@ -63,10 +58,7 @@ import { environment } from '../shared/environments/environment';
         <div class="flex min-w-0 items-center gap-2">
           <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
-            <button type="button" class="hover:bg-accent shrink-0 rounded p-0.5" title="Upload / change server icon (cropped to 64x64)" (click)="iconPicker.click()">
-              <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] rounded-none" style="image-rendering:pixelated" />
-            </button>
-            <input #iconPicker type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" (change)="uploadIcon($event)" />
+            <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-none" style="image-rendering:pixelated" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
           } @else {
             <h2 class="text-sm font-medium">Server</h2>
@@ -85,8 +77,7 @@ import { environment } from '../shared/environments/environment';
             }
             <a hlmBtn size="sm" variant="outline" [routerLink]="['/files', s.id]"><ng-icon name="lucideFolder" size="14" /> Files</a>
             <button hlmBtn size="sm" variant="outline" type="button" (click)="openBackups(s)"><ng-icon name="lucideArchive" size="14" /> Backups</button>
-            <button hlmBtn size="sm" variant="outline" type="button" (click)="openConfig(s)"><ng-icon name="lucideSlidersHorizontal" size="14" /> Config</button>
-            <button hlmBtn size="sm" variant="outline" type="button" (click)="editRuntime(s)"><ng-icon name="lucideSettings2" size="14" /> Runtime</button>
+            <button hlmBtn size="sm" variant="outline" type="button" (click)="openSettings(s)"><ng-icon name="lucideSettings2" size="14" /> Settings</button>
             <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(s)" class="text-muted-foreground hover:text-destructive" title="Delete server">
               <ng-icon name="lucideTrash2" size="14" />
             </button>
@@ -123,23 +114,6 @@ import { environment } from '../shared/environments/environment';
               <ng-icon name="lucideUsers" size="12" class="opacity-60" />
               <span class="text-foreground font-mono">{{ players() }}</span>
             </span>
-          </div>
-
-          <!-- Wake on join: per-server, saved straight to the DB; the router reads it live (no restart) -->
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b px-4 py-2 text-xs">
-            <label class="inline-flex cursor-pointer items-center gap-2">
-              <hlm-checkbox [checked]="wakeOnConnect()" (checkedChange)="setWake($event)" />
-              <span class="text-foreground">Wake on join</span>
-              <span class="text-muted-foreground">start this server when a player connects</span>
-            </label>
-            @if (wakeOnConnect()) {
-              <span class="inline-flex items-center gap-1.5">
-                <span class="text-muted-foreground">Queue</span>
-                <input hlmInput type="number" min="0" max="28" class="h-7 w-16 text-xs" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
-                <span class="text-muted-foreground">s (hold the player and let them in when ready; 0 = ask to reconnect)</span>
-              </span>
-            }
-            @if (wakeSaving()) { <span class="text-muted-foreground">saving…</span> }
           </div>
 
           <!-- Online players (read-only, fetched on demand via RCON so it doesn't spam the console) -->
@@ -189,11 +163,8 @@ export class ServerDetail {
   protected readonly busy = signal(false);
   protected readonly playerList = signal<PlayerListDto | null>(null);
   protected readonly playersLoading = signal(false);
-  // Bumped after an icon upload to bust the browser's <img> cache for the same URL.
+  // Bumped after the settings modal changes the icon, to bust the header <img> cache for the same URL.
   protected readonly iconV = signal(0);
-  protected readonly wakeOnConnect = signal(false);
-  protected readonly wakeQueue = signal(0);
-  protected readonly wakeSaving = signal(false);
 
   constructor() {
     this.statusStream.start();
@@ -206,34 +177,10 @@ export class ServerDetail {
       next: (rows) => {
         const found = rows.find((r) => r.id === this.id) ?? null;
         this.server.set(found);
-        if (found) {
-          this.wakeOnConnect.set(!!found.wakeOnConnect);
-          this.wakeQueue.set(Number(found.wakeQueueSeconds ?? 0));
-        }
         this.loading.set(false);
         if (found && (this.statuses()[found.id]?.state ?? found.state) === 'running') this.loadPlayers();
       },
       error: () => this.loading.set(false),
-    });
-  }
-
-  protected setWake(enabled: boolean): void {
-    this.wakeOnConnect.set(enabled);
-    this.saveWake();
-  }
-
-  protected setQueue(value: string): void {
-    this.wakeQueue.set(Math.max(0, Math.min(28, Math.floor(+value || 0))));
-    this.saveWake();
-  }
-
-  private saveWake(): void {
-    const s = this.server();
-    if (!s) return;
-    this.wakeSaving.set(true);
-    this.api.apiServerIdWakePut(s.id, { wakeOnConnect: this.wakeOnConnect(), wakeQueueSeconds: this.wakeQueue() }).subscribe({
-      next: () => this.wakeSaving.set(false),
-      error: () => this.wakeSaving.set(false),
     });
   }
 
@@ -292,6 +239,10 @@ export class ServerDetail {
     return platformLabel(serverType);
   }
 
+  protected iconUrl(s: ServerInstanceDto): string {
+    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon?v=${this.iconV()}`;
+  }
+
   protected start(s: ServerInstanceDto): void {
     this.busy.set(true);
     this.api.apiServerIdStartPost(s.id).subscribe({ next: () => this.busy.set(false), error: () => this.busy.set(false) });
@@ -332,32 +283,10 @@ export class ServerDetail {
     });
   }
 
-  protected editRuntime(s: ServerInstanceDto): void {
-    this.dialog.open(ServerRuntimeDialog, {
-      context: { server: s, onSaved: () => this.load() },
-      contentClass: 'sm:max-w-[560px]',
-    });
-  }
-
-  protected openConfig(s: ServerInstanceDto): void {
-    this.dialog.open(ServerPropertiesDialog, {
-      context: { server: s },
-      contentClass: 'sm:max-w-[560px]',
-    });
-  }
-
-  protected iconUrl(s: ServerInstanceDto): string {
-    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon?v=${this.iconV()}`;
-  }
-
-  protected uploadIcon(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    const s = this.server();
-    if (!file || !s) return;
-    this.api.apiServerIdIconPost(s.id, file).subscribe({
-      next: () => { input.value = ''; this.iconV.update((v) => v + 1); this.load(); },
-      error: () => { input.value = ''; },
+  protected openSettings(s: ServerInstanceDto): void {
+    this.dialog.open(ServerSettingsDialog, {
+      context: { server: s, onSaved: () => { this.iconV.update((v) => v + 1); this.load(); } },
+      contentClass: 'sm:max-w-[680px]',
     });
   }
 }
