@@ -5,6 +5,7 @@ api.module.ts
 api/activity.service.ts
 api/api.ts
 api/app.service.ts
+api/connections.service.ts
 api/domains.service.ts
 api/files.service.ts
 api/host.service.ts
@@ -22,6 +23,7 @@ model/appDto.ts
 model/backupEntryDto.ts
 model/backupEntryDtoSizeBytes.ts
 model/backupScheduleDto.ts
+model/connectionDto.ts
 model/createBackupScheduleDto.ts
 model/createServerDto.ts
 model/domainDto.ts

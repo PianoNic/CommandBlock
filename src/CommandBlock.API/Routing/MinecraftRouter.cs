@@ -140,12 +140,12 @@ namespace CommandBlock.API.Routing
                 logger.LogDebug("Routed '{Host}' -> {Target}:{Port} (state {State}).",
                     hostname, target.Host, target.Port, handshake.NextState);
 
-                // Only login/play connections (state 2) count as players for idle tracking.
+                // Only login/play connections (state 2) count as players for idle tracking and show
+                // up in the Connections view. The handle closes the connection on dispose.
                 if (handshake.NextState == 2)
                 {
-                    tracker.Opened(target.ServerId);
-                    try { await PumpBothAsync(clientStream, backendStream, stoppingToken); }
-                    finally { tracker.Closed(target.ServerId); }
+                    using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                    await PumpBothAsync(clientStream, backendStream, stoppingToken);
                 }
                 else
                 {
@@ -155,6 +155,12 @@ namespace CommandBlock.API.Routing
             catch (OperationCanceledException) { }
             catch (Exception ex) { logger.LogDebug(ex, "Connection handling failed."); }
             finally { backend?.Dispose(); }
+        }
+
+        private static string RemoteAddress(TcpClient client)
+        {
+            try { return (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "unknown"; }
+            catch { return "unknown"; }
         }
 
         private async Task<TcpClient?> TryConnectBackendAsync(RouteTarget target, CancellationToken stoppingToken)

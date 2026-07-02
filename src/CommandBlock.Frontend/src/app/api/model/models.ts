@@ -5,6 +5,7 @@ export * from './appDto';
 export * from './backupEntryDto';
 export * from './backupEntryDtoSizeBytes';
 export * from './backupScheduleDto';
+export * from './connectionDto';
 export * from './createBackupScheduleDto';
 export * from './createServerDto';
 export * from './domainDto';

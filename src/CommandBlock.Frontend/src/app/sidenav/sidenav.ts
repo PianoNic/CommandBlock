@@ -18,6 +18,7 @@ import {
   lucideLogOut,
   lucideMonitor,
   lucideMoon,
+  lucideNetwork,
   lucidePlus,
   lucideServer,
   lucideSettings,
@@ -42,6 +43,7 @@ import { ServerCreateDialog } from '../servers/server-create-dialog';
       lucideLogOut,
       lucideMonitor,
       lucideMoon,
+      lucideNetwork,
       lucidePlus,
       lucideServer,
       lucideSettings,
@@ -106,6 +108,7 @@ export class Sidenav {
   protected readonly themeMode = this.theme.mode;
   protected readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
     { route: '/servers', label: 'Servers', icon: 'lucideServer' },
+    { route: '/connections', label: 'Connections', icon: 'lucideNetwork' },
     { route: '/backups', label: 'Backups', icon: 'lucideArchive' },
     { route: '/activity', label: 'Activity', icon: 'lucideActivity' },
     { route: '/settings', label: 'Settings', icon: 'lucideSettings' },

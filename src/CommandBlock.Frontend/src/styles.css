@@ -104,6 +104,7 @@ app-console,
 app-files,
 app-backups,
 app-activity,
+app-connections,
 app-settings {
 display: flex;
 flex-direction: column;

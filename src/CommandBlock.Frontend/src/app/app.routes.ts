@@ -16,6 +16,7 @@ export const routes: Routes = [
       { path: 'files/:id', loadComponent: () => import('./files/files').then((m) => m.Files) },
       { path: 'backups', loadComponent: () => import('./backups/backups').then((m) => m.Backups) },
       { path: 'activity', loadComponent: () => import('./activity/activity').then((m) => m.Activity) },
+      { path: 'connections', loadComponent: () => import('./connections/connections').then((m) => m.Connections) },
       { path: 'settings', loadComponent: () => import('./settings/settings').then((m) => m.Settings) },
     ],
   },
