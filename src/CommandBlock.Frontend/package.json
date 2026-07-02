@@ -49,6 +49,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
+    "dompurify": "^3.4.11",
     "embla-carousel-angular": "^20.0.0",
     "rxjs": "~7.8.0",
     "tailwind-merge": "^3.5.0",

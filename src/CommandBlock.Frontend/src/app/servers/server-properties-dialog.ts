@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signa
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { autoToHTML } from '@sfirew/minecraft-motd-parser';
+import DOMPurify from 'dompurify';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
@@ -154,8 +155,10 @@ export class ServerPropertiesDialog {
   protected readonly viewDistance = signal(10);
   protected readonly spawnProtection = signal(16);
 
+  // The parser output is DOMPurify-sanitized before we trust it, so a MOTD carrying malicious HTML
+  // (e.g. set via the file editor, then previewed here) can't run script - only safe styled spans survive.
   protected readonly motdHtml = computed<SafeHtml>(() =>
-    this.sanitizer.bypassSecurityTrustHtml(autoToHTML(this.motd() || '')),
+    this.sanitizer.bypassSecurityTrustHtml(DOMPurify.sanitize(autoToHTML(this.motd() || ''))),
   );
 
   constructor() {
