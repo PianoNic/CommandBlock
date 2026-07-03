@@ -182,9 +182,15 @@ export class ServerDetail {
     return pl.players.join(', ');
   }
 
+  private lastPlayersFetch = 0;
+
   protected loadPlayers(): void {
     const s = this.server();
     if (!s || this.playersLoading()) return;
+    // RCON is on-demand: throttle so hovering the count doesn't open a new RCON connection each time.
+    const now = Date.now();
+    if (now - this.lastPlayersFetch < 10_000) return;
+    this.lastPlayersFetch = now;
     this.playersLoading.set(true);
     this.api.apiServerIdPlayersGet(s.id).subscribe({
       next: (pl) => { this.playerList.set(pl); this.playersLoading.set(false); },
