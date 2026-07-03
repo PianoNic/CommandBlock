@@ -199,6 +199,21 @@ namespace CommandBlock.API.Controllers
             catch (ServerNotFoundException) { return NotFound(); }
         }
 
+        [HttpPut("{id:guid}/name")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Rename(Guid id, [FromBody] RenameServerDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await mediator.Send(new RenameServerCommand(id, body.DisplayName), cancellationToken);
+                return NoContent();
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
         [HttpGet("{id:guid}/backups")]
         [ProducesResponseType(typeof(IReadOnlyList<BackupEntryDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListBackups(Guid id, CancellationToken cancellationToken)

@@ -32,6 +32,16 @@ interface MotdToken {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
+    <div class="flex flex-col gap-1.5">
+      <label hlmLabel for="disp-name" class="text-muted-foreground text-xs uppercase tracking-wide">Display name</label>
+      <div class="flex items-center gap-2">
+        <input hlmInput id="disp-name" class="max-w-xs" [value]="displayName()" (change)="renameSave($any($event.target).value)" placeholder="My server" />
+        @if (renaming()) { <span class="text-muted-foreground text-xs">saving…</span> }
+        @else if (renamedOk()) { <span class="text-primary text-xs">Saved</span> }
+      </div>
+      <span class="text-muted-foreground text-xs">The name shown across CommandBlock. The hostname players connect to can't be changed.</span>
+    </div>
+
     <p class="text-muted-foreground text-xs">The most-used server.properties. Changes are written to the file and apply on the next restart.</p>
 
     @if (loading()) {
@@ -139,6 +149,10 @@ export class ServerPropertiesForm implements OnInit {
   protected readonly savedOk = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  protected readonly displayName = signal('');
+  protected readonly renaming = signal(false);
+  protected readonly renamedOk = signal(false);
+
   protected readonly difficulties = ['peaceful', 'easy', 'normal', 'hard'] as const;
   protected readonly gamemodes = ['survival', 'creative', 'adventure', 'spectator'] as const;
   protected readonly colors = [
@@ -180,6 +194,7 @@ export class ServerPropertiesForm implements OnInit {
   }
 
   ngOnInit(): void {
+    this.displayName.set(this.server().displayName ?? '');
     this.api.apiServerIdPropertiesGet(this.server().id).subscribe({
       next: (p) => {
         this.available.set(p.available);
@@ -263,6 +278,17 @@ export class ServerPropertiesForm implements OnInit {
     }).subscribe({
       next: () => { this.saving.set(false); this.savedOk.set(true); this.saved.emit(); },
       error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err)); },
+    });
+  }
+
+  protected renameSave(value: string): void {
+    const name = (value ?? '').trim();
+    if (!name || name === (this.server().displayName ?? '')) return;
+    this.renaming.set(true);
+    this.renamedOk.set(false);
+    this.api.apiServerIdNamePut(this.server().id, { displayName: name }).subscribe({
+      next: () => { this.renaming.set(false); this.renamedOk.set(true); this.displayName.set(name); this.saved.emit(); },
+      error: () => { this.renaming.set(false); },
     });
   }
 }
