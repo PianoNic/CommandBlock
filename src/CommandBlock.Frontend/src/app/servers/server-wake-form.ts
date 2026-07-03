@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } fro
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { BrnSelectImports } from '@spartan-ng/brain/select';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 
@@ -9,7 +11,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 /// the DB: wake-on-join is read live by the router, auto-sleep by the idle monitor (no restart/recreate).
 @Component({
   selector: 'app-server-wake-form',
-  imports: [HlmInputImports, HlmLabelImports, HlmCheckboxImports],
+  imports: [HlmInputImports, HlmLabelImports, HlmCheckboxImports, HlmSelectImports, BrnSelectImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -25,12 +27,27 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 
     @if (wakeOnConnect()) {
       <div class="flex flex-col gap-1.5 pl-6">
-        <label hlmLabel for="wk-q" class="text-muted-foreground text-xs uppercase tracking-wide">Join queue (seconds)</label>
-        <input hlmInput id="wk-q" type="number" min="0" max="28" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
-        <span class="text-muted-foreground text-xs">
-          Hold the joining player and let them straight in the moment the server is ready (up to 28s).
-          0 = ask them to reconnect once it's booting.
-        </span>
+        <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">When someone joins while it's stopped</label>
+        <hlm-select [value]="wakeMode()" (valueChange)="setWakeMode($event ?? 'queue')">
+          <hlm-select-trigger class="w-full max-w-sm"><hlm-select-value /></hlm-select-trigger>
+          <hlm-select-content *hlmSelectPortal>
+            <hlm-select-item value="queue">Hold them &amp; let them in automatically</hlm-select-item>
+            <hlm-select-item value="notify">Ask them to reconnect in a moment</hlm-select-item>
+          </hlm-select-content>
+        </hlm-select>
+
+        @if (wakeMode() === 'queue') {
+          <label hlmLabel for="wk-q" class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Max hold (seconds)</label>
+          <input hlmInput id="wk-q" type="number" min="1" max="28" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
+          <span class="text-muted-foreground text-xs">
+            Hold the joining player and drop them straight in the moment the server is ready. If it isn't up
+            within this window they're asked to reconnect. Capped at 28s (under the client's ~30s login timeout).
+          </span>
+        } @else {
+          <span class="text-muted-foreground text-xs">
+            Immediately tell the player the server is starting; they reconnect once it's up.
+          </span>
+        }
       </div>
     }
 
@@ -63,7 +80,8 @@ export class ServerWakeForm implements OnInit {
   private readonly api = inject(ServerService);
 
   protected readonly wakeOnConnect = signal(false);
-  protected readonly wakeQueue = signal(0);
+  protected readonly wakeMode = signal<'queue' | 'notify'>('queue');
+  protected readonly wakeQueue = signal(28);
   protected readonly autoSleep = signal(false);
   protected readonly autoSleepMinutes = signal(10);
   protected readonly saving = signal(false);
@@ -72,7 +90,9 @@ export class ServerWakeForm implements OnInit {
   ngOnInit(): void {
     const s = this.server();
     this.wakeOnConnect.set(!!s.wakeOnConnect);
-    this.wakeQueue.set(Number(s.wakeQueueSeconds ?? 0));
+    const q = Number(s.wakeQueueSeconds ?? 0);
+    this.wakeMode.set(q > 0 ? 'queue' : 'notify');
+    this.wakeQueue.set(q > 0 ? q : 28); // default hold window when switching to the queue mode
     this.autoSleep.set(!!s.autoSleepEnabled);
     this.autoSleepMinutes.set(Number(s.autoSleepIdleMinutes ?? 10));
   }
@@ -82,8 +102,13 @@ export class ServerWakeForm implements OnInit {
     this.save();
   }
 
+  protected setWakeMode(mode: string): void {
+    this.wakeMode.set(mode === 'notify' ? 'notify' : 'queue');
+    this.save();
+  }
+
   protected setQueue(value: string): void {
-    this.wakeQueue.set(Math.max(0, Math.min(28, Math.floor(+value || 0))));
+    this.wakeQueue.set(Math.max(1, Math.min(28, Math.floor(+value || 1))));
     this.save();
   }
 
@@ -102,7 +127,7 @@ export class ServerWakeForm implements OnInit {
     this.savedOk.set(false);
     this.api.apiServerIdWakePut(this.server().id, {
       wakeOnConnect: this.wakeOnConnect(),
-      wakeQueueSeconds: this.wakeQueue(),
+      wakeQueueSeconds: this.wakeMode() === 'queue' ? this.wakeQueue() : 0,
       autoSleepEnabled: this.autoSleep(),
       autoSleepIdleMinutes: this.autoSleepMinutes(),
     }).subscribe({
