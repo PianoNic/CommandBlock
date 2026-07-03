@@ -50,6 +50,10 @@ namespace CommandBlock.Application.Dtos.Server
         public required bool WakeOnConnect { get; init; }
         /// <summary>Queue hold window (seconds) when waking on connect; 0 = ask the player to reconnect.</summary>
         public required int WakeQueueSeconds { get; init; }
+        /// <summary>When true, the server is stopped automatically after AutoSleepIdleMinutes with no players.</summary>
+        public required bool AutoSleepEnabled { get; init; }
+        /// <summary>Idle window (minutes) before auto-sleep stops the server.</summary>
+        public required int AutoSleepIdleMinutes { get; init; }
         public required DateTime CreatedAt { get; init; }
     }
 }

@@ -193,7 +193,7 @@ namespace CommandBlock.API.Controllers
         {
             try
             {
-                await mediator.Send(new UpdateWakeCommand(id, body.WakeOnConnect, body.WakeQueueSeconds), cancellationToken);
+                await mediator.Send(new UpdateWakeCommand(id, body.WakeOnConnect, body.WakeQueueSeconds, body.AutoSleepEnabled, body.AutoSleepIdleMinutes), cancellationToken);
                 return NoContent();
             }
             catch (ServerNotFoundException) { return NotFound(); }
