@@ -24,7 +24,7 @@ type DialogContext = { onCreated: () => void };
 
     <div class="flex flex-col gap-1.5">
       <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Server</label>
-      <hlm-select [value]="serverId()" (valueChange)="serverId.set($event)">
+      <hlm-select [value]="serverId()" (valueChange)="serverId.set($event)" [itemToString]="serverLabel">
         <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Pick a server…" /></hlm-select-trigger>
         <hlm-select-content *hlmSelectPortal>
           @for (s of servers(); track s.id) {
@@ -54,6 +54,13 @@ export class BackupCreateDialog {
   protected readonly creating = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly canCreate = computed(() => !this.creating() && !!this.serverId());
+
+  // The select binds each option to the server id, so the trigger would show the raw guid without a
+  // value->label mapping. Resolve the id back to the server's display name (+ hostname).
+  protected readonly serverLabel = (id: string | null): string => {
+    const s = this.servers().find((x) => x.id === id);
+    return s ? `${s.displayName} (${s.hostname})` : '';
+  };
 
   constructor() {
     this.api.apiServerGet().subscribe((rows) => this.servers.set(rows.filter((s) => s.isManaged && s.containerName)));

@@ -51,8 +51,9 @@ import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
       <textarea
         hlmInput
         id="rt-env"
-        rows="4"
-        class="min-h-24 resize-y py-2 font-mono text-xs leading-5"
+        rows="6"
+        class="resize-y py-2 font-mono text-xs leading-5"
+        style="field-sizing: fixed; height: 8rem"
         placeholder="VIEW_DISTANCE=10&#10;ENABLE_ROLLING_LOGS=true"
         [value]="extraEnv()"
         (input)="extraEnv.set($any($event.target).value)"
