@@ -1,8 +1,6 @@
 using Mediator;
 using Microsoft.EntityFrameworkCore;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 using CommandBlock.Infrastructure;
 using CommandBlock.Infrastructure.Interfaces;
 
@@ -19,20 +17,7 @@ namespace CommandBlock.Application.Command.Server
             var server = await db.ServerInstances.FirstOrDefaultAsync(s => s.Id == command.ServerId, cancellationToken)
                 ?? throw new ServerNotFoundException(command.ServerId);
 
-            byte[] png;
-            using (var image = Image.Load(command.ImageData))
-            {
-                // Center-crop to a square, then scale to Minecraft's 64x64 server-icon size.
-                image.Mutate(x => x.Resize(new ResizeOptions
-                {
-                    Size = new Size(64, 64),
-                    Mode = ResizeMode.Crop,
-                    Position = AnchorPositionMode.Center,
-                }));
-                using var ms = new MemoryStream();
-                await image.SaveAsync(ms, new PngEncoder(), cancellationToken);
-                png = ms.ToArray();
-            }
+            var png = ToServerIconPng(command.ImageData);
 
             server.IconPng = png;
             await db.SaveChangesAsync(cancellationToken);
@@ -48,6 +33,32 @@ namespace CommandBlock.Application.Command.Server
                 catch { /* container not running/reachable - the dashboard icon still works */ }
             }
             return Unit.Value;
+        }
+
+        /// <summary>Center-crops the upload to a square and scales it to Minecraft's 64x64 server-icon
+        /// size, returning PNG bytes.</summary>
+        private static byte[] ToServerIconPng(byte[] imageData)
+        {
+            using var original = SKBitmap.Decode(imageData)
+                ?? throw new ArgumentException("The uploaded file isn't a valid image.");
+
+            // Center-crop to a square first.
+            var side = Math.Min(original.Width, original.Height);
+            var left = (original.Width - side) / 2;
+            var top = (original.Height - side) / 2;
+            var square = new SKRectI(left, top, left + side, top + side);
+
+            using var cropped = new SKBitmap(side, side);
+            if (!original.ExtractSubset(cropped, square))
+                throw new ArgumentException("The uploaded image could not be processed.");
+
+            // Scale the square down to the Minecraft server-icon size.
+            using var resized = cropped.Resize(new SKImageInfo(64, 64), SKFilterQuality.High)
+                ?? throw new ArgumentException("The uploaded image could not be processed.");
+
+            using var image = SKImage.FromBitmap(resized);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            return data.ToArray();
         }
     }
 
