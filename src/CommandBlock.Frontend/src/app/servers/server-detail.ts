@@ -13,11 +13,11 @@ import {
   lucideTrash2,
   lucideGlobe,
   lucideUsers,
-  lucideRefreshCw,
   lucideEllipsisVertical,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
+import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
 import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -33,7 +33,7 @@ import { environment } from '../shared/environments/environment';
 
 @Component({
   selector: 'app-server-detail',
-  imports: [RouterLink, NgIcon, HlmButtonImports, HlmDropdownMenuImports, ContentHeader, ServerConsole],
+  imports: [RouterLink, NgIcon, HlmButtonImports, HlmTooltipImports, HlmDropdownMenuImports, ContentHeader, ServerConsole],
   providers: [
     provideIcons({
       lucideArrowLeft,
@@ -47,7 +47,6 @@ import { environment } from '../shared/environments/environment';
       lucideTrash2,
       lucideGlobe,
       lucideUsers,
-      lucideRefreshCw,
       lucideEllipsisVertical,
       ...PLATFORM_ICONS,
     }),
@@ -120,36 +119,15 @@ import { environment } from '../shared/environments/environment';
             </span>
             <span class="inline-flex items-center gap-1.5">Version <span class="text-foreground font-mono">{{ sourceLabel(s) }}</span></span>
             <span class="inline-flex items-center gap-1.5">Memory <span class="text-foreground font-mono">{{ memoryUsage(s) }}</span></span>
-            <span class="inline-flex items-center gap-1.5">
+            <span
+              class="inline-flex cursor-help items-center gap-1.5 -mx-1 rounded px-1 transition-colors hover:bg-secondary"
+              [hlmTooltip]="playersTooltip()"
+              (mouseenter)="loadPlayers()"
+            >
               <ng-icon name="lucideUsers" size="12" class="opacity-60" />
               <span class="text-foreground font-mono">{{ players() }}</span>
             </span>
           </div>
-
-          <!-- Online players (read-only, fetched on demand via RCON so it doesn't spam the console) -->
-          @if (isRunning()) {
-            <div class="flex items-center gap-2 border-b px-4 py-1.5 text-xs">
-              <span class="text-muted-foreground inline-flex shrink-0 items-center gap-1.5">
-                <ng-icon name="lucideUsers" size="12" /> Players
-              </span>
-              @if (playerList(); as pl) {
-                @if (pl.players.length > 0) {
-                  <div class="flex flex-wrap items-center gap-1">
-                    @for (p of pl.players; track p) {
-                      <span class="bg-secondary rounded px-1.5 py-0.5 font-mono">{{ p }}</span>
-                    }
-                  </div>
-                } @else {
-                  <span class="text-muted-foreground">{{ pl.reachable ? 'No players online' : 'Server not reachable' }}</span>
-                }
-              } @else {
-                <span class="text-muted-foreground">…</span>
-              }
-              <button hlmBtn size="sm" variant="ghost" class="ml-auto h-6 shrink-0 px-2" (click)="loadPlayers()" [disabled]="playersLoading()" title="Refresh players">
-                <ng-icon name="lucideRefreshCw" size="12" [class.animate-spin]="playersLoading()" />
-              </button>
-            </div>
-          }
 
           <!-- Console fills the rest -->
           <app-server-console [serverId]="s.id" class="min-h-0 flex-1" />
@@ -194,9 +172,19 @@ export class ServerDetail {
     });
   }
 
+  // Online players shown in a hover tooltip on the header count. Fetched on demand via RCON (not
+  // polled) so it doesn't spam the server console.
+  protected playersTooltip(): string {
+    const pl = this.playerList();
+    if (!pl) return 'Hover to load players';
+    if (!pl.reachable) return 'Server not reachable';
+    if (pl.players.length === 0) return 'No players online';
+    return pl.players.join(', ');
+  }
+
   protected loadPlayers(): void {
     const s = this.server();
-    if (!s) return;
+    if (!s || this.playersLoading()) return;
     this.playersLoading.set(true);
     this.api.apiServerIdPlayersGet(s.id).subscribe({
       next: (pl) => { this.playerList.set(pl); this.playersLoading.set(false); },
