@@ -36,6 +36,8 @@ export interface ServerInstanceDto {
     hasIcon: boolean;
     wakeOnConnect: boolean;
     wakeQueueSeconds: PlayerListDtoOnline;
+    autoSleepEnabled: boolean;
+    autoSleepIdleMinutes: PlayerListDtoOnline;
     createdAt: string;
 }
 

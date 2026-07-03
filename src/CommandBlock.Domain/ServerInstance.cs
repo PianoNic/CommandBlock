@@ -91,5 +91,13 @@ namespace CommandBlock.Domain
         /// them straight in once the server is ready (a queue). 0 = ask them to reconnect. The router
         /// caps the effective wait below the client's ~30s login timeout.</summary>
         public int WakeQueueSeconds { get; set; }
+
+        /// <summary>When true, this server is stopped automatically after it has had no players for
+        /// <see cref="AutoSleepIdleMinutes"/>. Off by default - a per-server setting swept by the idle
+        /// monitor. Pairs with <see cref="WakeOnConnect"/> to fully idle a server between sessions.</summary>
+        public bool AutoSleepEnabled { get; set; }
+
+        /// <summary>Idle window in minutes before auto-sleep stops the server (min 1). Default 10.</summary>
+        public int AutoSleepIdleMinutes { get; set; } = 10;
     }
 }

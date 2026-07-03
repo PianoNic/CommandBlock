@@ -34,7 +34,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
       <hlm-tabs-list class="w-full justify-start" aria-label="Server settings sections">
         <button hlmTabsTrigger="general">General / MOTD</button>
         <button hlmTabsTrigger="runtime">Runtime</button>
-        <button hlmTabsTrigger="wake">Wake on join</button>
+        <button hlmTabsTrigger="wake">Wake &amp; sleep</button>
         <button hlmTabsTrigger="icon">Icon</button>
       </hlm-tabs-list>
 

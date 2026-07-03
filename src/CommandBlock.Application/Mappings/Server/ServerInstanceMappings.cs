@@ -29,6 +29,8 @@ namespace CommandBlock.Application.Mappings.Server
             HasIcon = s.IconPng != null && s.IconPng.Length > 0,
             WakeOnConnect = s.WakeOnConnect,
             WakeQueueSeconds = s.WakeQueueSeconds,
+            AutoSleepEnabled = s.AutoSleepEnabled,
+            AutoSleepIdleMinutes = s.AutoSleepIdleMinutes,
             CreatedAt = s.CreatedAt,
         };
     }

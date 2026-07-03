@@ -5,8 +5,8 @@ import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 
-/// The Wake-on-join section of the server-settings modal. A per-server setting saved straight to the
-/// DB and read live by the router (no restart/recreate).
+/// The Wake & sleep section of the server-settings modal. Per-server power management saved straight to
+/// the DB: wake-on-join is read live by the router, auto-sleep by the idle monitor (no restart/recreate).
 @Component({
   selector: 'app-server-wake-form',
   imports: [HlmInputImports, HlmLabelImports, HlmCheckboxImports],
@@ -14,8 +14,8 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
   host: { class: 'flex flex-col gap-4' },
   template: `
     <p class="text-muted-foreground text-xs">
-      Start this server automatically when a player connects while it's stopped. Saved instantly - the
-      router reads it live, no restart.
+      Start this server automatically when a player joins while it's stopped, and stop it again once it
+      sits idle. Both save instantly - the router and idle monitor read them live, no restart.
     </p>
 
     <label class="flex items-center gap-2 text-sm">
@@ -24,12 +24,27 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
     </label>
 
     @if (wakeOnConnect()) {
-      <div class="flex flex-col gap-1.5">
+      <div class="flex flex-col gap-1.5 pl-6">
         <label hlmLabel for="wk-q" class="text-muted-foreground text-xs uppercase tracking-wide">Join queue (seconds)</label>
         <input hlmInput id="wk-q" type="number" min="0" max="28" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
         <span class="text-muted-foreground text-xs">
           Hold the joining player and let them straight in the moment the server is ready (up to 28s).
           0 = ask them to reconnect once it's booting.
+        </span>
+      </div>
+    }
+
+    <label class="flex items-center gap-2 text-sm">
+      <hlm-checkbox [checked]="autoSleep()" (checkedChange)="setAutoSleep($event)" />
+      <span class="text-foreground">Auto-sleep when idle</span>
+    </label>
+
+    @if (autoSleep()) {
+      <div class="flex flex-col gap-1.5 pl-6">
+        <label hlmLabel for="sl-m" class="text-muted-foreground text-xs uppercase tracking-wide">Idle timeout (minutes)</label>
+        <input hlmInput id="sl-m" type="number" min="1" max="1440" class="w-40" [value]="autoSleepMinutes()" (change)="setSleepMinutes($any($event.target).value)" />
+        <span class="text-muted-foreground text-xs">
+          Stop the server after this many minutes with no players online. Wake on join brings it back.
         </span>
       </div>
     }
@@ -47,6 +62,8 @@ export class ServerWakeForm implements OnInit {
 
   protected readonly wakeOnConnect = signal(false);
   protected readonly wakeQueue = signal(0);
+  protected readonly autoSleep = signal(false);
+  protected readonly autoSleepMinutes = signal(10);
   protected readonly saving = signal(false);
   protected readonly savedOk = signal(false);
 
@@ -54,6 +71,8 @@ export class ServerWakeForm implements OnInit {
     const s = this.server();
     this.wakeOnConnect.set(!!s.wakeOnConnect);
     this.wakeQueue.set(Number(s.wakeQueueSeconds ?? 0));
+    this.autoSleep.set(!!s.autoSleepEnabled);
+    this.autoSleepMinutes.set(Number(s.autoSleepIdleMinutes ?? 10));
   }
 
   protected setWake(enabled: boolean): void {
@@ -66,12 +85,24 @@ export class ServerWakeForm implements OnInit {
     this.save();
   }
 
+  protected setAutoSleep(enabled: boolean): void {
+    this.autoSleep.set(enabled);
+    this.save();
+  }
+
+  protected setSleepMinutes(value: string): void {
+    this.autoSleepMinutes.set(Math.max(1, Math.min(1440, Math.floor(+value || 1))));
+    this.save();
+  }
+
   private save(): void {
     this.saving.set(true);
     this.savedOk.set(false);
     this.api.apiServerIdWakePut(this.server().id, {
       wakeOnConnect: this.wakeOnConnect(),
       wakeQueueSeconds: this.wakeQueue(),
+      autoSleepEnabled: this.autoSleep(),
+      autoSleepIdleMinutes: this.autoSleepMinutes(),
     }).subscribe({
       next: () => { this.saving.set(false); this.savedOk.set(true); },
       error: () => { this.saving.set(false); },

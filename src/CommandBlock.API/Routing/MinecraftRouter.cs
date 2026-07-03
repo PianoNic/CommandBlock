@@ -19,12 +19,6 @@ namespace CommandBlock.API.Routing
 
         /// <summary>How long to wait when dialing a backend before treating it as down/asleep.</summary>
         public int BackendConnectTimeoutSeconds { get; set; } = 2;
-
-        /// <summary>Stop servers that have had no players for <see cref="AutoSleepIdleMinutes"/> - this
-        /// is what makes servers sleep. Wake-on-connect is configured per server, not here.</summary>
-        public bool AutoSleepEnabled { get; set; }
-
-        public int AutoSleepIdleMinutes { get; set; } = 10;
     }
 
     /// <summary>
