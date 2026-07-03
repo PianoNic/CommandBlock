@@ -1,3 +1,5 @@
+using System.Formats.Tar;
+using System.IO.Pipelines;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -45,17 +47,16 @@ namespace CommandBlock.Application.Command.Backup
 
             var containerId = server.ContainerId;
 
-            // What to archive: the world folder for a World backup, or the whole /data for a Server backup.
-            string archivePath;
+            // What to archive: the world folder (plus its dimension siblings) for a World backup, or the
+            // whole /data for a Server backup.
             string? metadata = null;
+            var level = "world";
             if (command.Kind == BackupKind.World)
             {
-                var level = await ReadLevelNameAsync(command.ServerId, cancellationToken);
-                archivePath = $"/data/{level}";
+                level = await ReadLevelNameAsync(command.ServerId, cancellationToken);
             }
             else
             {
-                archivePath = "/data";
                 metadata = JsonSerializer.Serialize(new BackupServerConfig(
                     server.ServerType, server.Version, server.ModpackRef, server.Memory,
                     server.JavaVersion, server.UseAikarFlags, server.JvmArgs, server.ExtraEnv));
@@ -72,7 +73,9 @@ namespace CommandBlock.Application.Command.Backup
             long size;
             try
             {
-                await using var archive = await docker.GetArchiveAsync(containerId, archivePath, cancellationToken);
+                await using var archive = command.Kind == BackupKind.World
+                    ? await ArchiveWorldAsync(containerId, level, cancellationToken)
+                    : await docker.GetArchiveAsync(containerId, "/data", cancellationToken);
                 size = await storage.UploadAsync(objectKey, archive, cancellationToken);
             }
             finally
@@ -96,8 +99,9 @@ namespace CommandBlock.Application.Command.Backup
             return entry.ToDto();
         }
 
-        /// <summary>Reads level-name from server.properties (default "world"). Note: for Paper-style
-        /// servers the nether/end live in sibling folders; a World backup captures the overworld.</summary>
+        /// <summary>Reads level-name from server.properties (default "world"). Paper-style servers keep
+        /// the nether/end in sibling folders (level_nether / level_the_end); <see cref="ArchiveWorldAsync"/>
+        /// bundles those alongside the overworld.</summary>
         private async Task<string> ReadLevelNameAsync(Guid serverId, CancellationToken ct)
         {
             try
@@ -108,6 +112,47 @@ namespace CommandBlock.Application.Command.Backup
                 return string.IsNullOrEmpty(name) ? "world" : name;
             }
             catch { return "world"; }
+        }
+
+        /// <summary>Builds a single tar of the world plus its dimension siblings. Paper/Purpur/Spigot split
+        /// the nether and end into <c>{level}_nether</c> / <c>{level}_the_end</c> folders next to the
+        /// overworld (vanilla nests them, so those are already inside the overworld tar). Each folder is
+        /// copied out of the container as its own tar and their entries are streamed into one combined
+        /// archive through a pipe, so nothing is buffered whole in memory. Missing siblings are skipped.</summary>
+        private async Task<Stream> ArchiveWorldAsync(string containerId, string level, CancellationToken ct)
+        {
+            var folders = new[] { level, $"{level}_nether", $"{level}_the_end" };
+            var pipe = new Pipe();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var outStream = pipe.Writer.AsStream(leaveOpen: true);
+                    await using (var tarWriter = new TarWriter(outStream, TarEntryFormat.Pax, leaveOpen: true))
+                    {
+                        foreach (var folder in folders)
+                        {
+                            Stream src;
+                            try { src = await docker.GetArchiveAsync(containerId, $"/data/{folder}", ct); }
+                            catch { continue; } // dimension folder absent (vanilla, or no nether/end yet) - skip
+                            await using (src)
+                            {
+                                using var reader = new TarReader(src, leaveOpen: true);
+                                while (await reader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
+                                    await tarWriter.WriteEntryAsync(entry, ct);
+                            }
+                        }
+                    }
+                    await pipe.Writer.CompleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    await pipe.Writer.CompleteAsync(ex);
+                }
+            }, ct);
+
+            return pipe.Reader.AsStream();
         }
 
         private static async Task TryRcon(IDockerService docker, string containerId, IList<string> command, CancellationToken ct)
