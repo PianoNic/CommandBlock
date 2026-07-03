@@ -207,11 +207,12 @@ namespace CommandBlock.API.Controllers
         {
             try
             {
-                await mediator.Send(new RenameServerCommand(id, body.DisplayName), cancellationToken);
+                await mediator.Send(new RenameServerCommand(id, body.DisplayName, body.Hostname), cancellationToken);
                 return NoContent();
             }
             catch (ServerNotFoundException) { return NotFound(); }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         [HttpGet("{id:guid}/backups")]

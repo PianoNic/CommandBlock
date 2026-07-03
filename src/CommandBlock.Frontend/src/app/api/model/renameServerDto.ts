@@ -11,4 +11,5 @@
 
 export interface RenameServerDto {
     displayName: string;
+    hostname: string;
 }

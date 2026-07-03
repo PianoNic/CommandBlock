@@ -50,9 +50,11 @@ namespace CommandBlock.Domain
         public required string DisplayName { get; set; }
 
         /// <summary>The hostname players connect to, e.g. "smp.gaggao.com". The router keys its
-        /// routing table on this value; it must be unique across managed servers. Immutable after
-        /// create (changing it would break existing player bookmarks and the routing map).</summary>
-        public required string Hostname { get; init; }
+        /// routing table on this value; it must be unique across managed servers. Mutable via the
+        /// rename endpoint - the router resolves it live per connection and dials the backend by
+        /// container name, so a change reroutes on the next join (players on the old hostname stop
+        /// resolving).</summary>
+        public required string Hostname { get; set; }
 
         /// <summary>The Minecraft port inside the container (25565 by default). The router dials the
         /// container on this port over the shared network; it is not the public port.</summary>

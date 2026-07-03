@@ -32,14 +32,21 @@ interface MotdToken {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
-    <div class="flex flex-col gap-1.5">
-      <label hlmLabel for="disp-name" class="text-muted-foreground text-xs uppercase tracking-wide">Display name</label>
-      <div class="flex items-center gap-2">
-        <input hlmInput id="disp-name" class="max-w-xs" [value]="displayName()" (change)="renameSave($any($event.target).value)" placeholder="My server" />
-        @if (renaming()) { <span class="text-muted-foreground text-xs">saving…</span> }
-        @else if (renamedOk()) { <span class="text-primary text-xs">Saved</span> }
+    <div class="grid grid-cols-2 gap-3">
+      <div class="flex flex-col gap-1.5">
+        <label hlmLabel for="disp-name" class="text-muted-foreground text-xs uppercase tracking-wide">Display name</label>
+        <input hlmInput id="disp-name" [value]="displayName()" (input)="displayName.set($any($event.target).value)" (change)="saveIdentity()" placeholder="My server" />
       </div>
-      <span class="text-muted-foreground text-xs">The name shown across CommandBlock. The hostname players connect to can't be changed.</span>
+      <div class="flex flex-col gap-1.5">
+        <label hlmLabel for="disp-host" class="text-muted-foreground text-xs uppercase tracking-wide">Hostname</label>
+        <input hlmInput id="disp-host" class="font-mono text-xs" [value]="hostname()" (input)="hostname.set($any($event.target).value)" (change)="saveIdentity()" placeholder="smp.example.com" />
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+      @if (savingIdentity()) { <span class="text-muted-foreground">saving…</span> }
+      @else if (identitySaved()) { <span class="text-primary">Saved</span> }
+      @if (identityError(); as e) { <span class="text-destructive">{{ e }}</span> }
+      <span class="text-muted-foreground">Players connect to the hostname; changing it reroutes on the next join.</span>
     </div>
 
     <p class="text-muted-foreground text-xs">The most-used server.properties. Changes are written to the file and apply on the next restart.</p>
@@ -150,8 +157,10 @@ export class ServerPropertiesForm implements OnInit {
   protected readonly error = signal<string | null>(null);
 
   protected readonly displayName = signal('');
-  protected readonly renaming = signal(false);
-  protected readonly renamedOk = signal(false);
+  protected readonly hostname = signal('');
+  protected readonly savingIdentity = signal(false);
+  protected readonly identitySaved = signal(false);
+  protected readonly identityError = signal<string | null>(null);
 
   protected readonly difficulties = ['peaceful', 'easy', 'normal', 'hard'] as const;
   protected readonly gamemodes = ['survival', 'creative', 'adventure', 'spectator'] as const;
@@ -195,6 +204,7 @@ export class ServerPropertiesForm implements OnInit {
 
   ngOnInit(): void {
     this.displayName.set(this.server().displayName ?? '');
+    this.hostname.set(this.server().hostname ?? '');
     this.api.apiServerIdPropertiesGet(this.server().id).subscribe({
       next: (p) => {
         this.available.set(p.available);
@@ -281,14 +291,17 @@ export class ServerPropertiesForm implements OnInit {
     });
   }
 
-  protected renameSave(value: string): void {
-    const name = (value ?? '').trim();
-    if (!name || name === (this.server().displayName ?? '')) return;
-    this.renaming.set(true);
-    this.renamedOk.set(false);
-    this.api.apiServerIdNamePut(this.server().id, { displayName: name }).subscribe({
-      next: () => { this.renaming.set(false); this.renamedOk.set(true); this.displayName.set(name); this.saved.emit(); },
-      error: () => { this.renaming.set(false); },
+  protected saveIdentity(): void {
+    const name = this.displayName().trim();
+    const host = this.hostname().trim().toLowerCase();
+    if (!name || !host) return;
+    if (name === (this.server().displayName ?? '') && host === (this.server().hostname ?? '')) return;
+    this.savingIdentity.set(true);
+    this.identitySaved.set(false);
+    this.identityError.set(null);
+    this.api.apiServerIdNamePut(this.server().id, { displayName: name, hostname: host }).subscribe({
+      next: () => { this.savingIdentity.set(false); this.identitySaved.set(true); this.hostname.set(host); this.saved.emit(); },
+      error: (err: unknown) => { this.savingIdentity.set(false); this.identityError.set(messageOf(err)); },
     });
   }
 }
