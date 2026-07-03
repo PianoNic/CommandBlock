@@ -16,16 +16,7 @@ Each server is provisioned as an isolated **sibling container** (`itzg/minecraft
 Player --TCP 25565--> Router (in CommandBlock) --> mc-container (by hostname)
 ```
 
-The control plane is the whole app: the Angular UI, the ASP.NET Core API, its metadata database (SQLite or Postgres), and the router.
-
-## Distributions
-
-CommandBlock ships two ways from the same codebase.
-
-| Distribution | Metadata DB | Auth | Use case |
-| --- | --- | --- | --- |
-| **Docker image** | Postgres or SQLite | OIDC (bring-your-own or a bundled mock server) | Servers, multi-user, always-on |
-| **Desktop app** | SQLite | Built-in, zero-config | A single user on their own machine |
+The control plane is the whole app: the Angular UI, the ASP.NET Core API, its Postgres metadata database, and the router.
 
 ## Get started
 
