@@ -35,6 +35,9 @@ builder.Services.AddCommandBlockDatabase(builder.Configuration);
 builder.Services.AddDocker(builder.Configuration);
 builder.Services.AddActivityLog();
 
+// Liveness/readiness probe exposed anonymously at /health (checks Postgres connectivity).
+builder.Services.AddHealthChecks().AddCheck<CommandBlock.API.Health.DatabaseHealthCheck>("database");
+
 // World backups to an S3/SeaweedFS bucket.
 builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));
 builder.Services.AddScoped<IBackupStorage, CommandBlock.Infrastructure.Services.S3BackupStorage>();
@@ -144,6 +147,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapHub<ConsoleHub>("/hubs/console").RequireAuthorization();
 app.MapHub<ServerStatusHub>("/hubs/status").RequireAuthorization();
 
