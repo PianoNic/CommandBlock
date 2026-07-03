@@ -28,7 +28,6 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Self-hosting', link: '/self-host' },
-          { text: 'Desktop app', link: '/desktop' },
         ],
       },
       {
