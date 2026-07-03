@@ -49,7 +49,9 @@ CommandBlock is a self-hosted manager for Minecraft (Java) servers. Pick a loade
 
 - **One-click servers**: Vanilla, Paper, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot - or a Modrinth/CurseForge/FTB modpack, installed on first boot (built on [`itzg/minecraft-server`](https://github.com/itzg/docker-minecraft-server)).
 - **One port, many servers**: a built-in router reads the hostname from the Minecraft handshake and forwards `smp.example.com`, `modded.example.com`, … to the right server - all on 25565.
-- **World backups**: RCON-flushed snapshots of a server's world straight into SeaweedFS or any S3-compatible bucket; restore in place.
+- **Backups & cloning**: world or full-server snapshots to SeaweedFS or any S3 bucket - restore in place, schedule with cron, or spin up a new server from a backup.
+- **Wake & sleep**: start a stopped server when a player joins (with a short join queue), and auto-sleep it when idle - per server.
+- **Edit from the UI**: a per-server settings modal - `server.properties` with a live MOTD editor, Java/memory runtime, custom icon, and rename.
 - **Lifecycle**: start, stop, and delete servers with live container state.
 - **OIDC auth**: bring your own provider (Pocket ID, Authentik, Auth0…), or the bundled mock server for local dev.
 
@@ -67,7 +69,7 @@ Full documentation: **[docs.commandblock.pianonic.ch](https://docs.commandblock.
 - **Angular 21** + Signals + Spartan UI.
 - **Docker.DotNet** for the server-container lifecycle; **`itzg/minecraft-server`** as the server image.
 - **Raw-TCP router** that parses the Minecraft handshake to route by hostname.
-- **AWS SDK for .NET** for S3/SeaweedFS world backups.
+- **AWS SDK for .NET** for S3/SeaweedFS backups.
 - **OIDC** auth; **OpenAPI** client via `bun run apigen`.
 
 </details>

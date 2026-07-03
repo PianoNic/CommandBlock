@@ -40,7 +40,7 @@ services:
       Oidc__ClientId: ${CommandBlock_OIDC_CLIENT_ID}
       Oidc__Scope: "openid profile email roles"
       Oidc__RequireHttpsMetadata: "true"
-      # World backups -> SeaweedFS (S3)
+      # Backups -> SeaweedFS (S3)
       Backup__Enabled: "true"
       Backup__S3Endpoint: "http://seaweedfs:8333"
       Backup__Bucket: "commandblock-backups"
@@ -134,7 +134,7 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | `Oidc__RedirectUri` / `…PostLogoutRedirectUri` | Return URLs after login/logout (derived from `CommandBlock__PublicUrl` if unset). |
 | `Cors__AllowedOrigins__0` | Browser origin allowed to call the API - UI URL **without** trailing slash. |
 | `Router__ListenPort` / `Router__Enabled` / `Router__HandshakeTimeoutSeconds` | The Minecraft router (defaults: `25565`, `true`, `5`). |
-| `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | World backups to S3/SeaweedFS. See [World backups](./backups). |
+| `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | Backups to S3/SeaweedFS. See [Backups](./backups). |
 | `Docker__Endpoint` | Docker daemon URI. Optional - auto-detected when unset. |
 
 </details>
@@ -199,4 +199,4 @@ Migrations run on startup; the metadata DB, worlds, and running server container
 
 ---
 
-See also: [Servers & modpacks](./servers.md) · [World backups](./backups.md) · [Hostname routing](./routing.md) · [Developer setup](./dev-setup.md)
+See also: [Servers & modpacks](./servers.md) · [Backups](./backups.md) · [Hostname routing](./routing.md) · [Developer setup](./dev-setup.md)
