@@ -1,0 +1,49 @@
+name: CI
+
+# Build + test on every PR to main (and pushes to main) so regressions are caught before merge.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend build + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore CommandBlock.slnx
+
+      - name: Build
+        run: dotnet build CommandBlock.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet run --project src/CommandBlock.Tests/CommandBlock.Tests.csproj --configuration Release --no-build
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/CommandBlock.Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.13'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
