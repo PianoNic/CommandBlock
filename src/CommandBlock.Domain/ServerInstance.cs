@@ -14,14 +14,9 @@ namespace CommandBlock.Domain
         /// switching loaders means a new server.</summary>
         public required string ServerType { get; init; }
 
-        /// <summary>Minecraft version the server runs, e.g. "1.21.1", or "LATEST". Mutable via the
-        /// version-change endpoint. Null when the version is dictated by a modpack
-        /// (<see cref="ModpackRef"/>) rather than chosen directly.</summary>
+        /// <summary>Minecraft version the server runs, e.g. "1.21.1", or "LATEST". Null when the
+        /// version is dictated by a modpack (<see cref="ModpackRef"/>) rather than chosen directly.</summary>
         public string? Version { get; set; }
-
-        /// <summary>The <see cref="Version"/> this server ran before the most recent change, null
-        /// until the first change succeeds. Drives the "Rollback to X" button in the UI.</summary>
-        public string? PreviousVersion { get; set; }
 
         /// <summary>A Modrinth modpack slug, a <c>.mrpack</c> URL, or a CurseForge project ref,
         /// set when <see cref="ServerType"/> is a modpack installer. The container downloads and

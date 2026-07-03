@@ -9,7 +9,6 @@ namespace CommandBlock.Application.Mappings.Server
             Id = s.Id,
             ServerType = s.ServerType,
             Version = s.Version,
-            PreviousVersion = s.PreviousVersion,
             ModpackRef = s.ModpackRef,
             Memory = s.Memory,
             JavaVersion = s.JavaVersion,
