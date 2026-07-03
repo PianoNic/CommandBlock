@@ -23,7 +23,6 @@ namespace CommandBlock.Application.Mappings.Server
             IsPublic = s.IsPublic,
             State = state,
             IsConfigManaged = s.IsConfigManaged,
-            NodeId = s.NodeId,
             PlayersOnline = playersOnline,
             PlayersMax = playersMax,
             MemoryBytes = memoryBytes,

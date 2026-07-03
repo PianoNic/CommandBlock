@@ -19,7 +19,7 @@ namespace CommandBlock.Application.Command.Backup
 
     public class CreateServerFromBackupCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IBackupStorage storage,
         IOptions<CommandBlockOptions> options,
         IActivityLogger activity) : ICommandHandler<CreateServerFromBackupCommand, ServerInstanceDto>
@@ -42,7 +42,6 @@ namespace CommandBlock.Application.Command.Backup
             if (await db.ServerInstances.AnyAsync(s => s.Hostname == hostname, cancellationToken))
                 throw new InvalidOperationException($"A server with hostname '{hostname}' already exists.");
 
-            var docker = dockerResolver.Resolve(null);
             var instanceId = Guid.NewGuid();
             var containerName = $"commandblock-mc-{instanceId.ToString("N")[..8]}";
             var bindSpec = _options.Storage.ResolveBindForContainer(containerName, "/data");

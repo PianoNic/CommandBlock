@@ -5,7 +5,7 @@ using CommandBlock.Infrastructure.Interfaces;
 
 namespace CommandBlock.Infrastructure.Services
 {
-    public class ServerFilesService(CommandBlockDbContext db, IDockerServiceResolver dockerResolver) : IServerFilesService
+    public class ServerFilesService(CommandBlockDbContext db, IDockerService docker) : IServerFilesService
     {
         private const string Root = "/data";
         private const long MaxTextBytes = 2 * 1024 * 1024;
@@ -15,7 +15,7 @@ namespace CommandBlock.Infrastructure.Services
             var server = await db.ServerInstances.AsNoTracking().FirstOrDefaultAsync(s => s.Id == serverId, ct)
                 ?? throw new FileServerNotFoundException(serverId);
             if (server.ContainerId is null) throw new FileServerNotFoundException(serverId);
-            return (dockerResolver.Resolve(server.NodeId), server.ContainerId);
+            return (docker, server.ContainerId);
         }
 
         /// <summary>Resolves a client path (relative to /data) to a normalized absolute container path,

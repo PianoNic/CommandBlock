@@ -34,8 +34,7 @@ namespace CommandBlock.API.Controllers
                 var result = await mediator.Send(new CreateServerCommand(
                     body.ServerType, body.DisplayName, body.Hostname, body.Memory,
                     body.Version, body.ModpackRef,
-                    body.JavaVersion, body.UseAikarFlags, body.JvmArgs, body.ExtraEnv,
-                    body.NodeId), cancellationToken);
+                    body.JavaVersion, body.UseAikarFlags, body.JvmArgs, body.ExtraEnv), cancellationToken);
                 return CreatedAtAction(nameof(Create), new { id = result.Id }, result);
             }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }

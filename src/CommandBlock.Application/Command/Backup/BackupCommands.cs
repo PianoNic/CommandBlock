@@ -31,7 +31,7 @@ namespace CommandBlock.Application.Command.Backup
     /// still backs up.</summary>
     public partial class CreateBackupCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IServerFilesService files,
         IBackupStorage storage,
         IActivityLogger activity) : ICommandHandler<CreateBackupCommand, BackupEntryDto>
@@ -43,7 +43,6 @@ namespace CommandBlock.Application.Command.Backup
             if (!server.IsManaged || server.ContainerId is null)
                 throw new InvalidOperationException("This server has no container to back up.");
 
-            var docker = dockerResolver.Resolve(server.NodeId);
             var containerId = server.ContainerId;
 
             // What to archive: the world folder for a World backup, or the whole /data for a Server backup.
@@ -156,7 +155,7 @@ namespace CommandBlock.Application.Command.Backup
     /// backup extracts just the world folder back into /data.</summary>
     public class RestoreBackupCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IBackupStorage storage,
         IActivityLogger activity) : ICommandHandler<RestoreBackupCommand>
     {
@@ -169,7 +168,6 @@ namespace CommandBlock.Application.Command.Backup
             if (server.ContainerId is null)
                 throw new InvalidOperationException("This server has no container to restore into.");
 
-            var docker = dockerResolver.Resolve(server.NodeId);
             var containerId = server.ContainerId;
             var extractPath = entry.Kind == BackupKind.World ? "/data" : "/";
 

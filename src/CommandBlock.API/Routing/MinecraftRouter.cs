@@ -230,7 +230,7 @@ namespace CommandBlock.API.Routing
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                var docker = scope.ServiceProvider.GetRequiredService<IDockerServiceResolver>().Resolve(null);
+                var docker = scope.ServiceProvider.GetRequiredService<IDockerService>();
                 var info = await docker.InspectContainerAsync(target.ContainerId, stoppingToken);
                 if (info.State?.Running != true)
                 {

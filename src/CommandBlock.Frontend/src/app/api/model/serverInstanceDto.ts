@@ -30,7 +30,6 @@ export interface ServerInstanceDto {
     isPublic: boolean;
     state?: string | null;
     isConfigManaged: boolean;
-    nodeId?: string | null;
     playersOnline?: ProblemDetailsStatus | null;
     playersMax?: ProblemDetailsStatus | null;
     memoryBytes?: ServerInstanceDtoMemoryBytes | null;
