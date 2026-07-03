@@ -35,7 +35,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Servers & modpacks', link: '/servers' },
-          { text: 'World backups', link: '/backups' },
+          { text: 'Backups', link: '/backups' },
           { text: 'Hostname routing', link: '/routing' },
         ],
       },

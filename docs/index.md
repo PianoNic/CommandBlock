@@ -24,8 +24,8 @@ features:
     details: Vanilla, Paper, Fabric, Forge, NeoForge and more - or a Modrinth/CurseForge modpack, installed on first boot.
   - title: One port, many servers
     details: Players reach every server on 25565; CommandBlock routes by the hostname in the Minecraft handshake.
-  - title: World backups to S3
-    details: Snapshot a server's world (RCON-flushed) and store it in SeaweedFS or any S3-compatible bucket. Restore in place.
+  - title: Backups & cloning
+    details: World or full-server snapshots to SeaweedFS or any S3 bucket - restore in place, schedule with cron, or spin up a new server from a backup.
   - title: Bring your own auth
     details: OIDC with any provider (Pocket ID, Authentik, Auth0…), or the bundled mock server for local dev.
 ---

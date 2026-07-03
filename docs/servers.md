@@ -32,6 +32,19 @@ itzg installs the **server** side of that pack automatically - you don't upload 
 
 Each server row supports **Start**, **Stop**, and **Delete**. Delete removes the container and its world data (host folder or volume, per your [storage setting](./self-host#storage)).
 
+## Settings
+
+Each server has a **Settings** modal (reachable from the row's kebab menu or the detail header) grouping everything you'd tweak after create:
+
+- **General / MOTD** - the most-used `server.properties` with a live MOTD editor, plus the server's display name (rename).
+- **Runtime** - memory, Java version, Aikar/JVM flags, and extra itzg env vars (applied on the next restart).
+- **Wake & sleep** - start on join (with a join queue) and auto-sleep when idle, per server.
+- **Icon** - upload a PNG; it's cropped to the 64×64 server-icon and shown in the UI and in-game.
+
+## Backups
+
+Snapshot a server's world, or take a full-server backup you can restore or clone a new server from. See [Backups](./backups).
+
 ## Connecting
 
 Add each server in the Minecraft client by its hostname (e.g. `smp.example.com`). See [Hostname routing](./routing) for the DNS + firewall setup.
