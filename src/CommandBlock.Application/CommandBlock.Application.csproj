@@ -18,4 +18,8 @@
     <ProjectReference Include="..\CommandBlock.Infrastructure\CommandBlock.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CommandBlock.Tests" />
+  </ItemGroup>
+
 </Project>
