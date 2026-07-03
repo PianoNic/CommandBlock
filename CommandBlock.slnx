@@ -1,7 +1,5 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/CommandBlock.Tests/CommandBlock.Tests.csproj" />
-  </Folder>
+  <Project Path="src/CommandBlock.Tests/CommandBlock.Tests.csproj" />
   <Project Path="src/CommandBlock.API/CommandBlock.API.csproj" />
   <Project Path="src/CommandBlock.Application/CommandBlock.Application.csproj" />
   <Project Path="src/CommandBlock.Domain/CommandBlock.Domain.csproj" />
