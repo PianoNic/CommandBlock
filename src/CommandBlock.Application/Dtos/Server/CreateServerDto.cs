@@ -22,7 +22,5 @@ namespace CommandBlock.Application.Dtos.Server
         public string? JvmArgs { get; init; }
         /// <summary>Extra itzg env vars, one KEY=VALUE per line.</summary>
         public string? ExtraEnv { get; init; }
-        /// <summary>Node to run the server on, or null for the control plane's local Docker.</summary>
-        public Guid? NodeId { get; init; }
     }
 }

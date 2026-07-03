@@ -18,7 +18,7 @@ namespace CommandBlock.Application.Command.Server
 
     public class StartServerCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IActivityLogger activity) : ICommandHandler<StartServerCommand>
     {
         public async ValueTask<Unit> Handle(StartServerCommand command, CancellationToken cancellationToken)
@@ -28,7 +28,7 @@ namespace CommandBlock.Application.Command.Server
             if (server.ContainerId is null)
                 throw new InvalidOperationException("This server has no container - nothing to start.");
 
-            await dockerResolver.Resolve(server.NodeId).StartContainerAsync(server.ContainerId, cancellationToken);
+            await docker.StartContainerAsync(server.ContainerId, cancellationToken);
             await activity.LogAsync("server.start", server.ContainerName ?? server.DisplayName, server.Id, server.ServerType, null, cancellationToken);
             return Unit.Value;
         }
@@ -36,7 +36,7 @@ namespace CommandBlock.Application.Command.Server
 
     public class StopServerCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IActivityLogger activity) : ICommandHandler<StopServerCommand>
     {
         public async ValueTask<Unit> Handle(StopServerCommand command, CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ namespace CommandBlock.Application.Command.Server
             if (server.ContainerId is null)
                 throw new InvalidOperationException("This server has no container - nothing to stop.");
 
-            await dockerResolver.Resolve(server.NodeId).StopContainerAsync(server.ContainerId, cancellationToken);
+            await docker.StopContainerAsync(server.ContainerId, cancellationToken);
             await activity.LogAsync("server.stop", server.ContainerName ?? server.DisplayName, server.Id, server.ServerType, null, cancellationToken);
             return Unit.Value;
         }
@@ -54,7 +54,7 @@ namespace CommandBlock.Application.Command.Server
 
     public class RestartServerCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IActivityLogger activity) : ICommandHandler<RestartServerCommand>
     {
         public async ValueTask<Unit> Handle(RestartServerCommand command, CancellationToken cancellationToken)
@@ -65,7 +65,6 @@ namespace CommandBlock.Application.Command.Server
                 throw new InvalidOperationException("This server has no container - nothing to restart.");
 
             // Stop then start: the container's stop timeout lets Minecraft save and shut down cleanly.
-            var docker = dockerResolver.Resolve(server.NodeId);
             await docker.StopContainerAsync(server.ContainerId, cancellationToken);
             await docker.StartContainerAsync(server.ContainerId, cancellationToken);
             await activity.LogAsync("server.restart", server.ContainerName ?? server.DisplayName, server.Id, server.ServerType, null, cancellationToken);
@@ -75,7 +74,7 @@ namespace CommandBlock.Application.Command.Server
 
     public class DeleteServerCommandHandler(
         CommandBlockDbContext db,
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         IActivityLogger activity,
         IOptions<CommandBlockOptions> options) : ICommandHandler<DeleteServerCommand>
     {
@@ -86,8 +85,6 @@ namespace CommandBlock.Application.Command.Server
 
             if (server.IsManaged && server.ContainerName is not null && server.ContainerId is not null)
             {
-                var docker = dockerResolver.Resolve(server.NodeId);
-
                 try { await docker.RemoveContainerAsync(server.ContainerId, force: true, cancellationToken); }
                 catch { /* container may already be gone */ }
 

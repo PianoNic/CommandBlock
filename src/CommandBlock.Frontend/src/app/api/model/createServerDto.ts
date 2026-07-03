@@ -20,6 +20,5 @@ export interface CreateServerDto {
     useAikarFlags?: boolean;
     jvmArgs?: string | null;
     extraEnv?: string | null;
-    nodeId?: string | null;
 }
 

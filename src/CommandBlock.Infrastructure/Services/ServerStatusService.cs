@@ -5,39 +5,36 @@ using CommandBlock.Infrastructure.Interfaces;
 
 namespace CommandBlock.Infrastructure.Services
 {
-    public partial class ServerStatusService(CommandBlockDbContext db, IDockerServiceResolver dockerResolver) : IServerStatusService
+    public partial class ServerStatusService(CommandBlockDbContext db, IDockerService docker) : IServerStatusService
     {
         public async Task<IReadOnlyList<ServerStatus>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             var rows = await db.ServerInstances
                 .AsNoTracking()
-                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.NodeId })
+                .Select(s => new { s.Id, s.ContainerName, s.ContainerId })
                 .ToListAsync(cancellationToken);
 
-            // Docker state per container, one call per distinct node.
+            // Docker state per container in one daemon call.
             var stateByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var nodeId in rows.Select(r => r.NodeId).Distinct())
+            try
             {
-                try
-                {
-                    foreach (var c in await dockerResolver.Resolve(nodeId).ListContainersAsync(all: true, cancellationToken))
-                        if (c.Names is not null)
-                            foreach (var n in c.Names)
-                                stateByName[n.TrimStart('/')] = c.State ?? "unknown";
-                }
-                catch { /* daemon/node unreachable -> null state */ }
+                foreach (var c in await docker.ListContainersAsync(all: true, cancellationToken))
+                    if (c.Names is not null)
+                        foreach (var n in c.Names)
+                            stateByName[n.TrimStart('/')] = c.State ?? "unknown";
             }
+            catch { /* daemon unreachable -> null state */ }
 
             // Probe every running server concurrently - the per-server Docker calls (mc-monitor +
             // stats) each take a few hundred ms, so doing them sequentially made list latency scale
             // with server count. Running them in parallel keeps it flat.
             var tasks = rows.Select(async r =>
             {
-                var docker = r.ContainerName is not null && stateByName.TryGetValue(r.ContainerName, out var st) ? st : null;
-                if (docker != "running" || r.ContainerId is null)
-                    return new ServerStatus(r.Id, docker, null, null, null);
+                var containerState = r.ContainerName is not null && stateByName.TryGetValue(r.ContainerName, out var st) ? st : null;
+                if (containerState != "running" || r.ContainerId is null)
+                    return new ServerStatus(r.Id, containerState, null, null, null);
 
-                var svc = dockerResolver.Resolve(r.NodeId);
+                var svc = docker;
                 string state = "running";
                 int? online = null, max = null;
 

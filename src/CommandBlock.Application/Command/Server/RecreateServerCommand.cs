@@ -23,7 +23,7 @@ namespace CommandBlock.Application.Command.Server
         string? ExtraEnv = null) : ICommand<ServerInstanceDto>;
 
     public class RecreateServerCommandHandler(
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         CommandBlockDbContext db,
         IOptions<CommandBlockOptions> options,
         IActivityLogger activity) : ICommandHandler<RecreateServerCommand, ServerInstanceDto>
@@ -48,7 +48,6 @@ namespace CommandBlock.Application.Command.Server
             server.JvmArgs = string.IsNullOrWhiteSpace(command.JvmArgs) ? null : command.JvmArgs;
             server.ExtraEnv = string.IsNullOrWhiteSpace(command.ExtraEnv) ? null : command.ExtraEnv;
 
-            var docker = dockerResolver.Resolve(server.NodeId);
             var containerName = server.ContainerName;
             var bindSpec = _options.Storage.ResolveBindForContainer(containerName, "/data");
             var createParams = ServerContainerSpec.BuildCreateParams(server, containerName, bindSpec);

@@ -24,11 +24,10 @@ namespace CommandBlock.Application.Command.Server
         string? JavaVersion = null,
         bool UseAikarFlags = false,
         string? JvmArgs = null,
-        string? ExtraEnv = null,
-        Guid? NodeId = null) : ICommand<ServerInstanceDto>;
+        string? ExtraEnv = null) : ICommand<ServerInstanceDto>;
 
     public class CreateServerCommandHandler(
-        IDockerServiceResolver dockerResolver,
+        IDockerService docker,
         CommandBlockDbContext db,
         IOptions<CommandBlockOptions> options,
         IActivityLogger activity) : ICommandHandler<CreateServerCommand, ServerInstanceDto>
@@ -37,8 +36,6 @@ namespace CommandBlock.Application.Command.Server
 
         public async ValueTask<ServerInstanceDto> Handle(CreateServerCommand command, CancellationToken cancellationToken)
         {
-            var docker = dockerResolver.Resolve(command.NodeId);
-
             var serverType = NormalizeType(command.ServerType);
             var hostname = command.Hostname.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(hostname))
@@ -69,7 +66,6 @@ namespace CommandBlock.Application.Command.Server
                 Hostname = hostname,
                 Port = ServerContainerSpec.McPort,
                 ContainerName = containerName,
-                NodeId = command.NodeId,
             };
 
             var createParams = ServerContainerSpec.BuildCreateParams(instance, containerName, bindSpec);

@@ -12,7 +12,7 @@ namespace CommandBlock.Application.Queries.Server
     /// polled) so it doesn't spam the server console the way frequent RCON calls would.</summary>
     public record ListPlayersQuery(Guid ServerId) : IQuery<PlayerListDto>;
 
-    public partial class ListPlayersQueryHandler(CommandBlockDbContext db, IDockerServiceResolver dockerResolver)
+    public partial class ListPlayersQueryHandler(CommandBlockDbContext db, IDockerService docker)
         : IQueryHandler<ListPlayersQuery, PlayerListDto>
     {
         private static readonly PlayerListDto Empty = new() { Online = 0, Max = 0, Players = [], Reachable = false };
@@ -25,7 +25,6 @@ namespace CommandBlock.Application.Queries.Server
 
             try
             {
-                var docker = dockerResolver.Resolve(server.NodeId);
                 var bytes = await docker.ExecCaptureAsync(server.ContainerId, new[] { "rcon-cli", "list" }, cancellationToken);
                 var text = Encoding.UTF8.GetString(bytes);
 

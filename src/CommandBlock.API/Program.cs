@@ -55,9 +55,6 @@ builder.Services.AddHttpClient<IMinecraftVersionClient, CommandBlock.Infrastruct
     c.Timeout = TimeSpan.FromSeconds(10);
 });
 
-// Single-host: every Docker operation runs against the local daemon.
-builder.Services.AddScoped<IDockerServiceResolver, LocalDockerServiceResolver>();
-
 // Server file browser/editor (Docker copy + exec under each server's /data).
 builder.Services.AddScoped<IServerFilesService, CommandBlock.Infrastructure.Services.ServerFilesService>();
 

@@ -40,7 +40,7 @@ namespace CommandBlock.API.Routing
         {
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
-            var docker = scope.ServiceProvider.GetRequiredService<IDockerServiceResolver>().Resolve(null);
+            var docker = scope.ServiceProvider.GetRequiredService<IDockerService>();
             var activity = scope.ServiceProvider.GetRequiredService<IActivityLogger>();
 
             var servers = await db.ServerInstances

@@ -12,12 +12,12 @@ namespace CommandBlock.Application.Queries.Host
 
     public record GetHostResourcesQuery : IQuery<HostResourcesDto>;
 
-    public partial class GetHostResourcesQueryHandler(CommandBlockDbContext db, IDockerServiceResolver dockerResolver)
+    public partial class GetHostResourcesQueryHandler(CommandBlockDbContext db, IDockerService docker)
         : IQueryHandler<GetHostResourcesQuery, HostResourcesDto>
     {
         public async ValueTask<HostResourcesDto> Handle(GetHostResourcesQuery query, CancellationToken cancellationToken)
         {
-            var total = await dockerResolver.Resolve(null).GetHostMemoryTotalBytesAsync(cancellationToken);
+            var total = await docker.GetHostMemoryTotalBytesAsync(cancellationToken);
 
             var mems = await db.ServerInstances.AsNoTracking().Select(s => s.Memory).ToListAsync(cancellationToken);
             var allocated = mems.Sum(ParseMemoryBytes);
