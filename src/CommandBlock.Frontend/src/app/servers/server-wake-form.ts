@@ -34,6 +34,8 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
       </div>
     }
 
+    <div class="border-border border-t"></div>
+
     <label class="flex items-center gap-2 text-sm">
       <hlm-checkbox [checked]="autoSleep()" (checkedChange)="setAutoSleep($event)" />
       <span class="text-foreground">Auto-sleep when idle</span>

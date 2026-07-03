@@ -62,6 +62,8 @@ interface MotdToken {
       <span class="text-muted-foreground">Players connect to <span class="text-foreground font-mono">{{ fullHostname() }}</span>; changing it reroutes on the next join.</span>
     </div>
 
+    <div class="border-border border-t"></div>
+
     <p class="text-muted-foreground text-xs">The most-used server.properties. Changes are written to the file and apply on the next restart.</p>
 
     @if (loading()) {
@@ -104,6 +106,8 @@ interface MotdToken {
           </div>
         </div>
       </div>
+
+      <div class="border-border border-t"></div>
 
       <div class="grid grid-cols-2 gap-3">
         <div class="flex flex-col gap-1.5">

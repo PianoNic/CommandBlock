@@ -60,7 +60,7 @@ import { environment } from '../shared/environments/environment';
         <div class="flex min-w-0 items-center gap-2">
           <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
-            <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-md" style="image-rendering:pixelated" />
+            <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-sm" style="image-rendering:pixelated" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
           } @else {
             <h2 class="text-sm font-medium">Server</h2>
