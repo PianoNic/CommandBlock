@@ -7,8 +7,6 @@ namespace CommandBlock.Application.Dtos.Server
         public required string ServerType { get; init; }
         /// <summary>Minecraft version, or null when a modpack dictates it.</summary>
         public string? Version { get; init; }
-        /// <summary>Previous version stashed by the version-change flow; powers the Rollback button.</summary>
-        public string? PreviousVersion { get; init; }
         /// <summary>Modrinth slug / .mrpack URL / CurseForge ref, set for modpack server types.</summary>
         public string? ModpackRef { get; init; }
         /// <summary>Java heap / container memory, e.g. "4G".</summary>

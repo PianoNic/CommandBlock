@@ -16,7 +16,6 @@ export interface ServerInstanceDto {
     id: string;
     serverType: string;
     version?: string | null;
-    previousVersion?: string | null;
     modpackRef?: string | null;
     memory: string;
     javaVersion?: string | null;
