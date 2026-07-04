@@ -31,7 +31,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
         <hlm-select [value]="wakeMode()" (valueChange)="setWakeMode($event ?? 'queue')">
           <hlm-select-trigger class="w-full max-w-sm"><hlm-select-value /></hlm-select-trigger>
           <hlm-select-content *hlmSelectPortal>
-            <hlm-select-item value="queue">Hold them &amp; let them in automatically</hlm-select-item>
+            <hlm-select-item value="queue">Hold them &amp; let them in automatically (experimental)</hlm-select-item>
             <hlm-select-item value="notify">Ask them to reconnect in a moment</hlm-select-item>
           </hlm-select-content>
         </hlm-select>
@@ -40,8 +40,9 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
           <label hlmLabel for="wk-q" class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Max hold (seconds)</label>
           <input hlmInput id="wk-q" type="number" min="1" max="25" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
           <span class="text-muted-foreground text-xs">
-            Hold the joining player and drop them straight in the moment the server is ready. If it isn't up
-            within this window they're asked to reconnect. Capped at 25s (under the client's ~30s login timeout).
+            <span class="text-amber-500">Experimental</span> - hold the joining player and drop them straight in
+            the moment the server is ready. If it isn't up within this window they're asked to reconnect. Capped at
+            25s (under the client's ~30s login timeout); reliability depends on how fast the server boots.
           </span>
         } @else {
           <span class="text-muted-foreground text-xs">
