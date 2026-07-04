@@ -299,7 +299,7 @@ export class ServerCreateDialog {
   // Advanced runtime settings.
   protected readonly showAdvanced = signal(false);
   protected readonly javaVersion = signal('auto');
-  protected readonly useAikarFlags = signal(false);
+  protected readonly useAikarFlags = signal(true);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
 
