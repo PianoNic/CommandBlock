@@ -90,6 +90,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.MetadataAddress = $"{internalAuthority!.TrimEnd('/')}/.well-known/openid-configuration";
         options.RequireHttpsMetadata = builder.Configuration.GetValue("Oidc:RequireHttpsMetadata", true);
         options.TokenValidationParameters.ValidIssuer = publicAuthority;
+        // Behind a gul tunnel the token's `iss` is the dynamic public tunnel URL rather than the
+        // local authority configured here; the signature is still verified against the local JWKS
+        // above, so only the issuer-string check is relaxed (on by default; off in Development).
+        options.TokenValidationParameters.ValidateIssuer = builder.Configuration.GetValue("Oidc:ValidateIssuer", true);
         options.TokenValidationParameters.NameClaimType = "name";
         options.TokenValidationParameters.RoleClaimType = "roles";
         options.TokenValidationParameters.ValidateAudience = false;

@@ -132,7 +132,7 @@ namespace CommandBlock.API.Routing
 
                         // Queue: hold the joining player and pipe them straight in once the server is
                         // up, as long as it boots inside the window (kept under the client login timeout).
-                        var hold = Math.Min(target.WakeQueueSeconds, 28);
+                        var hold = Math.Min(target.WakeQueueSeconds, 25);
                         if (hold > 0)
                         {
                             backend = await WaitForBackendAsync(target, hold, stoppingToken);
@@ -247,6 +247,7 @@ namespace CommandBlock.API.Routing
                 await client.FlushAsync(ct);
                 var ping = await ReadPacketAsync(client, ct);                        // ping (0x01 + long)
                 if (ping is not null) { await client.WriteAsync(ping, ct); await client.FlushAsync(ct); }
+                await GracefulCloseAsync(client, ct);
             }
             catch { /* client went away - fine */ }
         }
@@ -257,8 +258,27 @@ namespace CommandBlock.API.Routing
             {
                 await client.WriteAsync(MinecraftProtocol.LoginDisconnectPacket(reason), ct);
                 await client.FlushAsync(ct);
+                await GracefulCloseAsync(client, ct);
             }
             catch { /* client went away - fine */ }
+        }
+
+        /// <summary>Emits our FIN and drains whatever the client already pipelined before the socket is
+        /// disposed. A real client sends its Login Start right behind the handshake; closing the socket with
+        /// that still unread makes the OS send an RST instead of a FIN (RFC 1122 sec 4.2.2.13), and the reset
+        /// races ahead of our disconnect packet - so the client shows "Connection reset" instead of the
+        /// message. Draining first lets the close be a clean FIN. Best-effort, capped at 2s.</summary>
+        private static async Task GracefulCloseAsync(NetworkStream client, CancellationToken stoppingToken)
+        {
+            try
+            {
+                client.Socket.Shutdown(SocketShutdown.Send); // FIN, after the already-flushed disconnect bytes
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(2));
+                var sink = new byte[4096];
+                while (await client.ReadAsync(sink, cts.Token) > 0) { } // discard the client's pipelined bytes
+            }
+            catch { /* already gone / drained / timed out - fine */ }
         }
 
         /// <summary>Reads one framed packet and returns its raw bytes (length prefix + body), or null on EOF.</summary>

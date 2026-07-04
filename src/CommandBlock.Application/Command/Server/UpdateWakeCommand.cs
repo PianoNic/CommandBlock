@@ -17,7 +17,7 @@ namespace CommandBlock.Application.Command.Server
                 ?? throw new ServerNotFoundException(command.ServerId);
 
             server.WakeOnConnect = command.WakeOnConnect;
-            server.WakeQueueSeconds = Math.Clamp(command.WakeQueueSeconds, 0, 28);
+            server.WakeQueueSeconds = Math.Clamp(command.WakeQueueSeconds, 0, 25);
             server.AutoSleepEnabled = command.AutoSleepEnabled;
             server.AutoSleepIdleMinutes = Math.Clamp(command.AutoSleepIdleMinutes, 1, 1440);
             await db.SaveChangesAsync(cancellationToken);
