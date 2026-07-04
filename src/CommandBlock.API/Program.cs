@@ -71,6 +71,8 @@ builder.Services.Configure<RouterOptions>(builder.Configuration.GetSection("Rout
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
 builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
+builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboRegistry>();
+builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboSession>();
 builder.Services.AddHostedService<MinecraftRouter>();
 builder.Services.AddHostedService<IdleServerMonitor>();
 builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>();

@@ -32,6 +32,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Routing\Limbo\registry-775.json.gz" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommandBlock.Application\CommandBlock.Application.csproj" />
     <ProjectReference Include="..\CommandBlock.Infrastructure\CommandBlock.Infrastructure.csproj" />
   </ItemGroup>
