@@ -38,10 +38,10 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 
         @if (wakeMode() === 'queue') {
           <label hlmLabel for="wk-q" class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Max hold (seconds)</label>
-          <input hlmInput id="wk-q" type="number" min="1" max="28" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
+          <input hlmInput id="wk-q" type="number" min="1" max="25" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
           <span class="text-muted-foreground text-xs">
             Hold the joining player and drop them straight in the moment the server is ready. If it isn't up
-            within this window they're asked to reconnect. Capped at 28s (under the client's ~30s login timeout).
+            within this window they're asked to reconnect. Capped at 25s (under the client's ~30s login timeout).
           </span>
         } @else {
           <span class="text-muted-foreground text-xs">
@@ -108,7 +108,7 @@ export class ServerWakeForm implements OnInit {
   }
 
   protected setQueue(value: string): void {
-    this.wakeQueue.set(Math.max(1, Math.min(28, Math.floor(+value || 1))));
+    this.wakeQueue.set(Math.max(1, Math.min(25, Math.floor(+value || 1))));
     this.save();
   }
 

@@ -4,7 +4,7 @@ namespace CommandBlock.Application.Dtos.Server
     public record UpdateWakeDto
     {
         public required bool WakeOnConnect { get; init; }
-        /// <summary>Queue hold window in seconds (0 = ask the player to reconnect). Clamped to 0-28.</summary>
+        /// <summary>Queue hold window in seconds (0 = ask the player to reconnect). Clamped to 0-25.</summary>
         public int WakeQueueSeconds { get; init; }
         /// <summary>Stop the server automatically after AutoSleepIdleMinutes with no players.</summary>
         public bool AutoSleepEnabled { get; init; }
