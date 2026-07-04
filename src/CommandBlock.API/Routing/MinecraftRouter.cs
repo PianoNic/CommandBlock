@@ -31,6 +31,8 @@ namespace CommandBlock.API.Routing
         IServiceScopeFactory scopeFactory,
         IServerConnectionTracker tracker,
         IOptions<RouterOptions> options,
+        Limbo.LimboRegistry limboRegistry,
+        Limbo.LimboSession limboSession,
         ILogger<MinecraftRouter> logger) : BackgroundService
     {
         private readonly RouterOptions _options = options.Value;
@@ -75,7 +77,7 @@ namespace CommandBlock.API.Routing
 
         private async Task HandleClientAsync(TcpClient client, CancellationToken stoppingToken)
         {
-            using var _ = client;
+            using var _lease = client;
             client.NoDelay = true;
 
             TcpClient? backend = null;
@@ -120,7 +122,7 @@ namespace CommandBlock.API.Routing
                             : $"§c● §f{target.DisplayName} §7is offline\n§8Wake-on-join is disabled";
                         await SendSleepingStatusAsync(clientStream, motd, handshake.ProtocolVersion, stoppingToken);
                     }
-                    else if (handshake.NextState == 2)
+                    else if (handshake.NextState is 2 or 3)   // login, or a Transfer reconnect
                     {
                         if (!target.WakeOnConnect)
                         {
@@ -128,7 +130,22 @@ namespace CommandBlock.API.Routing
                             return;
                         }
 
-                        await WakeAsync(target, stoppingToken);
+                        // Wake in the background so the client isn't blocked on Docker starting the container -
+                        // the limbo replays immediately and its readiness probe picks the backend up once it's live.
+                        _ = WakeAsync(target, stoppingToken);
+
+                        // Limbo: if we have a registry snapshot for this client's protocol, hold them in a live
+                        // "starting" world and Transfer them back to the router once the backend is up (seamless
+                        // auto-join, no manual reconnect). Otherwise fall through to the queue-then-kick.
+                        var limbo = limboRegistry.Get(handshake.ProtocolVersion);
+                        if (limbo is not null)
+                        {
+                            using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                            await limboSession.RunAsync(clientStream, limbo, handshake.ServerAddress, handshake.ServerPort,
+                                async ct => { while (true) { var probe = await TryConnectBackendAsync(target, ct); if (probe is not null) { probe.Dispose(); return; } await Task.Delay(1000, ct); } },
+                                stoppingToken);
+                            return;
+                        }
 
                         // Queue: hold the joining player and pipe them straight in once the server is
                         // up, as long as it boots inside the window (kept under the client login timeout).
@@ -155,8 +172,18 @@ namespace CommandBlock.API.Routing
                 }
 
                 var backendStream = backend.GetStream();
-                await backendStream.WriteAsync(lengthResult.Raw, stoppingToken);
-                await backendStream.WriteAsync(body.AsMemory(0, length), stoppingToken);
+                if (handshake.NextState == 3)
+                {
+                    // A Transfer reconnect arrives with intent 3; backends reject that unless accepts-transfers
+                    // is enabled, so rewrite it to a normal login (2) before piping. The client's buffered Login
+                    // Start is then forwarded by the pump, so the backend sees an ordinary login.
+                    await backendStream.WriteAsync(MinecraftProtocol.HandshakePacket(handshake.ProtocolVersion, handshake.ServerAddress, handshake.ServerPort, 2), stoppingToken);
+                }
+                else
+                {
+                    await backendStream.WriteAsync(lengthResult.Raw, stoppingToken);
+                    await backendStream.WriteAsync(body.AsMemory(0, length), stoppingToken);
+                }
                 await backendStream.FlushAsync(stoppingToken);
 
                 logger.LogDebug("Routed '{Host}' -> {Target}:{Port} (state {State}).",

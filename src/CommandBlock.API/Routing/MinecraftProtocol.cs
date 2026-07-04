@@ -131,6 +131,15 @@ namespace CommandBlock.API.Routing
             return Packet(0x00, EncodeString(chatJson));
         }
 
+        /// <summary>Builds a Handshake packet (id 0x00) with the given next-state. Used to rewrite a Transfer
+        /// reconnect (intent 3) into a normal login (intent 2) before piping to a backend that has no
+        /// accepts-transfers flag.</summary>
+        public static byte[] HandshakePacket(int protocolVersion, string serverAddress, ushort serverPort, int nextState)
+        {
+            byte[] body = [.. EncodeVarInt(protocolVersion), .. EncodeString(serverAddress), (byte)(serverPort >> 8), (byte)(serverPort & 0xff), .. EncodeVarInt(nextState)];
+            return Packet(0x00, body);
+        }
+
         /// <summary>Builds the server-list status JSON with a custom MOTD (used while a server wakes).</summary>
         public static string StatusJson(string motd, int protocolVersion) =>
             "{\"version\":{\"name\":\"CommandBlock\",\"protocol\":" + protocolVersion + "}," +
