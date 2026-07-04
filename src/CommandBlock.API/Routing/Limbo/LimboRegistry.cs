@@ -1,15 +1,19 @@
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text.Json;
+using CommandBlock.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace CommandBlock.API.Routing.Limbo
 {
     /// <summary>Per-protocol clientbound packet ids the limbo emits. Reverse-engineered per MC version - the
-    /// play-state id map shifts non-uniformly between versions, so these can't be assumed across protocols.</summary>
-    public sealed record LimboIds(byte KeepAlive, byte SbKeepAlive, byte BossBar, byte TitleText, byte Subtitle, byte TitleTimes, byte SystemChat, byte Transfer);
+    /// play-state id map shifts non-uniformly between versions. Screen ids are nullable: the auto-capture sniffs
+    /// them best-effort, and the limbo simply omits a screen element whose id it doesn't have.</summary>
+    public sealed record LimboIds(byte KeepAlive, byte SbKeepAlive, byte? BossBar, byte? TitleText, byte? Subtitle, byte? TitleTimes, byte? SystemChat, byte Transfer);
 
     /// <summary>Cached limbo byte sequences + ids for one protocol version. Frames are network-ready and
-    /// uncompressed (the captured payloads are stored decompressed and the limbo never negotiates compression).</summary>
+    /// uncompressed (captured payloads are stored decompressed and the limbo never negotiates compression).</summary>
     public sealed class LimboData
     {
         public required int Protocol { get; init; }
@@ -18,38 +22,65 @@ namespace CommandBlock.API.Routing.Limbo
         public required LimboIds Ids { get; init; }
     }
 
-    /// <summary>Holds the captured registry + play byte sequences the limbo replays, keyed by protocol version.
-    /// The bytes are captured from a real backend of that version (see the limbo prototype / limbo-protocol notes)
-    /// so any matching-version client accepts them verbatim - no hand-authored NBT. For now a single embedded
-    /// 26.1.2 (protocol 775) snapshot; later populated by an on-boot capture per version.</summary>
-    public sealed class LimboRegistry
+    /// <summary>Serves the limbo replay data for a client's protocol. Prefers a <c>LimboSnapshot</c> captured
+    /// from a real backend (stored in the DB by <see cref="LimboCaptureService"/>); falls back to the embedded
+    /// 26.1.2 (775) blob shipped with the image; returns null for anything else so the router kicks cleanly.
+    /// Built data is cached in memory; <see cref="Invalidate"/> drops a protocol after a fresh capture.</summary>
+    public sealed class LimboRegistry(IServiceScopeFactory scopeFactory)
     {
-        private readonly Dictionary<int, LimboData> _byProtocol = new();
+        private readonly ConcurrentDictionary<int, LimboData> _cache = new();
+        private LimboData? _embedded775;
+        private bool _embeddedLoaded;
 
-        public LimboRegistry()
+        /// <summary>Limbo data for a client's protocol, or null when we have no snapshot for it.</summary>
+        public LimboData? Get(int protocol)
         {
-            // 26.1.2 = protocol 775. Ids verified against a real client (see limbo-protocol-775 notes).
-            TryLoad(775, "registry-775.json.gz", new LimboIds(
-                KeepAlive: 0x2c, SbKeepAlive: 0x1c, BossBar: 0x09,
-                TitleText: 0x72, Subtitle: 0x70, TitleTimes: 0x73, SystemChat: 0x79, Transfer: 0x81));
+            if (_cache.TryGetValue(protocol, out var cached)) return cached;
+            var data = LoadFromDb(protocol) ?? (protocol == 775 ? LoadEmbedded775() : null);
+            if (data is not null) _cache[protocol] = data;
+            return data;
         }
 
-        /// <summary>Limbo data for a client's protocol, or null when we have no snapshot for it (caller falls back to a kick).</summary>
-        public LimboData? Get(int protocol) => _byProtocol.GetValueOrDefault(protocol);
+        /// <summary>Drop a protocol's cached data (e.g. after a fresh capture) so the next Get reloads it.</summary>
+        public void Invalidate(int protocol) => _cache.TryRemove(protocol, out _);
 
-        private void TryLoad(int protocol, string resource, LimboIds ids)
+        private LimboData? LoadFromDb(int protocol)
         {
-            var json = ReadEmbedded(resource);
-            if (json is null) return;
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            _byProtocol[protocol] = new LimboData
+            try
             {
-                Protocol = protocol,
-                ConfigFrames = FrameAll(root.GetProperty("config")),
-                PlayFrames = FrameAll(root.GetProperty("play")),
-                Ids = ids,
+                using var scope = scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
+                var snap = db.LimboSnapshots.AsNoTracking().FirstOrDefault(s => s.Protocol == protocol);
+                if (snap is null) return null;
+                using var doc = JsonDocument.Parse(Gunzip(snap.Data));
+                return new LimboData
+                {
+                    Protocol = protocol,
+                    ConfigFrames = FrameAll(doc.RootElement.GetProperty("config")),
+                    PlayFrames = FrameAll(doc.RootElement.GetProperty("play")),
+                    Ids = new LimboIds((byte)snap.KeepAliveId, 0, (byte?)snap.BossBarId, (byte?)snap.TitleTextId,
+                        (byte?)snap.SubtitleId, (byte?)snap.TitleTimesId, (byte?)snap.SystemChatId, (byte)snap.TransferId),
+                };
+            }
+            catch { return null; }
+        }
+
+        private LimboData? LoadEmbedded775()
+        {
+            if (_embeddedLoaded) return _embedded775;
+            _embeddedLoaded = true;
+            var json = ReadEmbedded("registry-775.json.gz");
+            if (json is null) return null;
+            using var doc = JsonDocument.Parse(json);
+            _embedded775 = new LimboData
+            {
+                Protocol = 775,
+                ConfigFrames = FrameAll(doc.RootElement.GetProperty("config")),
+                PlayFrames = FrameAll(doc.RootElement.GetProperty("play")),
+                // Verified against a real 26.1.2 client.
+                Ids = new LimboIds(0x2c, 0x1c, 0x09, 0x72, 0x70, 0x73, 0x79, 0x81),
             };
+            return _embedded775;
         }
 
         // Each captured packet's "hex" is the decompressed [packetId..payload]; frame it as [VarInt length][bytes].
@@ -62,6 +93,14 @@ namespace CommandBlock.API.Routing.Limbo
                 list.Add([.. MinecraftProtocol.EncodeVarInt(raw.Length), .. raw]);
             }
             return list;
+        }
+
+        private static string Gunzip(byte[] gz)
+        {
+            using var ms = new MemoryStream(gz);
+            using var z = new GZipStream(ms, CompressionMode.Decompress);
+            using var r = new StreamReader(z);
+            return r.ReadToEnd();
         }
 
         private static string? ReadEmbedded(string name)

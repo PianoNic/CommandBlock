@@ -73,6 +73,7 @@ builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
 builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboRegistry>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboSession>();
+builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboCaptureService>();
 builder.Services.AddHostedService<MinecraftRouter>();
 builder.Services.AddHostedService<IdleServerMonitor>();
 builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>();
