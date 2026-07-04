@@ -116,8 +116,8 @@ namespace CommandBlock.API.Routing
                     if (handshake.NextState == 1)
                     {
                         var motd = target.WakeOnConnect
-                            ? $"§7{target.DisplayName} is asleep - join to start it."
-                            : $"§7{target.DisplayName} is offline.";
+                            ? $"§e● §f{target.DisplayName} §7is sleeping\n§7Join to wake it up - starts automatically"
+                            : $"§c● §f{target.DisplayName} §7is offline\n§8Wake-on-join is disabled";
                         await SendSleepingStatusAsync(clientStream, motd, handshake.ProtocolVersion, stoppingToken);
                     }
                     else if (handshake.NextState == 2)
