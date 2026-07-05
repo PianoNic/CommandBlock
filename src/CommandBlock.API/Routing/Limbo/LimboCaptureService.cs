@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using CommandBlock.Domain;
 using CommandBlock.Infrastructure;
 using CommandBlock.Infrastructure.Interfaces;
@@ -10,31 +11,36 @@ namespace CommandBlock.API.Routing.Limbo
 {
     /// <summary>Probes a running backend to capture a <see cref="LimboSnapshot"/> for its protocol version: an
     /// offline-login client records the config (registry) + play (join) byte sequences, then determines the
-    /// per-version play packet ids - keep-alive from the periodic 9-byte packet, and transfer / boss-bar / title /
-    /// chat via RCON-triggered packets. Automates, in C#, the manual capture done for the embedded 26.1.2 blob.
-    /// Fires RCON titles at @a, so it should only run against a server with no players online.</summary>
-    public sealed class LimboCaptureService(IServiceScopeFactory scopeFactory, IDockerService docker, ILogger<LimboCaptureService> logger)
+    /// per-version play packet ids via a persistent RCON connection (fire a command carrying a distinctive marker,
+    /// find the play packet whose bytes contain it) plus keep-alive by timing. Only protocol >= 766 (1.20.5) is
+    /// captured - older versions have no Transfer packet, so the limbo can't auto-join them anyway. Fires RCON
+    /// titles at @a, so it should only run against a server with no players online.</summary>
+    public sealed partial class LimboCaptureService(IServiceScopeFactory scopeFactory, IDockerService docker, ILogger<LimboCaptureService> logger)
     {
         private const string ProbeName = "CBLimboProbe";
+        private const int MinTransferProtocol = 766;   // 1.20.5 - first version with the Transfer packet
 
-        /// <summary>Captures + stores a snapshot for the server's protocol unless one already exists. Best-effort:
-        /// logs and returns on any failure (the limbo just keeps kicking clients of that version).</summary>
+        /// <summary>Captures + stores a snapshot for the server's protocol unless one already exists or the
+        /// version is too old to matter. Best-effort: logs and returns on any failure.</summary>
         public async Task CaptureAsync(string containerId, string containerName, int port, CancellationToken ct)
         {
             try
             {
                 var ver = await PingProtocolAsync(containerName, port, ct);
                 if (ver is null) { logger.LogDebug("Limbo capture: no status ping from {Name}", containerName); return; }
-
+                if (ver.Value.protocol < MinTransferProtocol) { logger.LogDebug("Limbo capture: {Name} is protocol {P} (< 1.20.5) - no Transfer packet, skipping", containerName, ver.Value.protocol); return; }
                 if (await HasSnapshotAsync(ver.Value.protocol, ct)) { logger.LogDebug("Limbo snapshot for protocol {P} already exists", ver.Value.protocol); return; }
 
+                var password = await ReadRconPasswordAsync(containerId, ct);
+                if (password is null) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", containerName); return; }
+
                 logger.LogInformation("Capturing limbo snapshot for {Name} (protocol {P} / {V})", containerName, ver.Value.protocol, ver.Value.name);
-                var snap = await ProbeAsync(containerId, containerName, port, ver.Value.protocol, ver.Value.name, ct);
+                var snap = await ProbeAsync(containerName, port, password, ver.Value.protocol, ver.Value.name, ct);
                 if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", containerName, ver.Value.protocol); return; }
 
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
-                if (!await db.LimboSnapshots.AnyAsync(s => s.Protocol == snap.Protocol, ct))
+                if (!await db.LimboSnapshots.AnyAsync(x => x.Protocol == snap.Protocol, ct))
                 {
                     db.LimboSnapshots.Add(snap);
                     await db.SaveChangesAsync(ct);
@@ -51,6 +57,17 @@ namespace CommandBlock.API.Routing.Limbo
             return await db.LimboSnapshots.AnyAsync(s => s.Protocol == protocol, ct);
         }
 
+        private async Task<string?> ReadRconPasswordAsync(string containerId, CancellationToken ct)
+        {
+            try
+            {
+                var text = Encoding.UTF8.GetString(await docker.ExecCaptureAsync(containerId, ["cat", "/data/server.properties"], ct));
+                var m = RconPassword().Match(text);
+                return m.Success ? m.Groups[1].Value.Trim() : null;
+            }
+            catch { return null; }
+        }
+
         // --- status ping: learn the protocol version ---
         private static async Task<(int protocol, string name)?> PingProtocolAsync(string host, int port, CancellationToken ct)
         {
@@ -59,33 +76,33 @@ namespace CommandBlock.API.Routing.Limbo
             cts.CancelAfter(TimeSpan.FromSeconds(6));
             await tcp.ConnectAsync(host, port, cts.Token);
             var s = tcp.GetStream();
-            await s.WriteAsync(Handshake(770, host, (ushort)port, 1), cts.Token);   // any protocol works for a status ping
-            await s.WriteAsync(Frame(0x00, []), cts.Token);                          // Status Request
+            await s.WriteAsync(Handshake(770, host, (ushort)port, 1), cts.Token);
+            await s.WriteAsync(Frame(0x00, []), cts.Token);
             await s.FlushAsync(cts.Token);
             var lenv = await MinecraftProtocol.ReadVarIntAsync(s, cts.Token);
             if (lenv is null || lenv.Value <= 0 || lenv.Value > 4_000_000) return null;
             var buf = new byte[lenv.Value];
             await s.ReadExactlyAsync(buf, cts.Token);
             var pos = 0;
-            MinecraftProtocol.TryReadVarInt(buf, ref pos, out _);                    // packet id 0x00
+            MinecraftProtocol.TryReadVarInt(buf, ref pos, out _);
             MinecraftProtocol.TryReadVarInt(buf, ref pos, out var jsonLen);
             var json = Encoding.UTF8.GetString(buf, pos, Math.Min(jsonLen, buf.Length - pos));
-            var mProto = System.Text.RegularExpressions.Regex.Match(json, "\"protocol\"\\s*:\\s*(\\d+)");
-            var mName = System.Text.RegularExpressions.Regex.Match(json, "\"name\"\\s*:\\s*\"([^\"]*)\"");
+            var mProto = ProtocolJson().Match(json);
+            var mName = NameJson().Match(json);
             return mProto.Success ? (int.Parse(mProto.Groups[1].Value), mName.Success ? mName.Groups[1].Value : "?") : null;
         }
 
-        // --- the login probe + id sniff ---
-        private async Task<LimboSnapshot?> ProbeAsync(string containerId, string host, int port, int protocol, string versionName, CancellationToken ct)
+        // --- the login probe + RCON id sniff ---
+        private async Task<LimboSnapshot?> ProbeAsync(string host, int port, string rconPassword, int protocol, string versionName, CancellationToken ct)
         {
             using var tcp = new TcpClient { NoDelay = true };
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(45));
+            cts.CancelAfter(TimeSpan.FromSeconds(60));
             await tcp.ConnectAsync(host, port, cts.Token);
             var s = tcp.GetStream();
 
             await s.WriteAsync(Handshake(protocol, host, (ushort)port, 2), cts.Token);
-            await s.WriteAsync(Frame(0x00, [.. EncStr(ProbeName), .. new byte[16]]), cts.Token);   // Login Start (before compression)
+            await s.WriteAsync(Frame(0x00, [.. EncStr(ProbeName), .. new byte[16]]), cts.Token);
             await s.FlushAsync(cts.Token);
 
             var threshold = -1;
@@ -97,7 +114,7 @@ namespace CommandBlock.API.Routing.Limbo
                 if (p.Value.id == 0x03) threshold = ReadVarIntAt(p.Value.body, SkipId(p.Value.body));
                 else if (p.Value.id == 0x02) break;
             }
-            await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Login Acknowledged (compressed from here)
+            await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Login Acknowledged
             await s.WriteAsync(WriteComp(threshold, 0x00, [.. EncStr("en_us"), 8, .. EncVar(0), 1, 0x7f, .. EncVar(1), 0, 1, .. EncVar(0)]), cts.Token);  // Client Information
             await s.FlushAsync(cts.Token);
 
@@ -111,56 +128,52 @@ namespace CommandBlock.API.Routing.Limbo
                 if (p.Value.id == 0x0e) { await s.WriteAsync(WriteComp(threshold, 0x07, EncVar(0)), cts.Token); await s.FlushAsync(cts.Token); continue; }
                 if (p.Value.id == 0x03 && p.Value.body.Length == 1) break;
             }
-            await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Acknowledge Finish Configuration -> Play
+            await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Ack Finish Configuration -> Play
             await s.FlushAsync(cts.Token);
 
-            // Play: a background loop reads whole packets; RCON sniffs correlate new ids to commands.
+            // Play: a background loop reads whole packets (with timestamps); RCON content-marks correlate ids.
             var play = new List<byte[]>();
-            var seen = new HashSet<int>();
+            var playT = new List<long>();
+            var t0 = Environment.TickCount64;
             using var readCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
             var reader = Task.Run(async () =>
             {
-                try { while (true) { var p = await ReadRawAsync(s, threshold, readCts.Token); if (p is null) break; lock (play) { play.Add(p.Value.body); seen.Add(p.Value.id); } } }
+                try { while (true) { var p = await ReadRawAsync(s, threshold, readCts.Token); if (p is null) break; lock (play) { play.Add(p.Value.body); playT.Add(Environment.TickCount64); } } }
                 catch { }
             });
 
-            async Task<int?> Sniff(string command)
+            using var rcon = await RconClient.ConnectAsync(host, 25575, rconPassword, ct);
+            if (rcon is null) { logger.LogWarning("Limbo capture: RCON connect failed for {Host}", host); readCts.Cancel(); return null; }
+
+            async Task<int?> Sniff(string command, byte[] marker)
             {
-                HashSet<int> before; lock (play) before = [.. seen];
-                await Rcon(containerId, command, ct);
-                await Task.Delay(1300, ct);
-                lock (play) { var fresh = seen.Except(before).ToList(); return fresh.Count > 0 ? fresh[^1] : null; }
+                int before; lock (play) before = play.Count;
+                await rcon.ExecAsync(command, ct);
+                await Task.Delay(900, ct);
+                lock (play) { for (var i = before; i < play.Count; i++) if (Contains(play[i], marker)) { var pos = 0; MinecraftProtocol.TryReadVarInt(play[i], ref pos, out var id); return id; } }
+                return null;
             }
 
-            await Task.Delay(700, ct);
-            int joinEnd; lock (play) joinEnd = play.Count;   // play[0..joinEnd] = the join sequence we replay
+            await Task.Delay(2000, ct);
+            int joinEnd; lock (play) joinEnd = play.Count;
 
-            var titleText = await Sniff("title @a title {\"text\":\"c\"}");
-            var subtitle = await Sniff("title @a subtitle {\"text\":\"c\"}");
-            var titleTimes = await Sniff("title @a times 1 1 1");
-            var systemChat = await Sniff("tellraw @a {\"text\":\"c\"}");
-            await Rcon(containerId, "bossbar add cbcap {\"text\":\"c\"}", ct);
-            var bossBar = await Sniff("bossbar set cbcap players @a");
+            var titleText = await Sniff("title @a title {\"text\":\"CBmkTITLE\"}", "CBmkTITLE"u8.ToArray());
+            var subtitle = await Sniff("title @a subtitle {\"text\":\"CBmkSUB\"}", "CBmkSUB"u8.ToArray());
+            var titleTimes = await Sniff("title @a times 111 222 333", [.. Be32(111), .. Be32(222), .. Be32(333)]);
+            var systemChat = await Sniff("tellraw @a {\"text\":\"CBmkCHAT\"}", "CBmkCHAT"u8.ToArray());
+            await rcon.ExecAsync("bossbar add cbcap {\"text\":\"CBmkBOSS\"}", ct); await Task.Delay(400, ct);
+            var bossBar = await Sniff("bossbar set cbcap players @a", "CBmkBOSS"u8.ToArray());
 
-            int? keepAlive = null;   // the lone 9-byte (1-byte id + 8-byte long) packet the server sends ~every 15s
-            var kaDeadline = Environment.TickCount64 + 20000;
-            while (keepAlive is null && Environment.TickCount64 < kaDeadline)
-            {
-                await Task.Delay(1500, ct);
-                lock (play)
-                {
-                    for (var i = joinEnd; i < play.Count; i++)
-                    {
-                        var pos = 0;
-                        if (MinecraftProtocol.TryReadVarInt(play[i], ref pos, out var id) && play[i].Length - pos == 8) { keepAlive = id; break; }  // id + 8-byte long
-                    }
-                }
-            }
+            // keep-alive: the 8-byte-payload packet first seen ~15s in (entity noise starts at t=0).
+            await Task.Delay(18000, ct);
+            var eights = new Dictionary<int, long>();
+            lock (play) { for (var i = 0; i < play.Count; i++) { var pos = 0; MinecraftProtocol.TryReadVarInt(play[i], ref pos, out var id); if (play[i].Length - pos == 8) { var t = playT[i] - t0; if (!eights.TryGetValue(id, out var mn) || t < mn) eights[id] = t; } } }
+            int? keepAlive = null; long best = long.MaxValue;
+            foreach (var (id, mn) in eights) if (mn > 10000 && Math.Abs(mn - 15000) < best) { best = Math.Abs(mn - 15000); keepAlive = id; }
 
-            var transfer = await Sniff("transfer 0.0.0.0 1 @a");   // emits Transfer (and disconnects us)
-            await Rcon(containerId, "bossbar remove cbcap", ct);
-            readCts.Cancel();
-            try { await reader; } catch { }
+            var transfer = await Sniff("transfer 88.88.88.88 34567 @a", "88.88.88.88"u8.ToArray());
+            await rcon.ExecAsync("bossbar remove cbcap", ct);
+            readCts.Cancel(); try { await reader; } catch { }
 
             if (keepAlive is null || transfer is null) { logger.LogWarning("Limbo capture incomplete (keepAlive={K} transfer={T}) for protocol {P}", keepAlive, transfer, protocol); return null; }
 
@@ -178,12 +191,6 @@ namespace CommandBlock.API.Routing.Limbo
                 TitleTimesId = titleTimes,
                 SystemChatId = systemChat,
             };
-        }
-
-        private async Task Rcon(string containerId, string command, CancellationToken ct)
-        {
-            try { await docker.ExecCaptureAsync(containerId, ["rcon-cli", command], ct); }
-            catch (Exception ex) { logger.LogDebug(ex, "RCON '{Cmd}' failed", command); }
         }
 
         // --- compression-aware framing ---
@@ -210,7 +217,7 @@ namespace CommandBlock.API.Routing.Limbo
             else body = frame;
             var p = 0;
             if (!MinecraftProtocol.TryReadVarInt(body, ref p, out var id)) return null;
-            return (id, body);   // body = [id..payload], decompressed
+            return (id, body);
         }
 
         private static byte[] WriteComp(int threshold, int id, ReadOnlySpan<byte> payload)
@@ -247,13 +254,30 @@ namespace CommandBlock.API.Routing.Limbo
             }
         }
 
+        private static bool Contains(byte[] hay, byte[] needle)
+        {
+            if (needle.Length == 0 || hay.Length < needle.Length) return false;
+            for (var i = 0; i <= hay.Length - needle.Length; i++)
+            {
+                var ok = true;
+                for (var j = 0; j < needle.Length; j++) if (hay[i + j] != needle[j]) { ok = false; break; }
+                if (ok) return true;
+            }
+            return false;
+        }
+
         // --- small helpers ---
         private static byte[] EncVar(int v) => MinecraftProtocol.EncodeVarInt(v);
         private static byte[] EncStr(string str) { var u = Encoding.UTF8.GetBytes(str); return [.. EncVar(u.Length), .. u]; }
         private static byte[] Frame(int id, ReadOnlySpan<byte> payload) { byte[] body = [.. EncVar(id), .. payload]; return [.. EncVar(body.Length), .. body]; }
         private static byte[] Handshake(int proto, string addr, ushort port, int next) => Frame(0x00, [.. EncVar(proto), .. EncStr(addr), (byte)(port >> 8), (byte)(port & 0xff), .. EncVar(next)]);
+        private static byte[] Be32(int n) => [(byte)(n >> 24), (byte)(n >> 16), (byte)(n >> 8), (byte)n];
         private static int SkipId(byte[] body) { var p = 0; MinecraftProtocol.TryReadVarInt(body, ref p, out _); return p; }
         private static int ReadVarIntAt(byte[] body, int at) { MinecraftProtocol.TryReadVarInt(body, ref at, out var v); return v; }
         private static byte[] PayloadOf(byte[] body) => body[SkipId(body)..];
+
+        [GeneratedRegex(@"rcon\.password=(.*)")] private static partial Regex RconPassword();
+        [GeneratedRegex("\"protocol\"\\s*:\\s*(\\d+)")] private static partial Regex ProtocolJson();
+        [GeneratedRegex("\"name\"\\s*:\\s*\"([^\"]*)\"")] private static partial Regex NameJson();
     }
 }
