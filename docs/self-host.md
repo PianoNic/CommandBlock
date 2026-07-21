@@ -134,6 +134,7 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | `Oidc__RedirectUri` / `…PostLogoutRedirectUri` | Return URLs after login/logout (derived from `CommandBlock__PublicUrl` if unset). |
 | `Cors__AllowedOrigins__0` | Browser origin allowed to call the API - UI URL **without** trailing slash. |
 | `Router__ListenPort` / `Router__Enabled` / `Router__HandshakeTimeoutSeconds` | The Minecraft router (defaults: `25565`, `true`, `5`). |
+| `Router__MaxHoldSeconds` / `Router__BackendConnectTimeoutSeconds` | How long a joining player may be held while their server wakes, and the backend dial timeout (defaults: `180`, `2`). See [Wake & sleep](./wake). |
 | `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | Backups to S3/SeaweedFS. See [Backups](./backups). |
 | `Docker__Endpoint` | Docker daemon URI. Optional - auto-detected when unset. |
 
@@ -199,4 +200,4 @@ Migrations run on startup; the metadata DB, worlds, and running server container
 
 ---
 
-See also: [Servers & modpacks](./servers.md) · [Backups](./backups.md) · [Hostname routing](./routing.md) · [Developer setup](./dev-setup.md)
+See also: [Servers](./servers.md) · [Wake & sleep](./wake.md) · [Backups](./backups.md) · [Hostname routing](./routing.md) · [Developer setup](./dev-setup.md)

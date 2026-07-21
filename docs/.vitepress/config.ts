@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 // Cloudflare Pages, so no `base` is needed. Build: `vitepress build` (output: .vitepress/dist).
 export default defineConfig({
   title: 'CommandBlock',
-  description: 'Self-hosted Minecraft server manager. Spin up servers, browse modpacks, and route them all through one port by hostname.',
+  description: 'Self-hosted Minecraft server manager. Spin up servers, wake them on join, and route them all through one port by hostname.',
   lastUpdated: true,
   cleanUrls: true,
   // README-style links elsewhere point at "docs/*.md"; inside the site links resolve fine, but keep
@@ -18,6 +18,7 @@ export default defineConfig({
       { text: 'Intro', link: '/intro' },
       { text: 'Setup', link: '/self-host' },
       { text: 'Servers', link: '/servers' },
+      { text: 'Wake & sleep', link: '/wake' },
       { text: 'Routing', link: '/routing' },
       { text: 'Development', link: '/dev-setup' },
     ],
@@ -34,7 +35,8 @@ export default defineConfig({
         text: 'Guides',
         collapsed: false,
         items: [
-          { text: 'Servers & modpacks', link: '/servers' },
+          { text: 'Servers', link: '/servers' },
+          { text: 'Wake & sleep', link: '/wake' },
           { text: 'Backups', link: '/backups' },
           { text: 'Hostname routing', link: '/routing' },
         ],
