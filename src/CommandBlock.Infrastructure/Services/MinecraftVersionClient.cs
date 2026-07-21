@@ -27,7 +27,8 @@ namespace CommandBlock.Infrastructure.Services
                 foreach (var v in arr.EnumerateArray())
                 {
                     if (v.TryGetProperty("type", out var type) && type.GetString() == "release"
-                        && v.TryGetProperty("id", out var id) && id.GetString() is { Length: > 0 } vid)
+                        && v.TryGetProperty("id", out var id) && id.GetString() is { Length: > 0 } vid
+                        && HasServerJar(v))
                     {
                         versions.Add(vid);
                     }
@@ -37,6 +38,18 @@ namespace CommandBlock.Infrastructure.Services
             cache.Set(CacheKey, (IReadOnlyList<string>)versions, CacheFor);
             return versions;
         }
+
+        /// <summary>Mojang only began publishing a downloadable *server* jar with 1.2.5 - earlier releases
+        /// (1.0, 1.1 and the beta/alpha line) are listed in the manifest but are client-only. Offering one
+        /// leaves the container crash-looping on "No server jar download available", so they're filtered out
+        /// here rather than failing at boot. Keyed on the manifest's own release date so no version list has
+        /// to be maintained by hand.</summary>
+        private static readonly DateTimeOffset FirstServerJarRelease = new(2012, 3, 29, 0, 0, 0, TimeSpan.Zero);
+
+        private static bool HasServerJar(JsonElement version) =>
+            version.TryGetProperty("releaseTime", out var released)
+            && released.TryGetDateTimeOffset(out var when)
+            && when >= FirstServerJarRelease;
     }
 
     internal static class HttpJsonExtensions
