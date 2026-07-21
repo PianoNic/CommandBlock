@@ -89,6 +89,21 @@ namespace CommandBlock.Application.Command.Server
                     break;
             }
 
+            // Let any client version join by installing the Via stack on the backend. It only translates
+            // protocol, so authentication is untouched (servers stay online-mode with real UUIDs/skins).
+            // Forge/NeoForge have no equivalent installable this way, so the flag is a no-op there.
+            // Note: a MODRINTH_PROJECTS line in ExtraEnv is applied later and would override this.
+            if (s.AllowAnyClientVersion)
+            {
+                var via = s.ServerType switch
+                {
+                    "PAPER" or "SPIGOT" or "BUKKIT" or "PURPUR" or "FOLIA" => "viaversion,viabackwards,viarewind",
+                    "FABRIC" or "QUILT" => "viafabric",
+                    _ => null,
+                };
+                if (via is not null) env.Add($"MODRINTH_PROJECTS={via}");
+            }
+
             if (s.UseAikarFlags)
                 env.Add("USE_AIKAR_FLAGS=true");
             if (!string.IsNullOrWhiteSpace(s.JvmArgs))
