@@ -18,6 +18,7 @@ import {
   lucideSettings2,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { serverAddress } from '../shared/utils/server-address';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -165,6 +166,10 @@ export class Servers {
 
   protected iconUrl(s: ServerInstanceDto): string {
     return `${environment.apiBaseUrl}/api/Server/${s.id}/icon`;
+  }
+
+  protected address(s: ServerInstanceDto): string {
+    return serverAddress(s);
   }
 
   protected icon(serverType: string): string {

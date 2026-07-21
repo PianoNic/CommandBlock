@@ -20,7 +20,7 @@ namespace CommandBlock.Application.Containers
         /// <summary>Labels for a provisioned Minecraft server container. Besides the internal
         /// <c>commandblock.*</c> markers and the Compose grouping, it stamps <see cref="McHostLabel"/>
         /// so the router can discover the backend and route <paramref name="hostname"/> to it.</summary>
-        public static Dictionary<string, string> ForServer(string serverType, Guid instanceId, string hostname, string? displayName = null)
+        public static Dictionary<string, string> ForServer(string serverType, Guid instanceId, string? hostname, string? displayName = null)
         {
             return new Dictionary<string, string>
             {

@@ -56,12 +56,12 @@ namespace CommandBlock.Domain
         /// endpoint. Required - the UI always has a name to render.</summary>
         public required string DisplayName { get; set; }
 
-        /// <summary>The hostname players connect to, e.g. "smp.gaggao.com". The router keys its
-        /// routing table on this value; it must be unique across managed servers. Mutable via the
-        /// rename endpoint - the router resolves it live per connection and dials the backend by
-        /// container name, so a change reroutes on the next join (players on the old hostname stop
-        /// resolving).</summary>
-        public required string Hostname { get; set; }
+        /// <summary>The hostname players connect to, e.g. "smp.gaggao.com". The router keys its routing
+        /// table on this value; it must be unique across managed servers. Null for a server reached only on
+        /// its own <see cref="LanPort"/> - such a server never goes through the router, so a hostname would
+        /// be a fiction the UI has to explain. Mutable via the rename endpoint; the router resolves it live
+        /// per connection and dials the backend by container name, so a change reroutes on the next join.</summary>
+        public string? Hostname { get; set; }
 
         /// <summary>The Minecraft port inside the container (25565 by default). The router dials the
         /// container on this port over the shared network; it is not the public port.</summary>
@@ -96,10 +96,10 @@ namespace CommandBlock.Domain
         /// host alone.</summary>
         public string? LanBindAddress { get; set; }
 
-        /// <summary>Whether the router answers for this server's <see cref="Hostname"/>. Default true. Set
-        /// false for a server that should only be reachable on its <see cref="LanPort"/> - the router then
-        /// treats the hostname as unknown and drops the connection, so nothing is exposed through the
-        /// shared public port.</summary>
+        /// <summary>Whether the router answers for this server's <see cref="Hostname"/>. Default true, and
+        /// the exact inverse of <see cref="LanPort"/> being set: a server is reached either through the
+        /// shared router port by hostname or directly on a port of its own, never both. Mixing the two
+        /// means a server the operator believes is off the router is still answering on it.</summary>
         public bool RoutedThroughProxy { get; set; } = true;
 
         /// <summary>True when the instance is owned by servers.yaml. Mutation endpoints reject

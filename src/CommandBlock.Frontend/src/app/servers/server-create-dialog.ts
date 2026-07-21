@@ -13,6 +13,7 @@ import {
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { HlmRadioGroupImports } from '@spartan-ng/helm/radio-group';
 import { HlmSliderImports } from '@spartan-ng/helm/slider';
 import { ServerService } from '../api/api/server.service';
 import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
@@ -33,6 +34,7 @@ type DialogContext = { onCreated: () => void };
     HlmInputImports,
     HlmLabelImports,
     HlmSelectImports,
+    HlmRadioGroupImports,
     HlmSliderImports,
     ServerRuntimeFields,
   ],
@@ -42,7 +44,7 @@ type DialogContext = { onCreated: () => void };
   template: `
     <hlm-dialog-header>
       <h3 hlmDialogTitle>Create Minecraft server</h3>
-      <p hlmDialogDescription>Spins up a server and routes players to it by hostname.</p>
+      <p hlmDialogDescription>Spins up a server and makes it reachable however you choose.</p>
     </hlm-dialog-header>
 
     <div class="grid grid-cols-2 gap-3">
@@ -98,6 +100,40 @@ type DialogContext = { onCreated: () => void };
         />
       </div>
 
+      <div class="col-span-2 flex flex-col gap-2">
+        <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">How players reach it</label>
+        <hlm-radio-group [value]="accessMode()" (valueChange)="accessMode.set($any($event))" class="flex flex-wrap gap-x-6 gap-y-2">
+          <label class="flex items-center gap-2 text-sm">
+            <hlm-radio value="router" aria-label="Through the router by hostname">
+              <hlm-radio-indicator indicator />
+            </hlm-radio>
+            <span class="text-foreground">Through the router (hostname)</span>
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <hlm-radio value="direct" aria-label="Directly on a host port">
+              <hlm-radio-indicator indicator />
+            </hlm-radio>
+            <span class="text-foreground">Direct on a host port</span>
+          </label>
+        </hlm-radio-group>
+      </div>
+
+      @if (accessMode() === 'direct') {
+        <div class="col-span-2 flex flex-col gap-1.5">
+          <label hlmLabel for="srv-port" class="text-muted-foreground text-xs uppercase tracking-wide">Host port</label>
+          <div class="flex items-center gap-2">
+            <input hlmInput id="srv-port" type="number" min="1" max="65535" class="w-32"
+              [value]="lanPort()" (input)="lanPort.set(+$any($event.target).value)" />
+            <span class="text-muted-foreground text-sm">bind to</span>
+            <input hlmInput class="w-52 font-mono" placeholder="all interfaces"
+              [value]="lanBind()" (input)="lanBind.set($any($event.target).value)" />
+          </div>
+          <span class="text-muted-foreground text-xs">
+            Players connect to <span class="text-foreground font-mono">{{ (lanBind().trim() || 'your-host-ip') + ':' + lanPort() }}</span>.
+            Leave the address empty to listen on every interface, or set your LAN address to keep it off a public one.
+          </span>
+        </div>
+      } @else {
       <div class="col-span-2 flex flex-col gap-1.5">
         <label hlmLabel for="srv-sub" class="text-muted-foreground text-xs uppercase tracking-wide">Hostname</label>
         @if (domains().length > 0) {
@@ -128,10 +164,11 @@ type DialogContext = { onCreated: () => void };
         } @else {
           <p class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-sm">
             No domains yet - add one under <span class="text-foreground font-medium">Settings → Domains</span> first,
-            then choose a subdomain here.
+            then choose a subdomain here - or pick <span class="text-foreground font-medium">Direct on a host port</span> above.
           </p>
         }
       </div>
+      }
 
         <div class="col-span-2 flex flex-col gap-1.5">
           <label hlmLabel for="srv-version" class="text-muted-foreground text-xs uppercase tracking-wide">Version</label>
@@ -242,6 +279,10 @@ export class ServerCreateDialog {
   protected readonly serverType = signal<string | null>(null);
   protected readonly displayName = signal('');
   protected readonly subdomain = signal('');
+  /// A server is reached either through the router by hostname or on a port of its own, never both.
+  protected readonly accessMode = signal<'router' | 'direct'>('router');
+  protected readonly lanPort = signal(25566);
+  protected readonly lanBind = signal('');
   protected readonly domain = signal('');
   // Memory is picked with a slider (in MB) bounded by the host's free RAM so you can't overshoot.
   protected readonly MIN_MB = 1024;
@@ -364,7 +405,7 @@ export class ServerCreateDialog {
       !this.submitting() &&
       !!this.serverType() &&
       this.displayName().trim() !== '' &&
-      this.fullHostname() !== '' &&
+      (this.accessMode() === 'direct' ? this.lanPort() > 0 && this.lanPort() <= 65535 : this.fullHostname() !== '') &&
       this.memoryMb() >= this.MIN_MB,
   );
 
@@ -377,7 +418,10 @@ export class ServerCreateDialog {
       .apiServerPost({
         serverType: this.serverType()!,
         displayName: this.displayName().trim(),
-        hostname: this.fullHostname(),
+        routedThroughProxy: this.accessMode() === 'router',
+        hostname: this.accessMode() === 'router' ? this.fullHostname() : undefined,
+        lanPort: this.accessMode() === 'direct' ? Math.floor(this.lanPort()) : undefined,
+        lanBindAddress: this.accessMode() === 'direct' ? this.lanBind().trim() || undefined : undefined,
         memory: this.mbToMemString(this.memoryMb()),
         version: this.version() === this.LATEST ? undefined : this.version(),
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
