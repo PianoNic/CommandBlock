@@ -231,7 +231,12 @@ namespace CommandBlock.API.Routing.Limbo
                 else if (p.Value.id == 0x02) { loginTail = LoginSuccessTail(p.Value.body); break; }
             }
             await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Login Acknowledged
-            await s.WriteAsync(WriteComp(threshold, 0x00, [.. EncStr("en_us"), 8, .. EncVar(0), 1, 0x7f, .. EncVar(1), 0, 1, .. EncVar(0)]), cts.Token);  // Client Information
+
+            // Client Information. The trailing particleStatus VarInt only exists from 1.21.2 (protocol 768);
+            // sending it to an older server is one byte too many and it kicks us mid-configuration.
+            byte[] clientInfo = [.. EncStr("en_us"), 8, .. EncVar(0), 1, 0x7f, .. EncVar(1), 0, 1];
+            if (protocol >= 768) clientInfo = [.. clientInfo, .. EncVar(0)];
+            await s.WriteAsync(WriteComp(threshold, 0x00, clientInfo), cts.Token);
             await s.FlushAsync(cts.Token);
 
             var config = new List<byte[]>();
