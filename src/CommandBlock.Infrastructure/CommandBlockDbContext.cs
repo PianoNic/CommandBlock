@@ -12,6 +12,7 @@ namespace CommandBlock.Infrastructure
         public DbSet<BackupEntry> BackupEntries => Set<BackupEntry>();
         public DbSet<BackupSchedule> BackupSchedules => Set<BackupSchedule>();
         public DbSet<DomainEntry> Domains => Set<DomainEntry>();
+        public DbSet<LimboSnapshot> LimboSnapshots => Set<LimboSnapshot>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

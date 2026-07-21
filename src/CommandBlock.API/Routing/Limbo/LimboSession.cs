@@ -23,8 +23,9 @@ namespace CommandBlock.API.Routing.Limbo
             var name = ReadString(start.Value.payload);
             logger.LogInformation("Limbo '{Name}' connected; replaying {C} config + {P} play packets", name, data.ConfigFrames.Count, data.PlayFrames.Count);
 
-            // Login Success (0x02): uuid + name + varint(0 properties). No trailing bool on 1.21.2+/26.x.
-            await client.WriteAsync(Pkt(0x02, [.. OfflineUuid(name), .. EncStr(name), .. MinecraftProtocol.EncodeVarInt(0)]), stoppingToken);
+            // Login Success (0x02): uuid + name + varint(0 properties), then whatever the captured server
+            // appended (26.2 added a trailing 16-byte field; omit it and a real client drops the connection).
+            await client.WriteAsync(Pkt(0x02, [.. OfflineUuid(name), .. EncStr(name), .. MinecraftProtocol.EncodeVarInt(0), .. data.LoginSuccessTail]), stoppingToken);
 
             if (!await ReadUntilAsync(client, 0x03, stoppingToken)) { logger.LogInformation("Limbo '{Name}': no Login Ack", name); return; }
 
@@ -58,21 +59,25 @@ namespace CommandBlock.API.Routing.Limbo
 
         private async Task SendStartingScreenAsync(NetworkStream client, LimboIds ids, CancellationToken ct)
         {
-            byte[] bar =
-            [
-                .. new byte[16],                                  // boss bar UUID (fixed)
-                .. MinecraftProtocol.EncodeVarInt(0),            // action 0 = add
-                .. NbtString("§eServer is starting…"),    // title
-                0x3f, 0x80, 0x00, 0x00,                          // health 1.0
-                .. MinecraftProtocol.EncodeVarInt(4),            // colour: yellow
-                .. MinecraftProtocol.EncodeVarInt(0),            // no divisions
-                0x00,                                            // flags
-            ];
-            await client.WriteAsync(Pkt(ids.BossBar, bar), ct);
-            await client.WriteAsync(Pkt(ids.SystemChat, [.. NbtString("§eServer is starting — you'll be let in automatically."), 0x00]), ct);
-            await client.WriteAsync(Pkt(ids.TitleTimes, [.. Be32(10), .. Be32(72000), .. Be32(20)]), ct);
-            await client.WriteAsync(Pkt(ids.Subtitle, NbtString("§7Please wait")), ct);
-            await client.WriteAsync(Pkt(ids.TitleText, NbtString("§eStarting…")), ct);
+            if (ids.BossBar is byte bb)
+            {
+                byte[] bar =
+                [
+                    .. new byte[16],                                  // boss bar UUID (fixed)
+                    .. MinecraftProtocol.EncodeVarInt(0),            // action 0 = add
+                    .. NbtString("§eServer is starting…"),    // title
+                    0x3f, 0x80, 0x00, 0x00,                          // health 1.0
+                    .. MinecraftProtocol.EncodeVarInt(4),            // colour: yellow
+                    .. MinecraftProtocol.EncodeVarInt(0),            // no divisions
+                    0x00,                                            // flags
+                ];
+                await client.WriteAsync(Pkt(bb, bar), ct);
+            }
+            if (ids.SystemChat is byte sc)
+                await client.WriteAsync(Pkt(sc, [.. NbtString("§eServer is starting — you'll be let in automatically."), 0x00]), ct);
+            if (ids.TitleTimes is byte tt) await client.WriteAsync(Pkt(tt, [.. Be32(10), .. Be32(72000), .. Be32(20)]), ct);
+            if (ids.Subtitle is byte sub) await client.WriteAsync(Pkt(sub, NbtString("§7Please wait")), ct);
+            if (ids.TitleText is byte tx) await client.WriteAsync(Pkt(tx, NbtString("§eStarting…")), ct);
             await client.FlushAsync(ct);
         }
 
