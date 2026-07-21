@@ -23,8 +23,9 @@ namespace CommandBlock.API.Routing.Limbo
             var name = ReadString(start.Value.payload);
             logger.LogInformation("Limbo '{Name}' connected; replaying {C} config + {P} play packets", name, data.ConfigFrames.Count, data.PlayFrames.Count);
 
-            // Login Success (0x02): uuid + name + varint(0 properties). No trailing bool on 1.21.2+/26.x.
-            await client.WriteAsync(Pkt(0x02, [.. OfflineUuid(name), .. EncStr(name), .. MinecraftProtocol.EncodeVarInt(0)]), stoppingToken);
+            // Login Success (0x02): uuid + name + varint(0 properties), then whatever the captured server
+            // appended (26.2 added a trailing 16-byte field; omit it and a real client drops the connection).
+            await client.WriteAsync(Pkt(0x02, [.. OfflineUuid(name), .. EncStr(name), .. MinecraftProtocol.EncodeVarInt(0), .. data.LoginSuccessTail]), stoppingToken);
 
             if (!await ReadUntilAsync(client, 0x03, stoppingToken)) { logger.LogInformation("Limbo '{Name}': no Login Ack", name); return; }
 

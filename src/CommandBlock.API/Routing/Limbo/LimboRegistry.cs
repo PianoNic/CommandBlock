@@ -20,6 +20,10 @@ namespace CommandBlock.API.Routing.Limbo
         public required IReadOnlyList<byte[]> ConfigFrames { get; init; }
         public required IReadOnlyList<byte[]> PlayFrames { get; init; }
         public required LimboIds Ids { get; init; }
+
+        /// <summary>Bytes the server appends to Login Success after the properties count. Empty before 26.2,
+        /// which added a trailing 16-byte field - omit it and a real client drops the connection.</summary>
+        public byte[] LoginSuccessTail { get; init; } = [];
     }
 
     /// <summary>Serves the limbo replay data for a client's protocol. Prefers a <c>LimboSnapshot</c> captured
@@ -58,6 +62,8 @@ namespace CommandBlock.API.Routing.Limbo
                     Protocol = protocol,
                     ConfigFrames = FrameAll(doc.RootElement.GetProperty("config")),
                     PlayFrames = FrameAll(doc.RootElement.GetProperty("play")),
+                    LoginSuccessTail = doc.RootElement.TryGetProperty("loginTail", out var lt) && lt.GetString() is { Length: > 0 } hex
+                        ? Convert.FromHexString(hex) : [],
                     Ids = new LimboIds((byte)snap.KeepAliveId, 0, (byte?)snap.BossBarId, (byte?)snap.TitleTextId,
                         (byte?)snap.SubtitleId, (byte?)snap.TitleTimesId, (byte?)snap.SystemChatId, (byte)snap.TransferId),
                 };

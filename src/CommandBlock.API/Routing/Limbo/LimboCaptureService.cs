@@ -220,6 +220,7 @@ namespace CommandBlock.API.Routing.Limbo
             await s.FlushAsync(cts.Token);
 
             var threshold = -1;
+            byte[] loginTail = [];
             while (true)   // Login: Set Compression (0x03) then Login Success (0x02)
             {
                 var p = await ReadRawAsync(s, threshold, cts.Token);
@@ -227,7 +228,7 @@ namespace CommandBlock.API.Routing.Limbo
                 if (p.Value.id == 0x00) { logger.LogDebug("Limbo probe: login disconnect"); return null; }
                 if (p.Value.id == 0x01) { logger.LogDebug("Limbo probe: server sent Encryption Request (online-mode), cannot offline-probe"); return null; }
                 if (p.Value.id == 0x03) threshold = ReadVarIntAt(p.Value.body, SkipId(p.Value.body));
-                else if (p.Value.id == 0x02) break;
+                else if (p.Value.id == 0x02) { loginTail = LoginSuccessTail(p.Value.body); break; }
             }
             await s.WriteAsync(WriteComp(threshold, 0x03, []), cts.Token);   // Login Acknowledged
             await s.WriteAsync(WriteComp(threshold, 0x00, [.. EncStr("en_us"), 8, .. EncVar(0), 1, 0x7f, .. EncVar(1), 0, 1, .. EncVar(0)]), cts.Token);  // Client Information
@@ -318,7 +319,7 @@ namespace CommandBlock.API.Routing.Limbo
             {
                 Protocol = protocol,
                 VersionName = versionName,
-                Data = GzipJson(protocol, config, join),
+                Data = GzipJson(protocol, config, join, loginTail),
                 KeepAliveId = keepAlive.Value,
                 TransferId = transfer.Value,
                 BossBarId = bossBar,
@@ -364,10 +365,25 @@ namespace CommandBlock.API.Routing.Limbo
             return [.. EncVar(inner.Length), .. inner];
         }
 
-        private static byte[] GzipJson(int protocol, List<byte[]> config, List<byte[]> play)
+        /// <summary>Everything a server appends to Login Success after the properties count. Empty before 26.2,
+        /// which added a trailing 16-byte field; a client that doesn't get it runs off the end and drops us.</summary>
+        private static byte[] LoginSuccessTail(byte[] body)
+        {
+            var pos = SkipId(body);
+            if (body.Length < pos + 16) return [];
+            pos += 16;                                                             // uuid
+            if (!MinecraftProtocol.TryReadVarInt(body, ref pos, out var nameLen)) return [];
+            pos += nameLen;                                                        // name
+            if (!MinecraftProtocol.TryReadVarInt(body, ref pos, out _)) return [];  // properties count
+            return pos <= body.Length ? body[pos..] : [];
+        }
+
+        private static byte[] GzipJson(int protocol, List<byte[]> config, List<byte[]> play, byte[] loginTail)
         {
             var sb = new StringBuilder();
-            sb.Append("{\"proto\":").Append(protocol).Append(",\"config\":[");
+            sb.Append("{\"proto\":").Append(protocol)
+              .Append(",\"loginTail\":\"").Append(Convert.ToHexString(loginTail).ToLowerInvariant()).Append('"')
+              .Append(",\"config\":[");
             AppendPackets(sb, config); sb.Append("],\"play\":[");
             AppendPackets(sb, play); sb.Append("]}");
             using var outMs = new MemoryStream();
