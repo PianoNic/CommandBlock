@@ -76,6 +76,7 @@ builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboSession>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboCaptureService>();
 builder.Services.AddHostedService<MinecraftRouter>();
 builder.Services.AddHostedService<IdleServerMonitor>();
+builder.Services.AddHostedService<CommandBlock.API.Routing.Limbo.LimboCaptureHostedService>();
 builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>();
 
 // Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA

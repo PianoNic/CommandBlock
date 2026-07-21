@@ -22,32 +22,40 @@ namespace CommandBlock.API.Routing.Limbo
 
         /// <summary>Captures + stores a snapshot for the server's protocol unless one already exists or the
         /// version is too old to matter. Best-effort: logs and returns on any failure.</summary>
-        public async Task CaptureAsync(string containerId, string containerName, int port, CancellationToken ct)
+        public async Task<bool> CaptureAsync(string containerId, string containerName, int port, CancellationToken ct)
         {
             try
             {
                 var ver = await PingProtocolAsync(containerName, port, ct);
-                if (ver is null) { logger.LogDebug("Limbo capture: no status ping from {Name}", containerName); return; }
-                if (ver.Value.protocol < MinTransferProtocol) { logger.LogDebug("Limbo capture: {Name} is protocol {P} (< 1.20.5) - no Transfer packet, skipping", containerName, ver.Value.protocol); return; }
-                if (await HasSnapshotAsync(ver.Value.protocol, ct)) { logger.LogDebug("Limbo snapshot for protocol {P} already exists", ver.Value.protocol); return; }
+                if (ver is null) { logger.LogDebug("Limbo capture: no status ping from {Name}", containerName); return false; }
+                if (ver.Value.protocol < MinTransferProtocol) { logger.LogDebug("Limbo capture: {Name} is protocol {P} (< 1.20.5) - no Transfer packet, skipping", containerName, ver.Value.protocol); return false; }
+                if (await HasSnapshotAsync(ver.Value.protocol, ct)) { logger.LogDebug("Limbo snapshot for protocol {P} already exists", ver.Value.protocol); return false; }
+                // The probe fires RCON titles and a /transfer; never run it while anyone is on the server.
+                if (ver.Value.online > 0) { logger.LogDebug("Limbo capture: {Name} has {N} player(s) online, deferring", containerName, ver.Value.online); return false; }
 
-                var password = await ReadRconPasswordAsync(containerId, ct);
-                if (password is null) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", containerName); return; }
+                var props = await ReadServerPropertiesAsync(containerId, ct);
+                if (props is null) { logger.LogDebug("Limbo capture: could not read server.properties for {Name}", containerName); return false; }
+                // The probe logs in offline; an online-mode server would demand encryption and we have no session.
+                var om = OnlineMode().Match(props);
+                if (om.Success && om.Groups[1].Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase))
+                { logger.LogDebug("Limbo capture: {Name} is online-mode, cannot offline-probe it", containerName); return false; }
+                var pw = RconPassword().Match(props);
+                if (!pw.Success || pw.Groups[1].Value.Trim().Length == 0) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", containerName); return false; }
+                var password = pw.Groups[1].Value.Trim();
 
                 logger.LogInformation("Capturing limbo snapshot for {Name} (protocol {P} / {V})", containerName, ver.Value.protocol, ver.Value.name);
                 var snap = await ProbeAsync(containerName, port, password, ver.Value.protocol, ver.Value.name, ct);
-                if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", containerName, ver.Value.protocol); return; }
+                if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", containerName, ver.Value.protocol); return false; }
 
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
-                if (!await db.LimboSnapshots.AnyAsync(x => x.Protocol == snap.Protocol, ct))
-                {
-                    db.LimboSnapshots.Add(snap);
-                    await db.SaveChangesAsync(ct);
-                    logger.LogInformation("Stored limbo snapshot for protocol {P} (keepAlive=0x{K:x}, transfer=0x{T:x})", snap.Protocol, snap.KeepAliveId, snap.TransferId);
-                }
+                if (await db.LimboSnapshots.AnyAsync(x => x.Protocol == snap.Protocol, ct)) return false;   // raced with another capture
+                db.LimboSnapshots.Add(snap);
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Stored limbo snapshot for protocol {P} (keepAlive=0x{K:x}, transfer=0x{T:x})", snap.Protocol, snap.KeepAliveId, snap.TransferId);
+                return true;
             }
-            catch (Exception ex) { logger.LogDebug(ex, "Limbo capture errored for {Name}", containerName); }
+            catch (Exception ex) { logger.LogDebug(ex, "Limbo capture errored for {Name}", containerName); return false; }
         }
 
         private async Task<bool> HasSnapshotAsync(int protocol, CancellationToken ct)
@@ -57,19 +65,14 @@ namespace CommandBlock.API.Routing.Limbo
             return await db.LimboSnapshots.AnyAsync(s => s.Protocol == protocol, ct);
         }
 
-        private async Task<string?> ReadRconPasswordAsync(string containerId, CancellationToken ct)
+        private async Task<string?> ReadServerPropertiesAsync(string containerId, CancellationToken ct)
         {
-            try
-            {
-                var text = Encoding.UTF8.GetString(await docker.ExecCaptureAsync(containerId, ["cat", "/data/server.properties"], ct));
-                var m = RconPassword().Match(text);
-                return m.Success ? m.Groups[1].Value.Trim() : null;
-            }
+            try { return Encoding.UTF8.GetString(await docker.ExecCaptureAsync(containerId, ["cat", "/data/server.properties"], ct)); }
             catch { return null; }
         }
 
         // --- status ping: learn the protocol version ---
-        private static async Task<(int protocol, string name)?> PingProtocolAsync(string host, int port, CancellationToken ct)
+        private static async Task<(int protocol, string name, int online)?> PingProtocolAsync(string host, int port, CancellationToken ct)
         {
             using var tcp = new TcpClient { NoDelay = true };
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -89,7 +92,10 @@ namespace CommandBlock.API.Routing.Limbo
             var json = Encoding.UTF8.GetString(buf, pos, Math.Min(jsonLen, buf.Length - pos));
             var mProto = ProtocolJson().Match(json);
             var mName = NameJson().Match(json);
-            return mProto.Success ? (int.Parse(mProto.Groups[1].Value), mName.Success ? mName.Groups[1].Value : "?") : null;
+            var mOnline = OnlineJson().Match(json);
+            return mProto.Success
+                ? (int.Parse(mProto.Groups[1].Value), mName.Success ? mName.Groups[1].Value : "?", mOnline.Success ? int.Parse(mOnline.Groups[1].Value) : 0)
+                : null;
         }
 
         // --- the login probe + RCON id sniff ---
@@ -111,6 +117,7 @@ namespace CommandBlock.API.Routing.Limbo
                 var p = await ReadRawAsync(s, threshold, cts.Token);
                 if (p is null) return null;
                 if (p.Value.id == 0x00) { logger.LogDebug("Limbo probe: login disconnect"); return null; }
+                if (p.Value.id == 0x01) { logger.LogDebug("Limbo probe: server sent Encryption Request (online-mode), cannot offline-probe"); return null; }
                 if (p.Value.id == 0x03) threshold = ReadVarIntAt(p.Value.body, SkipId(p.Value.body));
                 else if (p.Value.id == 0x02) break;
             }
@@ -171,7 +178,9 @@ namespace CommandBlock.API.Routing.Limbo
             int? keepAlive = null; long best = long.MaxValue;
             foreach (var (id, mn) in eights) if (mn > 10000 && Math.Abs(mn - 15000) < best) { best = Math.Abs(mn - 15000); keepAlive = id; }
 
-            var transfer = await Sniff("transfer 88.88.88.88 34567 @a", "88.88.88.88"u8.ToArray());
+            // Target the probe by name, not @a: if someone slipped onto the server mid-probe, @a would
+            // transfer THEM to a bogus address.
+            var transfer = await Sniff($"transfer 88.88.88.88 34567 {ProbeName}", "88.88.88.88"u8.ToArray());
             await rcon.ExecAsync("bossbar remove cbcap", ct);
             readCts.Cancel(); try { await reader; } catch { }
 
@@ -277,7 +286,9 @@ namespace CommandBlock.API.Routing.Limbo
         private static byte[] PayloadOf(byte[] body) => body[SkipId(body)..];
 
         [GeneratedRegex(@"rcon\.password=(.*)")] private static partial Regex RconPassword();
+        [GeneratedRegex(@"online-mode=(.*)")] private static partial Regex OnlineMode();
         [GeneratedRegex("\"protocol\"\\s*:\\s*(\\d+)")] private static partial Regex ProtocolJson();
         [GeneratedRegex("\"name\"\\s*:\\s*\"([^\"]*)\"")] private static partial Regex NameJson();
+        [GeneratedRegex("\"online\"\\s*:\\s*(\\d+)")] private static partial Regex OnlineJson();
     }
 }
