@@ -17,7 +17,7 @@ namespace CommandBlock.Application.Command.Server
     public record CreateServerCommand(
         string ServerType,
         string DisplayName,
-        string Hostname,
+        string? Hostname,
         string Memory,
         string? Version = null,
         string? ModpackRef = null,
@@ -25,7 +25,10 @@ namespace CommandBlock.Application.Command.Server
         bool UseAikarFlags = false,
         bool AllowAnyClientVersion = false,
         string? JvmArgs = null,
-        string? ExtraEnv = null) : ICommand<ServerInstanceDto>;
+        string? ExtraEnv = null,
+        bool RoutedThroughProxy = true,
+        int? LanPort = null,
+        string? LanBindAddress = null) : ICommand<ServerInstanceDto>;
 
     public class CreateServerCommandHandler(
         IDockerService docker,
@@ -38,14 +41,38 @@ namespace CommandBlock.Application.Command.Server
         public async ValueTask<ServerInstanceDto> Handle(CreateServerCommand command, CancellationToken cancellationToken)
         {
             var serverType = NormalizeType(command.ServerType);
-            var hostname = command.Hostname.Trim().ToLowerInvariant();
-            if (string.IsNullOrWhiteSpace(hostname))
-                throw new ArgumentException("Hostname is required.", nameof(command));
 
-            // Reject a duplicate hostname up front. The DB has a unique index too, but a clean
-            // domain error beats a DbUpdateException bubbling out to the API.
-            if (await db.ServerInstances.AnyAsync(s => s.Hostname == hostname, cancellationToken))
-                throw new InvalidOperationException($"A server with hostname '{hostname}' already exists.");
+            // A server is reached either through the router by hostname or directly on a port of its own,
+            // so only the chosen half is required - asking for a hostname on a LAN server that will never
+            // use one is friction with nothing behind it.
+            string? hostname = null;
+            int? lanPort = null;
+            string? lanBind = null;
+
+            if (command.RoutedThroughProxy)
+            {
+                hostname = command.Hostname?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(hostname))
+                    throw new ArgumentException("Hostname is required.", nameof(command));
+
+                // Reject a duplicate hostname up front - a clean domain error beats a DbUpdateException
+                // bubbling out to the API.
+                if (await db.ServerInstances.AnyAsync(s => s.Hostname == hostname, cancellationToken))
+                    throw new InvalidOperationException($"A server with hostname '{hostname}' already exists.");
+            }
+            else
+            {
+                lanPort = command.LanPort;
+                if (lanPort is null or < 1 or > 65535)
+                    throw new ArgumentException("A port between 1 and 65535 is required to reach this server directly.", nameof(command));
+
+                lanBind = string.IsNullOrWhiteSpace(command.LanBindAddress) ? null : command.LanBindAddress.Trim();
+                if (lanBind is not null && !System.Net.IPAddress.TryParse(lanBind, out _))
+                    throw new ArgumentException($"'{lanBind}' isn't a valid IP address.", nameof(command));
+
+                if (await db.ServerInstances.AnyAsync(s => s.LanPort == lanPort, cancellationToken))
+                    throw new InvalidOperationException($"Port {lanPort} is already published by another server.");
+            }
 
             var instanceId = Guid.NewGuid();
             var instanceIdShort = instanceId.ToString("N")[..8];
@@ -66,6 +93,10 @@ namespace CommandBlock.Application.Command.Server
                 ExtraEnv = string.IsNullOrWhiteSpace(command.ExtraEnv) ? null : command.ExtraEnv,
                 DisplayName = command.DisplayName,
                 Hostname = hostname,
+                RoutedThroughProxy = command.RoutedThroughProxy,
+                LanPort = lanPort,
+                LanBindAddress = lanBind,
+                IsPublic = lanPort is not null,
                 Port = ServerContainerSpec.McPort,
                 ContainerName = containerName,
             };

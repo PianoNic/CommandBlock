@@ -11,7 +11,8 @@ From **Servers → Create server**, fill in:
 | **Type** | The loader: `VANILLA`, `PAPER`, `PURPUR`, `FABRIC`, `QUILT`, `FORGE`, `NEOFORGE` or `SPIGOT`. Maps to the itzg `TYPE`. |
 | **Memory** | Java heap / container memory. Pick from the slider or type an exact value like `6G`. The slider is bounded by the host's real memory. |
 | **Display name** | Shown in the UI. |
-| **Hostname** | The address players connect with, e.g. `smp.example.com`. Must be unique - it's the router's key. |
+| **How players reach it** | Through the router by hostname, or directly on a host port. One or the other - see [direct access](./routing#direct-access-without-the-router). |
+| **Hostname** | The address players connect with, e.g. `smp.example.com`. Must be unique - it's the router's key. Only asked for when routed. |
 | **Version** | Minecraft version (blank = latest release). |
 
 Only versions Mojang actually publishes a **server** jar for are offered. Releases before 1.2.5 are client-only, and picking one used to leave the container crash-looping on a download that doesn't exist.
@@ -44,7 +45,7 @@ Each server has a **Settings** modal (from the row's kebab menu or the detail he
 - **Runtime** - memory, Java version, Aikar/JVM flags, and extra itzg env vars (applied on the next restart).
 - **Version** - change the Minecraft version. The container is recreated in place and the world is kept.
 - **Wake & sleep** - start on join and auto-sleep when idle, per server. See [Wake & sleep](./wake).
-- **Network** - whether the server is reached through the router by hostname, on its own published host port, or both. See [direct access](./routing#direct-access-without-the-router).
+- **Network** - whether the server is reached through the router by hostname or on its own host port. See [direct access](./routing#direct-access-without-the-router).
 - **Icon** - upload a PNG; it's cropped to the 64×64 server-icon and shown in the UI and in-game.
 
 ::: tip Back up before changing version

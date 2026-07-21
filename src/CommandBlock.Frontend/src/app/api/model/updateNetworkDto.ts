@@ -10,8 +10,9 @@
 
 
 export interface UpdateNetworkDto { 
+    routedThroughProxy: boolean;
     lanPort?: number | null;
     lanBindAddress?: string | null;
-    routedThroughProxy: boolean;
+    hostname?: string | null;
 }
 

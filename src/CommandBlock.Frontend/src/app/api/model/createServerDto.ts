@@ -12,7 +12,10 @@
 export interface CreateServerDto { 
     serverType: string;
     displayName: string;
-    hostname: string;
+    hostname?: string | null;
+    routedThroughProxy?: boolean;
+    lanPort?: number | null;
+    lanBindAddress?: string | null;
     memory: string;
     version?: string | null;
     modpackRef?: string | null;

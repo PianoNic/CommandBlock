@@ -5,11 +5,13 @@ using CommandBlock.Infrastructure;
 
 namespace CommandBlock.Application.Command.Server
 {
-    /// <summary>Sets how a server is reachable: through the router by hostname, directly on a published
-    /// host port, or both. Publishing is baked into the container at create time, so a change to the port
-    /// or its bind address recreates the container (the world is bind-mounted by name and survives).
-    /// Toggling routing alone is just a DB write - the router resolves per connection.</summary>
-    public record UpdateNetworkCommand(Guid ServerId, int? LanPort, string? LanBindAddress, bool RoutedThroughProxy) : ICommand;
+    /// <summary>Sets how a server is reachable: through the router by hostname, or directly on a published
+    /// host port - one or the other, never both. Publishing is baked into the container at create time, so
+    /// switching mode (or changing the port/bind address) recreates the container; the world is bind-mounted
+    /// by name and survives. Switching back to the router is just a DB write, since the router resolves per
+    /// connection.</summary>
+    /// <param name="Hostname">Only used when moving onto the router, for a server created without one.</param>
+    public record UpdateNetworkCommand(Guid ServerId, bool RoutedThroughProxy, int? LanPort, string? LanBindAddress, string? Hostname = null) : ICommand;
 
     public class UpdateNetworkCommandHandler(CommandBlockDbContext db, IMediator mediator) : ICommandHandler<UpdateNetworkCommand>
     {
@@ -18,8 +20,32 @@ namespace CommandBlock.Application.Command.Server
             var server = await db.ServerInstances.FirstOrDefaultAsync(s => s.Id == command.ServerId, cancellationToken)
                 ?? throw new ServerNotFoundException(command.ServerId);
 
-            var port = command.LanPort;
-            var bind = string.IsNullOrWhiteSpace(command.LanBindAddress) ? null : command.LanBindAddress.Trim();
+            // The two modes are exclusive, so the flag decides and the other half is cleared rather than
+            // quietly kept - a stale port on a routed server would republish itself on the next recreate.
+            var port = command.RoutedThroughProxy ? null : command.LanPort;
+            var bind = command.RoutedThroughProxy || string.IsNullOrWhiteSpace(command.LanBindAddress)
+                ? null
+                : command.LanBindAddress.Trim();
+
+            if (command.RoutedThroughProxy)
+            {
+                var hostname = string.IsNullOrWhiteSpace(command.Hostname)
+                    ? server.Hostname
+                    : command.Hostname.Trim().ToLowerInvariant();
+
+                if (string.IsNullOrWhiteSpace(hostname))
+                    throw new ArgumentException("A hostname is required to reach this server through the router.");
+
+                if (await db.ServerInstances.AnyAsync(s => s.Hostname == hostname && s.Id != server.Id, cancellationToken))
+                    throw new ArgumentException($"A server with hostname '{hostname}' already exists.");
+
+                server.Hostname = hostname;
+            }
+            else
+            {
+                if (port is null)
+                    throw new ArgumentException("A port is required to reach this server directly.");
+            }
 
             if (port is not null)
             {
@@ -40,9 +66,6 @@ namespace CommandBlock.Application.Command.Server
                 if (conflict is not null)
                     throw new ArgumentException($"Port {port} is already published by '{conflict.DisplayName}'.");
             }
-
-            if (port is null && !command.RoutedThroughProxy)
-                throw new ArgumentException("The server would be unreachable: give it a port, or leave it on the router.");
 
             // Only a publishing change needs the container rebuilt.
             var republish = server.LanPort != port || server.LanBindAddress != bind;

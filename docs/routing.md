@@ -23,16 +23,19 @@ Routing is the default because it keeps the host down to one open game port. A s
 published on a host port of its own - handy on a LAN, where you'd rather type `192.168.1.50:25566`
 than set up DNS.
 
-Under **Settings → Network**, per server:
+A server is reached **one way or the other, never both** - pick it when you create the server, or later
+under **Settings → Network**:
 
-| Option | What it does |
+| Mode | How players reach it |
 | --- | --- |
-| **Reachable through the router by hostname** | Whether the router answers for this server's hostname. Turn it off and the router treats the hostname as unknown, so the server is reachable only on its own port. |
-| **Publish a port on the host** | Binds the container's game port to a host port, reached as `<host-ip>:<port>`. |
-| **Bind to address** | Which host interface that port listens on. Empty means all of them. |
+| **Through the router by hostname** | The default. Shares the single open game port with every other routed server. Needs a hostname. |
+| **Directly on a host port** | Reached as `<host-ip>:<port>`, with no DNS to set up. The router stops answering for this server entirely. |
 
-The two are independent: a server can be on the router, on its own port, or both. It can't be on
-neither - CommandBlock rejects that rather than leaving a server nothing can reach.
+A direct server has no hostname at all - it isn't asked for at create time, and the server list shows
+its address as `<bind>:<port>` instead. Moving one onto the router later asks for a hostname then.
+
+Switching mode clears the other side, so a server you've taken off the router can't still be answering
+on it.
 
 ::: warning "LAN only" means binding a LAN address
 An empty bind address listens on **every** interface, so on an internet-facing host the port is

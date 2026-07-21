@@ -6,6 +6,7 @@ import {
   lucideHourglass, lucideTriangleAlert, lucideMoon, lucideCircleCheck,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { serverAddress } from '../shared/utils/server-address';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
@@ -163,6 +164,10 @@ export class Home {
   /// Only touches servers that are actually up, so it can never boot the whole estate by accident.
   protected stopAll(): void {
     for (const s of this.runningServers()) this.store.stop(s.id);
+  }
+
+  protected address(s: ServerInstanceDto): string {
+    return serverAddress(s);
   }
 
   protected icon(serverType: string): string { return platformIcon(serverType); }

@@ -21,9 +21,18 @@ namespace CommandBlock.Application.Command.Server
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Display name is required.", nameof(command));
 
+            // A server reached only on its own port has no hostname to rename, so an empty one is accepted
+            // there rather than demanding a value the router will never read.
             var hostname = command.Hostname?.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(hostname))
-                throw new ArgumentException("Hostname is required.", nameof(command));
+            {
+                if (server.RoutedThroughProxy)
+                    throw new ArgumentException("Hostname is required.", nameof(command));
+
+                server.DisplayName = name;
+                await db.SaveChangesAsync(cancellationToken);
+                return Unit.Value;
+            }
             if (await db.ServerInstances.AnyAsync(s => s.Hostname == hostname && s.Id != command.ServerId, cancellationToken))
                 throw new InvalidOperationException($"A server with hostname '{hostname}' already exists.");
 

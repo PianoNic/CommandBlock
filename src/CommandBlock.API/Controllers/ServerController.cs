@@ -34,7 +34,8 @@ namespace CommandBlock.API.Controllers
                 var result = await mediator.Send(new CreateServerCommand(
                     body.ServerType, body.DisplayName, body.Hostname, body.Memory,
                     body.Version, body.ModpackRef,
-                    body.JavaVersion, body.UseAikarFlags, body.AllowAnyClientVersion, body.JvmArgs, body.ExtraEnv), cancellationToken);
+                    body.JavaVersion, body.UseAikarFlags, body.AllowAnyClientVersion, body.JvmArgs, body.ExtraEnv,
+                    body.RoutedThroughProxy, body.LanPort, body.LanBindAddress), cancellationToken);
                 return CreatedAtAction(nameof(Create), new { id = result.Id }, result);
             }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
@@ -216,7 +217,7 @@ namespace CommandBlock.API.Controllers
         {
             try
             {
-                await mediator.Send(new UpdateNetworkCommand(id, body.LanPort, body.LanBindAddress, body.RoutedThroughProxy), cancellationToken);
+                await mediator.Send(new UpdateNetworkCommand(id, body.RoutedThroughProxy, body.LanPort, body.LanBindAddress, body.Hostname), cancellationToken);
                 return NoContent();
             }
             catch (ServerNotFoundException) { return NotFound(); }

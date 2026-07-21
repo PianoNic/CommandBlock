@@ -81,7 +81,7 @@
                 <div class="min-w-0">
                   <a [routerLink]="['/servers', s.id]" class="block truncate text-sm font-medium hover:underline">{{ s.displayName }}</a>
                   <p class="text-xs" [class]="stateTextClass(s)">{{ stateLabel(s) }}</p>
-                  <p class="text-muted-foreground truncate font-mono text-[11px]">{{ s.hostname }}</p>
+                  <p class="text-muted-foreground truncate font-mono text-[11px]">{{ address(s) }}</p>
                 </div>
               </div>
 

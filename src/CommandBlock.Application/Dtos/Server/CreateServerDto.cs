@@ -6,8 +6,19 @@ namespace CommandBlock.Application.Dtos.Server
         /// <summary>The itzg TYPE / loader, e.g. "PAPER", "FABRIC", "FORGE", "VANILLA", "MODRINTH".</summary>
         public required string ServerType { get; init; }
         public required string DisplayName { get; init; }
-        /// <summary>Hostname players connect with, e.g. "smp.gaggao.com". Must be unique.</summary>
-        public required string Hostname { get; init; }
+        /// <summary>Hostname players connect with, e.g. "smp.gaggao.com". Must be unique. Required when
+        /// <see cref="RoutedThroughProxy"/> is true, ignored otherwise.</summary>
+        public string? Hostname { get; init; }
+
+        /// <summary>True (the default) to reach the server through the router by hostname; false to publish
+        /// its own host port instead. The two are exclusive.</summary>
+        public bool RoutedThroughProxy { get; init; } = true;
+
+        /// <summary>Host port to publish. Required when <see cref="RoutedThroughProxy"/> is false.</summary>
+        public int? LanPort { get; init; }
+
+        /// <summary>Host interface to bind the published port to. Empty binds every interface.</summary>
+        public string? LanBindAddress { get; init; }
         /// <summary>Java heap / container memory, e.g. "4G".</summary>
         public required string Memory { get; init; }
         /// <summary>Minecraft version for plain loaders. Ignored for modpack types.</summary>

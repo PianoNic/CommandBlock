@@ -16,6 +16,7 @@ import {
   lucideEllipsisVertical,
 } from '@ng-icons/lucide';
 import { PLATFORM_ICONS, platformIcon, platformLabel } from '../shared/icons/platform-icons';
+import { serverAddress } from '../shared/utils/server-address';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
 import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
@@ -147,7 +148,7 @@ import { environment } from '../shared/environments/environment';
 
             <div class="flex min-w-0 items-center gap-1.5">
               <span class="text-muted-foreground inline-flex items-center gap-1"><ng-icon name="lucideGlobe" size="12" class="opacity-60" /> Address</span>
-              <span class="text-foreground truncate font-mono">{{ s.hostname }}</span>
+              <span class="text-foreground truncate font-mono">{{ address(s) }}</span>
             </div>
 
           </div>
@@ -300,6 +301,10 @@ export class ServerDetail {
     const max = live ? live.playersMax : s.playersMax;
     if (online == null) return '-';
     return max == null ? `${online}` : `${online}/${max}`;
+  }
+
+  protected address(s: ServerInstanceDto): string {
+    return serverAddress(s);
   }
 
   protected icon(serverType: string): string {

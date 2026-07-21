@@ -170,7 +170,7 @@ namespace CommandBlock.Application.Command.Server
                 Env = BuildEnv(s),
                 ExposedPorts = new Dictionary<string, EmptyStruct> { [$"{McPort}/tcp"] = default },
                 HostConfig = hostConfig,
-                Labels = CommandBlockContainerLabels.ForServer(s.ServerType, s.Id, s.Hostname, s.DisplayName),
+                Labels = CommandBlockContainerLabels.ForServer(s.ServerType, s.Id, s.Hostname ?? "", s.DisplayName),
             };
         }
 
