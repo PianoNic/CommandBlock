@@ -2,9 +2,11 @@ using System.IO.Compression;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using CommandBlock.Application.Command.Server;
 using CommandBlock.Domain;
 using CommandBlock.Infrastructure;
 using CommandBlock.Infrastructure.Interfaces;
+using Docker.DotNet.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace CommandBlock.API.Routing.Limbo
@@ -19,6 +21,7 @@ namespace CommandBlock.API.Routing.Limbo
     {
         private const string ProbeName = "CBLimboProbe";
         private const int MinTransferProtocol = 766;   // 1.20.5 - first version with the Transfer packet
+        private const string CaptureLabel = "commandblock.limbo-capture";
 
         /// <summary>Captures + stores a snapshot for the server's protocol unless one already exists or the
         /// version is too old to matter. Best-effort: logs and returns on any failure.</summary>
@@ -33,29 +36,113 @@ namespace CommandBlock.API.Routing.Limbo
                 // The probe fires RCON titles and a /transfer; never run it while anyone is on the server.
                 if (ver.Value.online > 0) { logger.LogDebug("Limbo capture: {Name} has {N} player(s) online, deferring", containerName, ver.Value.online); return false; }
 
-                var props = await ReadServerPropertiesAsync(containerId, ct);
-                if (props is null) { logger.LogDebug("Limbo capture: could not read server.properties for {Name}", containerName); return false; }
-                // The probe logs in offline; an online-mode server would demand encryption and we have no session.
-                var om = OnlineMode().Match(props);
-                if (om.Success && om.Groups[1].Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase))
-                { logger.LogDebug("Limbo capture: {Name} is online-mode, cannot offline-probe it", containerName); return false; }
-                var pw = RconPassword().Match(props);
-                if (!pw.Success || pw.Groups[1].Value.Trim().Length == 0) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", containerName); return false; }
-                var password = pw.Groups[1].Value.Trim();
-
-                logger.LogInformation("Capturing limbo snapshot for {Name} (protocol {P} / {V})", containerName, ver.Value.protocol, ver.Value.name);
-                var snap = await ProbeAsync(containerName, port, password, ver.Value.protocol, ver.Value.name, ct);
-                if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", containerName, ver.Value.protocol); return false; }
-
-                using var scope = scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
-                if (await db.LimboSnapshots.AnyAsync(x => x.Protocol == snap.Protocol, ct)) return false;   // raced with another capture
-                db.LimboSnapshots.Add(snap);
-                await db.SaveChangesAsync(ct);
-                logger.LogInformation("Stored limbo snapshot for protocol {P} (keepAlive=0x{K:x}, transfer=0x{T:x})", snap.Protocol, snap.KeepAliveId, snap.TransferId);
-                return true;
+                return await ProbeAndStoreAsync(containerId, containerName, port, ver.Value.protocol, ver.Value.name, ct);
             }
             catch (Exception ex) { logger.LogDebug(ex, "Limbo capture errored for {Name}", containerName); return false; }
+        }
+
+        /// <summary>Reads the backend's RCON password, runs the probe, and stores the resulting snapshot.
+        /// Shared by the direct path (an offline-mode server we can probe in place) and the throwaway path.</summary>
+        private async Task<bool> ProbeAndStoreAsync(string containerId, string host, int port, int protocol, string versionName, CancellationToken ct)
+        {
+            var props = await ReadServerPropertiesAsync(containerId, ct);
+            if (props is null) { logger.LogDebug("Limbo capture: could not read server.properties for {Name}", host); return false; }
+            // The probe logs in offline; an online-mode server would demand encryption and we have no session.
+            var om = OnlineMode().Match(props);
+            if (om.Success && om.Groups[1].Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase))
+            { logger.LogDebug("Limbo capture: {Name} is online-mode, cannot offline-probe it", host); return false; }
+            var pw = RconPassword().Match(props);
+            if (!pw.Success || pw.Groups[1].Value.Trim().Length == 0) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", host); return false; }
+
+            logger.LogInformation("Capturing limbo snapshot for {Name} (protocol {P} / {V})", host, protocol, versionName);
+            var snap = await ProbeAsync(host, port, pw.Groups[1].Value.Trim(), protocol, versionName, ct);
+            if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", host, protocol); return false; }
+
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CommandBlockDbContext>();
+            if (await db.LimboSnapshots.AnyAsync(x => x.Protocol == snap.Protocol, ct)) return false;   // raced with another capture
+            db.LimboSnapshots.Add(snap);
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Stored limbo snapshot for protocol {P} (keepAlive=0x{K:x}, transfer=0x{T:x})", snap.Protocol, snap.KeepAliveId, snap.TransferId);
+            return true;
+        }
+
+        /// <summary>Captures a snapshot for <paramref name="version"/> by spinning up a throwaway offline vanilla
+        /// server, probing it, then destroying it. This is how a version gets captured when the real servers running
+        /// it are online-mode, which the offline probe can't authenticate against. The world is flat and mob-free so
+        /// generation is quick and the packet-id sniff isn't drowned in entity noise.</summary>
+        public async Task<bool> CaptureViaThrowawayAsync(string version, CancellationToken ct)
+        {
+            var cname = $"commandblock-limbocap-{Guid.NewGuid():N}"[..28];
+            string? id = null;
+            try
+            {
+                logger.LogInformation("Starting throwaway {Name} (vanilla {V}) to capture a limbo snapshot", cname, version);
+                var created = await docker.CreateContainerAsync(new CreateContainerParameters
+                {
+                    Image = $"{ServerContainerSpec.Image}:{ServerContainerSpec.AutoJavaForMinecraft(version)}",
+                    Name = cname,
+                    Env =
+                    [
+                        "EULA=TRUE", "TYPE=VANILLA", "MEMORY=2G", $"VERSION={version}",
+                        "ONLINE_MODE=FALSE",                                              // the probe logs in offline
+                        "LEVEL_TYPE=FLAT",                                                // quick gen, minimal entity noise
+                        "SPAWN_ANIMALS=FALSE", "SPAWN_MONSTERS=FALSE", "SPAWN_NPCS=FALSE",
+                        "VIEW_DISTANCE=4", "SPAWN_PROTECTION=0",
+                    ],
+                    ExposedPorts = new Dictionary<string, EmptyStruct> { [$"{ServerContainerSpec.McPort}/tcp"] = default },
+                    HostConfig = new HostConfig { RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.No } },
+                    Labels = new Dictionary<string, string> { [CaptureLabel] = "true" },
+                }, ct);
+                id = created.ID;
+                await docker.StartContainerAsync(id, ct);
+
+                // Wait for it to answer a status ping - jar download plus first world-gen can take minutes.
+                (int protocol, string name, int online)? ver = null;
+                var deadline = DateTimeOffset.UtcNow.AddMinutes(8);
+                while (ver is null && DateTimeOffset.UtcNow < deadline && !ct.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                    try { ver = await PingProtocolAsync(cname, ServerContainerSpec.McPort, ct); } catch { /* still booting */ }
+                }
+                if (ver is null) { logger.LogWarning("Throwaway capture server for {V} never came up", version); return false; }
+                if (await HasSnapshotAsync(ver.Value.protocol, ct)) return false;   // captured meanwhile
+
+                return await ProbeAndStoreAsync(id, cname, ServerContainerSpec.McPort, ver.Value.protocol, ver.Value.name, ct);
+            }
+            catch (Exception ex) { logger.LogWarning(ex, "Throwaway limbo capture for {V} failed", version); return false; }
+            finally
+            {
+                if (id is not null)
+                {
+                    // Always tear it down, even if the capture threw - these are disposable by design.
+                    try { await docker.RemoveContainerAsync(id, force: true, CancellationToken.None); logger.LogInformation("Removed throwaway capture server {Name}", cname); }
+                    catch (Exception ex) { logger.LogWarning(ex, "Could not remove throwaway capture server {Name}", cname); }
+                }
+            }
+        }
+
+        /// <summary>Removes capture containers left behind by a previous run (e.g. a crash mid-capture).</summary>
+        public async Task CleanupOrphansAsync(CancellationToken ct)
+        {
+            try
+            {
+                foreach (var c in await docker.ListContainersAsync(all: true, ct))
+                {
+                    if (c.Labels is null || !c.Labels.ContainsKey(CaptureLabel)) continue;
+                    try { await docker.RemoveContainerAsync(c.ID, force: true, ct); logger.LogInformation("Removed orphaned capture container {Id}", c.ID[..12]); }
+                    catch { /* best effort */ }
+                }
+            }
+            catch { /* best effort */ }
+        }
+
+        /// <summary>Pulls a concrete Minecraft version out of a status-ping version name ("26.2", "Paper 1.21.5").</summary>
+        public static string? ExtractVersion(string? versionName)
+        {
+            if (string.IsNullOrWhiteSpace(versionName)) return null;
+            var m = VersionToken().Match(versionName);
+            return m.Success ? m.Value : null;
         }
 
         private async Task<bool> HasSnapshotAsync(int protocol, CancellationToken ct)
@@ -287,6 +374,7 @@ namespace CommandBlock.API.Routing.Limbo
 
         [GeneratedRegex(@"rcon\.password=(.*)")] private static partial Regex RconPassword();
         [GeneratedRegex(@"online-mode=(.*)")] private static partial Regex OnlineMode();
+        [GeneratedRegex(@"\d+\.\d+(\.\d+)?")] private static partial Regex VersionToken();
         [GeneratedRegex("\"protocol\"\\s*:\\s*(\\d+)")] private static partial Regex ProtocolJson();
         [GeneratedRegex("\"name\"\\s*:\\s*\"([^\"]*)\"")] private static partial Regex NameJson();
         [GeneratedRegex("\"online\"\\s*:\\s*(\\d+)")] private static partial Regex OnlineJson();

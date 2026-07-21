@@ -7,7 +7,7 @@ namespace CommandBlock.Application.Command.Server
     /// <summary>Builds the Docker create-spec for a Minecraft server container from a
     /// <see cref="ServerInstance"/>. Shared by create and recreate so both stay in lock-step: the
     /// itzg image is configured entirely by its tag (java runtime) and environment (everything else).</summary>
-    internal static class ServerContainerSpec
+    public static class ServerContainerSpec
     {
         public const string Image = "itzg/minecraft-server";
         public const int McPort = 25565;
@@ -35,7 +35,7 @@ namespace CommandBlock.Application.Command.Server
         /// <summary>itzg's recommended Java per Minecraft version: 1.21.5+/newest → 25, 1.20.5-1.21.4 → 21,
         /// 1.17-1.20.4 → 17, ≤1.16 → 8. Unknown/LATEST/modpack-derived versions default to the newest
         /// runtime (25) - it runs the latest Minecraft and is backward-compatible with older builds.</summary>
-        internal static string AutoJavaForMinecraft(string? mcVersion)
+        public static string AutoJavaForMinecraft(string? mcVersion)
         {
             if (string.IsNullOrWhiteSpace(mcVersion)) return "25";
             var parts = mcVersion.Trim().Split('.', '-');
