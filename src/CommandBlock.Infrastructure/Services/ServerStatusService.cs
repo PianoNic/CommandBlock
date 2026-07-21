@@ -51,7 +51,17 @@ namespace CommandBlock.Infrastructure.Services
                 if (m.Success) { online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
                 else state = "starting"; // container up but the server isn't answering pings yet
 
-                return new ServerStatus(r.Id, state, online, max, memoryBytes);
+                // Same line also carries the running build and MOTD - free to pick up here.
+                string? version = null, motd = null;
+                if (raw is not null)
+                {
+                    var vm = VersionRegex().Match(raw);
+                    if (vm.Success) version = vm.Groups[1].Value.Trim();
+                    var mm = MotdRegex().Match(raw);
+                    if (mm.Success) motd = mm.Groups[1].Value.Trim();
+                }
+
+                return new ServerStatus(r.Id, state, online, max, memoryBytes, version, motd);
             });
 
             return await Task.WhenAll(tasks);
@@ -65,5 +75,12 @@ namespace CommandBlock.Infrastructure.Services
 
         [GeneratedRegex(@"online=(\d+)\s+max=(\d+)")]
         private static partial Regex PlayerCountRegex();
+
+        // Lazy up to " online=" because the reported name can contain spaces ("Paper 26.1.2").
+        [GeneratedRegex(@"version=(.*?)\s+online=")]
+        private static partial Regex VersionRegex();
+
+        [GeneratedRegex(@"motd='([^']*)'")]
+        private static partial Regex MotdRegex();
     }
 }

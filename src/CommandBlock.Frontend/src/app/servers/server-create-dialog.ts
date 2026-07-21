@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown } from '@ng-icons/lucide';
@@ -210,7 +210,7 @@ type DialogContext = { onCreated: () => void };
           [javaVersion]="javaVersion()"
           (javaVersionChange)="javaVersion.set($event)"
           [useAikarFlags]="useAikarFlags()"
-          (useAikarFlagsChange)="useAikarFlags.set($event)"
+          (useAikarFlagsChange)="onAikarToggled($event)"
           [allowAnyClientVersion]="allowAnyClientVersion()"
           (allowAnyClientVersionChange)="allowAnyClientVersion.set($event)"
           [jvmArgs]="jvmArgs()"
@@ -302,6 +302,8 @@ export class ServerCreateDialog {
   protected readonly showAdvanced = signal(false);
   protected readonly javaVersion = signal('auto');
   protected readonly useAikarFlags = signal(true);
+  /// Once the user picks a value themselves, stop steering it from the version.
+  private readonly aikarTouched = signal(false);
   protected readonly allowAnyClientVersion = signal(false);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
@@ -340,6 +342,18 @@ export class ServerCreateDialog {
     const dom = this.domain();
     return sub && dom ? `${sub}.${dom}` : '';
   });
+
+  /// Keeps the GC-flag default in step with the chosen version until the user overrides it.
+  private readonly aikarDefault = effect(() => {
+    const version = this.version();
+    if (this.aikarTouched()) return;
+    this.useAikarFlags.set(needsAikarFlags(version));
+  });
+
+  protected onAikarToggled(value: boolean): void {
+    this.aikarTouched.set(true);
+    this.useAikarFlags.set(value);
+  }
 
   constructor() {
     // Versions come live from Mojang's manifest (proxied by the API); the picker defaults to Latest.
@@ -455,4 +469,16 @@ function messageOf(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return 'Create failed';
+}
+
+/// Aikar's flags are tuned for the older Java/G1GC era, so they're the default below 1.21 and off for
+/// 1.21+ and the 26.x scheme, where modern defaults do better.
+function needsAikarFlags(version: string): boolean {
+  if (!version || version === 'latest') return false;
+  const parts = version.split('.');
+  const major = Number(parts[0]);
+  if (!Number.isFinite(major)) return false;
+  if (major >= 2) return false;
+  const minor = Number(parts[1]);
+  return Number.isFinite(minor) && minor < 21;
 }

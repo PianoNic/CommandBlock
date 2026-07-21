@@ -116,6 +116,15 @@ namespace CommandBlock.API.Controllers
             catch (ServerNotFoundException) { return NotFound(); }
         }
 
+        [HttpGet("{id:guid}/stats")]
+        [ProducesResponseType(typeof(ServerStatsDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetStats(Guid id, CancellationToken cancellationToken)
+        {
+            try { return Ok(await mediator.Send(new GetServerStatsQuery(id), cancellationToken)); }
+            catch (ServerNotFoundException) { return NotFound(); }
+        }
+
         [HttpGet("{id:guid}/players")]
         [ProducesResponseType(typeof(PlayerListDto), StatusCodes.Status200OK)]
         public async Task<IActionResult> ListPlayers(Guid id, CancellationToken cancellationToken)

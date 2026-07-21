@@ -28,3 +28,4 @@ export * from './updateServerPropertiesDto';
 export * from './updateServerRuntimeDto';
 export * from './updateWakeDto';
 export * from './writeFileDto';
+export * from './serverStatsDto';
