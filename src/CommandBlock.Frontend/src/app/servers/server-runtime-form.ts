@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, ou
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerRuntimeFields } from './server-runtime-fields';
@@ -10,7 +12,7 @@ import { ServerRuntimeFields } from './server-runtime-fields';
 /// recreates the container (restart, world kept). Standalone form for the tabbed modal.
 @Component({
   selector: 'app-server-runtime-form',
-  imports: [HlmButtonImports, HlmInputImports, HlmLabelImports, ServerRuntimeFields],
+  imports: [HlmButtonImports, HlmInputImports, HlmLabelImports, HlmSelectImports, ServerRuntimeFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex flex-col gap-4' },
   template: `
@@ -21,6 +23,26 @@ import { ServerRuntimeFields } from './server-runtime-fields';
         <label hlmLabel for="rt-mem" class="text-muted-foreground text-xs uppercase tracking-wide">Memory</label>
         <input hlmInput id="rt-mem" placeholder="e.g. 4G" [value]="memory()" (input)="memory.set($any($event.target).value)" />
       </div>
+
+      @if (!isModpack()) {
+        <div class="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+          <label hlmLabel for="rt-version" class="text-muted-foreground text-xs uppercase tracking-wide">Minecraft version</label>
+          <hlm-select [value]="version()" (valueChange)="version.set($event ?? LATEST)" [itemToString]="versionLabel">
+            <hlm-select-trigger id="rt-version" class="w-full"><hlm-select-value placeholder="Latest" /></hlm-select-trigger>
+            <hlm-select-content *hlmSelectPortal>
+              <hlm-select-item [value]="LATEST">Latest</hlm-select-item>
+              @for (v of versions(); track v) {
+                <hlm-select-item [value]="v">{{ v }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+          @if (versionChanged()) {
+            <span class="text-destructive text-xs">
+              Changing version updates the server in place and keeps the world. Downgrading can corrupt a world - back it up first.
+            </span>
+          }
+        </div>
+      }
     </div>
 
     <app-server-runtime-fields
@@ -50,6 +72,16 @@ export class ServerRuntimeForm implements OnInit {
   readonly saved = output<void>();
 
   private readonly api = inject(ServerService);
+  private readonly versionsApi = inject(MinecraftVersionsService);
+
+  /// Sentinel for "no explicit version" - itzg then pulls the latest release.
+  protected readonly LATEST = 'latest';
+  protected readonly versions = signal<ReadonlyArray<string>>([]);
+  protected readonly version = signal<string>('latest');
+  private readonly originalVersion = signal<string>('latest');
+  protected readonly isModpack = computed(() => MODPACK_TYPES.includes(this.server().serverType));
+  protected readonly versionChanged = computed(() => this.version() !== this.originalVersion());
+  protected readonly versionLabel = (v: string | null): string => (v && v !== 'latest' ? v : 'Latest');
 
   protected readonly memory = signal('4G');
   protected readonly javaVersion = signal('auto');
@@ -70,6 +102,14 @@ export class ServerRuntimeForm implements OnInit {
     this.allowAnyClientVersion.set(s.allowAnyClientVersion ?? false);
     this.jvmArgs.set(s.jvmArgs ?? '');
     this.extraEnv.set(s.extraEnv ?? '');
+    this.version.set(s.version ?? this.LATEST);
+    this.originalVersion.set(s.version ?? this.LATEST);
+    if (!this.isModpack()) {
+      this.versionsApi.apiMinecraftVersionsGet().subscribe({
+        next: (v) => this.versions.set(v),
+        error: () => this.versions.set([]),
+      });
+    }
   }
 
   protected save(): void {
@@ -79,6 +119,7 @@ export class ServerRuntimeForm implements OnInit {
     this.api
       .apiServerIdRuntimePut(this.server().id, {
         memory: this.memory().trim(),
+        version: this.version() === this.LATEST ? undefined : this.version(),
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
         useAikarFlags: this.useAikarFlags(),
         allowAnyClientVersion: this.allowAnyClientVersion(),
@@ -91,6 +132,8 @@ export class ServerRuntimeForm implements OnInit {
       });
   }
 }
+
+const MODPACK_TYPES = ['MODRINTH', 'CURSEFORGE', 'AUTO_CURSEFORGE', 'FTBA'];
 
 function messageOf(err: unknown): string {
   if (err && typeof err === 'object' && 'error' in err) {

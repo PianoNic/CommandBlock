@@ -161,6 +161,11 @@ namespace CommandBlock.Application.Command.Server
             };
         }
 
+        /// <summary>Modpack loaders pin their Minecraft version through <c>ModpackRef</c> rather than
+        /// <c>VERSION</c>, so an explicit version means nothing for them.</summary>
+        public static bool IsModpackType(string? serverType) =>
+            serverType is "MODRINTH" or "CURSEFORGE" or "AUTO_CURSEFORGE" or "FTBA";
+
         private static void RequireModpack(ServerInstance s)
         {
             if (string.IsNullOrWhiteSpace(s.ModpackRef))
