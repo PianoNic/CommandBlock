@@ -93,7 +93,9 @@ namespace CommandBlock.Application.Command.Server
             // protocol, so authentication is untouched (servers stay online-mode with real UUIDs/skins).
             // Forge/NeoForge have no equivalent installable this way, so the flag is a no-op there.
             // Note: a MODRINTH_PROJECTS line in ExtraEnv is applied later and would override this.
-            if (s.AllowAnyClientVersion)
+            // Skipped on older servers: itzg resolves these against the server's Minecraft version and aborts
+            // the whole startup when no matching file exists, which would leave the container unable to boot.
+            if (s.AllowAnyClientVersion && SupportsViaStack(s.Version))
             {
                 var via = s.ServerType switch
                 {
@@ -122,6 +124,22 @@ namespace CommandBlock.Application.Command.Server
             }
 
             return env;
+        }
+
+        /// <summary>Whether the Via stack publishes builds for this Minecraft version. Via targets modern
+        /// servers (it lets OLD clients into a NEW server), so on a legacy server there is nothing to install -
+        /// and asking for it aborts the container's startup entirely. Unknown/LATEST/modpack versions are treated
+        /// as modern, which is what they are in practice.</summary>
+        internal static bool SupportsViaStack(string? mcVersion)
+        {
+            if (string.IsNullOrWhiteSpace(mcVersion)) return true;
+            var v = mcVersion.Trim();
+            if (v.Equals("LATEST", StringComparison.OrdinalIgnoreCase)) return true;
+            var parts = v.Split('.', '-');
+            if (!int.TryParse(parts[0], out var major)) return true;
+            if (major >= 2) return true;                                  // 26.x year-based scheme
+            if (parts.Length < 2 || !int.TryParse(parts[1], out var minor)) return true;
+            return minor >= 20;                                           // 1.20+ only
         }
 
         /// <summary>The full Docker create parameters for a server container. No host port is
