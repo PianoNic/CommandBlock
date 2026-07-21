@@ -23,7 +23,8 @@ Never work on main. Always:
 
 - The version lives in `application.properties` (`<version>`); it's baked into the build.
 - Every feature commit bumps the **minor** version and gets a matching annotated git tag `vX.Y.Z`; fixes bump **patch**. Chores/refactors/docs don't bump.
-- History is tagged retroactively from `v0.1.0`; current release is `v1.6.0`.
+- History is tagged retroactively from `v0.1.0`; current release is `v1.16.1`.
+- Tagging alone does NOT ship anything: publishing a **GitHub Release** is what triggers `release.yaml`, which syncs `application.properties` and builds/pushes the Docker image.
 
 ## CLI generators
 
