@@ -182,5 +182,20 @@ function colorizeLogLine(raw: string): string {
 /// itself - it drowns real output and tells the operator nothing, so it never reaches the terminal.
 function isOwnRconNoise(line: string): boolean {
   return /Thread RCON Client .*(started|shutting down)/.test(line)
-    || /\[RCON Listener [^\]]*\]: Thread RCON Client/.test(line);
+    || /\[RCON Listener [^\]]*\]: Thread RCON Client/.test(line)
+    // Older servers word it differently: "Rcon connection from: /172.20.0.5".
+    || /Rcon connection from:/i.test(line)
+    || isAnonymousProbe(line);
+}
+
+/// Status pings leave a trace on old servers: anything pre-1.4 logs a line for every socket that
+/// closes, so CommandBlock's own health checks scroll past as connection noise. The server itself
+/// draws the line we need - a real player is always named ("PianoNic [/1.2.3.4:5] lost connection"),
+/// while a bare address is something that never logged in. Only the nameless ones are dropped, so a
+/// player joining or leaving is never hidden.
+function isAnonymousProbe(line: string): boolean {
+  // A named client's address is bracketed ("PianoNic [/1.2.3.4:5] lost connection"), so requiring the
+  // address to sit bare against the message is what separates a probe from a player.
+  return /(?:^|\s)\/[0-9a-fA-F.:]+:\d+ lost connection\s*$/.test(line)
+    || /(?:^|\s)Disconnecting \/[0-9a-fA-F.:]+:\d+:/.test(line);
 }
