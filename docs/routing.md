@@ -13,6 +13,10 @@ The first packet a Minecraft (Java) client sends is the handshake, which carries
 
 Unknown hostnames and malformed/half-open connections are dropped, which also swallows most port scanners.
 
+If the matching server is stopped, the router doesn't just fail the connection: it can start the server and keep the player waiting until it's ready. See [Wake & sleep](./wake).
+
+The **Connections** page shows every connection the router is handling, along with traffic, wake timings and the joins it turned away.
+
 ## DNS
 
 Point the hostnames at your host's IP. A **wildcard** record is easiest - one record covers every server:
@@ -38,6 +42,8 @@ Open only **25565/tcp**. Provisioned servers publish no port of their own - they
 | `Router__Enabled` | `true` | Turn the listener off entirely. |
 | `Router__ListenPort` | `25565` | The single public port. |
 | `Router__HandshakeTimeoutSeconds` | `5` | How long a client has to send its handshake before it's dropped. |
+| `Router__MaxHoldSeconds` | `180` | Ceiling on how long a joining player is held while their server boots. Caps the per-server window. |
+| `Router__BackendConnectTimeoutSeconds` | `2` | How long to wait when dialling a server before treating it as asleep. |
 
 ::: warning Java Edition only
 Hostname routing relies on the Java handshake. Bedrock (UDP) is not routed.

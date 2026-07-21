@@ -4,7 +4,7 @@ layout: home
 hero:
   name: CommandBlock
   text: Every server. Routed and ready.
-  tagline: One click. A self-hosted Minecraft server manager with modpacks and hostname routing through a single port.
+  tagline: One click. A self-hosted Minecraft server manager with hostname routing, wake-on-join and backups - all through a single port.
   image:
     src: /logo.svg
     alt: CommandBlock
@@ -21,7 +21,7 @@ hero:
 
 features:
   - title: One-click servers
-    details: Vanilla, Paper, Fabric, Forge, NeoForge and more - or a Modrinth/CurseForge modpack, installed on first boot.
+    details: Vanilla, Paper, Purpur, Fabric, Quilt, Forge, NeoForge and Spigot, on any Minecraft version that ships a server jar.
   - title: One port, many servers
     details: Players reach every server on 25565; CommandBlock routes by the hostname in the Minecraft handshake.
   - title: Backups & cloning
