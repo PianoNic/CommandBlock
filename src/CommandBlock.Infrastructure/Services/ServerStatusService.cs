@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using CommandBlock.Infrastructure.Interfaces;
 
 namespace CommandBlock.Infrastructure.Services
 {
-    public partial class ServerStatusService(CommandBlockDbContext db, IDockerService docker) : IServerStatusService
+    public partial class ServerStatusService(CommandBlockDbContext db, IDockerService docker, IMemoryCache cache) : IServerStatusService
     {
         public async Task<IReadOnlyList<ServerStatus>> GetAllAsync(CancellationToken cancellationToken = default)
         {
@@ -55,8 +56,11 @@ namespace CommandBlock.Infrastructure.Services
 
                 if (UsesLegacyPing(r.Version) && r.ContainerName is not null)
                 {
-                    // Too old for the modern ping - ask it the only way it understands.
-                    var legacy = await LegacyServerPing.TryPingAsync(r.ContainerName, McPort, LegacyPingTimeout, cancellationToken);
+                    // Too old for the modern ping - ask it the only way it understands, and not often. A
+                    // pre-1.4 server writes a "lost connection" line for every socket that closes, ours
+                    // included, so probing it on each 4-second status poll would scroll its console with our
+                    // own health checks. Cached results keep that down to about once a minute.
+                    var legacy = await CachedLegacyPingAsync(r.Id, r.ContainerName, cancellationToken);
                     if (legacy is not null) { online = legacy.Online; max = legacy.Max; motd = legacy.Motd; version = r.Version; }
                     else state = "starting";
 
@@ -102,6 +106,22 @@ namespace CommandBlock.Infrastructure.Services
 
         private const int McPort = 25565;
         private static readonly TimeSpan LegacyPingTimeout = TimeSpan.FromSeconds(2);
+
+        // A live count may lag by up to a minute on these servers; a quiet console is worth more than
+        // second-accurate player numbers on a 2012 build. Failures are re-tried sooner so a server that's
+        // still booting doesn't read as "starting" long after it's up.
+        private static readonly TimeSpan LegacyPingCacheHit = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan LegacyPingCacheMiss = TimeSpan.FromSeconds(10);
+
+        private async Task<LegacyServerPing.LegacyStatus?> CachedLegacyPingAsync(Guid serverId, string containerName, CancellationToken ct)
+        {
+            var key = $"legacy-ping:{serverId}";
+            if (cache.TryGetValue(key, out LegacyServerPing.LegacyStatus? cached)) return cached;
+
+            var result = await LegacyServerPing.TryPingAsync(containerName, McPort, LegacyPingTimeout, ct);
+            cache.Set(key, result, result is null ? LegacyPingCacheMiss : LegacyPingCacheHit);
+            return result;
+        }
 
         private static async Task<string?> SafeExecMonitorAsync(IDockerService svc, string containerId, CancellationToken ct)
         {
