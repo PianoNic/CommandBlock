@@ -142,7 +142,9 @@ namespace CommandBlock.API.Routing
                         // Limbo: if we have a registry snapshot for this client's protocol, hold them in a live
                         // "starting" world and Transfer them back to the router once the backend is up (seamless
                         // auto-join, no manual reconnect). Otherwise fall through to the queue-then-kick.
-                        var limbo = limboRegistry.Get(handshake.ProtocolVersion);
+                        // Modded servers are skipped: their clients expect a mod-list negotiation the limbo can't
+                        // reproduce, and would be kicked on arrival. Those fall through to the hold instead.
+                        var limbo = target.IsModded ? null : limboRegistry.Get(handshake.ProtocolVersion);
                         if (limbo is not null)
                         {
                             using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
