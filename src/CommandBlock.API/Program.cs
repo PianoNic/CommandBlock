@@ -42,14 +42,6 @@ builder.Services.AddHealthChecks().AddCheck<CommandBlock.API.Health.DatabaseHeal
 builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));
 builder.Services.AddScoped<IBackupStorage, CommandBlock.Infrastructure.Services.S3BackupStorage>();
 
-// Modrinth modpack search (public API, no key). Typed HttpClient with the UA Modrinth asks for.
-builder.Services.AddHttpClient<IModrinthClient, CommandBlock.Infrastructure.Services.ModrinthClient>(c =>
-{
-    c.BaseAddress = new Uri("https://api.modrinth.com/");
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("CommandBlock/1.0 (+https://github.com/PianoNic/CommandBlock)");
-    c.Timeout = TimeSpan.FromSeconds(10);
-});
-
 // Minecraft version list, proxied from Mojang's official manifest and cached in memory.
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IMinecraftVersionClient, CommandBlock.Infrastructure.Services.MinecraftVersionClient>(c =>

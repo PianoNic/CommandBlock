@@ -150,12 +150,6 @@ import { environment } from '../shared/environments/environment';
               <span class="text-foreground truncate font-mono">{{ s.hostname }}</span>
             </div>
 
-            @if (motd(); as m) {
-              <div class="col-span-2 flex min-w-0 items-center gap-1.5 sm:col-span-3 lg:col-span-4">
-                <span class="text-muted-foreground">MOTD</span>
-                <span class="text-foreground truncate">{{ m }}</span>
-              </div>
-            }
           </div>
 
           <!-- Console fills the rest -->
@@ -187,8 +181,11 @@ export class ServerDetail {
   private statsTimer: ReturnType<typeof setInterval> | null = null;
 
   protected readonly cpu = computed(() => {
-    const c = this.stats()?.cpuPercent;
-    return c === null || c === undefined ? '-' : `${c.toFixed(1)} %`;
+    // The generated client models nullable numbers as a union, so coerce rather than assuming number.
+    const raw = this.stats()?.cpuPercent;
+    if (raw === null || raw === undefined) return '-';
+    const value = Number(raw);
+    return Number.isFinite(value) ? `${value.toFixed(1)} %` : '-';
   });
   protected readonly runningVersion = computed(() => this.stats()?.runningVersion ?? '');
   protected readonly motd = computed(() => this.stats()?.motd ?? '');
@@ -220,8 +217,10 @@ export class ServerDetail {
 
   private loadStats(): void {
     this.api.apiServerIdStatsGet(this.id).subscribe({
-      next: (s) => this.stats.set(s),
-      error: () => this.stats.set(null),
+      // A poll that misses the CPU sample shouldn't blank the reading - carry the last good one over,
+      // otherwise the value visibly flickers between a number and "-".
+      next: (s) => this.stats.update((prev) => ({ ...s, cpuPercent: s.cpuPercent ?? prev?.cpuPercent ?? null })),
+      error: () => { /* keep the previous snapshot rather than emptying the whole panel */ },
     });
   }
 
@@ -283,12 +282,14 @@ export class ServerDetail {
     return s.modpackRef ?? s.version ?? 'latest';
   }
 
-  /// "1.2 GB / 4G" when running (live usage / configured cap), else just the configured cap.
+  /// Always "used / cap" in matching units, e.g. "1.9 GB / 2 GB" - and "0 GB / 2 GB" when the server
+  /// isn't running, so the field keeps its shape instead of collapsing to just the cap.
   protected memoryUsage(s: ServerInstanceDto): string {
     const live = this.statuses()[s.id];
     const raw = live ? live.memoryBytes : (s.memoryBytes as unknown as number | null | undefined);
-    const bytes = raw == null ? null : Number(raw);
-    return bytes == null ? s.memory : `${formatBytes(bytes)} / ${s.memory}`;
+    const used = raw == null ? 0 : Number(raw);
+    const cap = parseMemoryBytes(s.memory);
+    return `${formatGb(used)} GB / ${cap > 0 ? formatGb(cap) : '?'} GB`;
   }
 
   protected players(): string {
@@ -383,4 +384,22 @@ function formatUptime(ms: number): string {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${totalSeconds}s`;
+}
+
+/// Gigabytes with at most one decimal, dropping a trailing ".0" so caps read "2 GB" not "2.0 GB".
+function formatGb(bytes: number): string {
+  return String(Math.round((bytes / 1024 ** 3) * 10) / 10);
+}
+
+/// "4G" / "2048M" -> bytes, so usage can be shown against the configured cap in the same unit.
+function parseMemoryBytes(memory: string | null | undefined): number {
+  if (!memory) return 0;
+  const text = memory.trim();
+  const unit = text.slice(-1).toUpperCase();
+  const value = Number(unit === 'G' || unit === 'M' || unit === 'K' ? text.slice(0, -1) : text);
+  if (!Number.isFinite(value)) return 0;
+  if (unit === 'G') return value * 1024 ** 3;
+  if (unit === 'M') return value * 1024 ** 2;
+  if (unit === 'K') return value * 1024;
+  return value;
 }

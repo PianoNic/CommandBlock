@@ -10,7 +10,6 @@ api/domains.service.ts
 api/files.service.ts
 api/host.service.ts
 api/minecraftVersions.service.ts
-api/modpacks.service.ts
 api/server.service.ts
 configuration.ts
 encoder.ts
@@ -32,16 +31,18 @@ model/fileContent.ts
 model/fileEntry.ts
 model/hostResourcesDto.ts
 model/models.ts
-model/modpackSearchResult.ts
 model/pathDto.ts
 model/playerListDto.ts
 model/playerListDtoOnline.ts
 model/problemDetails.ts
 model/problemDetailsStatus.ts
 model/renameFileDto.ts
+model/renameServerDto.ts
 model/serverInstanceDto.ts
 model/serverInstanceDtoMemoryBytes.ts
 model/serverPropertiesDto.ts
+model/serverStatsDto.ts
+model/serverStatsDtoCpuPercent.ts
 model/toggleBackupScheduleDto.ts
 model/updateServerPropertiesDto.ts
 model/updateServerRuntimeDto.ts

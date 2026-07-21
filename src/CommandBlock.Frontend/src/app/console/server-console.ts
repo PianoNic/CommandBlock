@@ -30,15 +30,6 @@ import { environment } from '../shared/environments/environment';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex h-full min-h-0 flex-col' },
   template: `
-    <div class="flex items-center justify-between gap-2 border-b px-3 py-1.5">
-      <span class="inline-flex items-center gap-1.5 text-xs font-medium">
-        <ng-icon name="lucideTerminal" size="14" /> Console
-      </span>
-      <span class="text-[11px]" [class.text-primary]="connected()" [class.text-muted-foreground]="!connected()">
-        {{ connected() ? '● connected' : '○ connecting…' }}
-      </span>
-    </div>
-
     <div class="min-h-0 flex-1 overflow-hidden bg-black p-2">
       <div #term class="h-full w-full"></div>
     </div>
@@ -79,7 +70,11 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
     this.lineBuf += chunk;
     const lines = this.lineBuf.split('\n');
     this.lineBuf = lines.pop() ?? '';
-    for (const line of lines) this.term?.writeln(colorizeLogLine(line.replace(/\r$/, '')));
+    for (const line of lines) {
+      const clean = line.replace(/\r$/, '');
+      if (isOwnRconNoise(clean)) continue;
+      this.term?.writeln(colorizeLogLine(clean));
+    }
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -91,6 +86,15 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
       disableStdin: true,
       theme: { background: '#000000' },
     });
+    // xterm swallows Ctrl+C as SIGINT, so selecting log output and copying silently did nothing.
+    // Returning false hands the event back to the browser, which then does a normal copy. Only when
+    // there's actually a selection, so the shortcut still behaves normally otherwise.
+    this.term.attachCustomKeyEventHandler((event) => {
+      const copyCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c';
+      if (event.type === 'keydown' && copyCombo && this.term?.hasSelection()) return false;
+      return true;
+    });
+
     this.fit = new FitAddon();
     this.term.loadAddon(this.fit);
     this.term.open(this.host().nativeElement);
@@ -125,7 +129,8 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
     const cmd = this.command().trim();
     if (cmd === '' || !this.connection) return;
     this.command.set('');
-    this.term?.writeln(`\x1b[36m> ${cmd}\x1b[0m`);
+    // The command itself isn't echoed - the server already logs what it did, so echoing it just
+    // duplicates the line above the response.
     try {
       const output = await this.connection.invoke<string>('SendCommand', this.serverId(), cmd);
       if (output?.trim()) this.term?.writeln(output.replace(/\n/g, '\r\n'));
@@ -170,4 +175,12 @@ function colorizeLogLine(raw: string): string {
     GRAY + prefix.replace(/\b(INFO|WARN(?:ING)?|ERROR|SEVERE|FATAL|DEBUG)\b/g, `${lvlColor}$1${GRAY}`) + RESET + msgTint,
   );
   return msgTint + s + RESET;
+}
+
+/// CommandBlock opens a short-lived RCON connection for player counts and console commands, and the
+/// server logs a thread start plus shutdown for each one. That's our own plumbing talking about
+/// itself - it drowns real output and tells the operator nothing, so it never reaches the terminal.
+function isOwnRconNoise(line: string): boolean {
+  return /Thread RCON Client .*(started|shutting down)/.test(line)
+    || /\[RCON Listener [^\]]*\]: Thread RCON Client/.test(line);
 }

@@ -10,10 +10,10 @@
 import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
-export interface UpdateWakeDto {
+export interface UpdateWakeDto { 
     wakeOnConnect: boolean;
     wakeQueueSeconds?: PlayerListDtoOnline;
-    autoSleepEnabled: boolean;
+    autoSleepEnabled?: boolean;
     autoSleepIdleMinutes?: PlayerListDtoOnline;
 }
 
