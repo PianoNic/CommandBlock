@@ -36,6 +36,13 @@ namespace CommandBlock.Domain
         /// flags - the community-standard preset for most servers.</summary>
         public bool UseAikarFlags { get; set; }
 
+        /// <summary>When true, installs the Via stack so clients of *any* Minecraft version can join this server
+        /// (verified 1.8 through 26.1.2 against a single 26.1.2 backend). Plugin loaders get
+        /// ViaVersion/ViaBackwards/ViaRewind, Fabric gets ViaFabric; Forge/NeoForge have no equivalent we can
+        /// install this way, so it does nothing there. Only protocol is translated - servers stay online-mode
+        /// and keep real UUIDs and skins.</summary>
+        public bool AllowAnyClientVersion { get; set; }
+
         /// <summary>Free-form extra JVM options passed as <c>JVM_OPTS</c> (e.g. custom -XX/-D flags).
         /// Null/empty leaves the JVM defaults (plus Aikar flags if enabled).</summary>
         public string? JvmArgs { get; set; }
