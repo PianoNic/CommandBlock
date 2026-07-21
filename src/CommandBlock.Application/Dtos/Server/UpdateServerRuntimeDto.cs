@@ -6,6 +6,8 @@ namespace CommandBlock.Application.Dtos.Server
     {
         /// <summary>Java heap / container memory, e.g. "4G".</summary>
         public required string Memory { get; init; }
+        /// <summary>Minecraft version to run, or null for latest. Ignored for modpack server types.</summary>
+        public string? Version { get; init; }
         /// <summary>Java major version ("21"/"17"/"11"/"8"), or null to auto-derive from the version.</summary>
         public string? JavaVersion { get; init; }
         /// <summary>Apply Aikar's tuned GC flags (USE_AIKAR_FLAGS).</summary>

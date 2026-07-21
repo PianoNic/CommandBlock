@@ -11,6 +11,7 @@
 
 export interface UpdateServerRuntimeDto { 
     memory: string;
+    version?: string | null;
     javaVersion?: string | null;
     useAikarFlags?: boolean;
     allowAnyClientVersion?: boolean;

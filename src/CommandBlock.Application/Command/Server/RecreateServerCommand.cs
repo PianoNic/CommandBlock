@@ -17,6 +17,7 @@ namespace CommandBlock.Application.Command.Server
     public record RecreateServerCommand(
         Guid Id,
         string Memory,
+        string? Version = null,
         string? JavaVersion = null,
         bool UseAikarFlags = false,
         bool AllowAnyClientVersion = false,
@@ -47,6 +48,10 @@ namespace CommandBlock.Application.Command.Server
             server.JavaVersion = string.IsNullOrWhiteSpace(command.JavaVersion) ? null : command.JavaVersion.Trim();
             server.UseAikarFlags = command.UseAikarFlags;
             server.AllowAnyClientVersion = command.AllowAnyClientVersion;
+            // Modpack types pin their own Minecraft version through ModpackRef, so only plain loaders
+            // take an explicit version. Recreating keeps the bind-mounted world, so this upgrades in place.
+            if (!ServerContainerSpec.IsModpackType(server.ServerType))
+                server.Version = string.IsNullOrWhiteSpace(command.Version) ? null : command.Version.Trim();
             server.JvmArgs = string.IsNullOrWhiteSpace(command.JvmArgs) ? null : command.JvmArgs;
             server.ExtraEnv = string.IsNullOrWhiteSpace(command.ExtraEnv) ? null : command.ExtraEnv;
 
@@ -71,7 +76,7 @@ namespace CommandBlock.Application.Command.Server
             await db.SaveChangesAsync(cancellationToken);
 
             await activity.LogAsync("server.recreate", containerName, server.Id, server.ServerType,
-                $"memory={server.Memory}, java={server.JavaVersion ?? "auto"}, aikar={server.UseAikarFlags}", cancellationToken);
+                $"memory={server.Memory}, version={server.Version ?? "latest"}, java={server.JavaVersion ?? "auto"}, aikar={server.UseAikarFlags}", cancellationToken);
 
             return server.ToDto(state: "created");
         }
