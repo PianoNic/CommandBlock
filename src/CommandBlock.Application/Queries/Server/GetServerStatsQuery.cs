@@ -27,7 +27,9 @@ namespace CommandBlock.Application.Queries.Server
 
             double? cpu = null;
             DateTime? startedAt = null;
-            if (server.ContainerId is not null && live?.State == "running")
+            // "starting" still means the container is up - uptime and CPU are meaningful (and most
+            // interesting) while a server is booting, so don't wait for it to answer pings.
+            if (server.ContainerId is not null && live?.State is "running" or "starting")
             {
                 var cpuTask = docker.GetContainerCpuPercentAsync(server.ContainerId, cancellationToken);
                 var startedTask = docker.GetContainerStartedAtAsync(server.ContainerId, cancellationToken);

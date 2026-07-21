@@ -6,7 +6,7 @@ namespace CommandBlock.API.Routing
     {
         /// <summary>Mod loaders whose clients negotiate a mod list on join. The limbo replays a captured vanilla
         /// handshake and can't satisfy that, so these servers must use the protocol-agnostic hold instead.</summary>
-        public bool IsModded => ServerType is "FORGE" or "NEOFORGE" or "AUTO_CURSEFORGE" or "CURSEFORGE" or "FTBA" or "MODRINTH";
+        public bool IsModded => ServerType is "FORGE" or "NEOFORGE" or "AUTO_CURSEFORGE" or "CURSEFORGE" or "FTBA";
     }
 
     /// <summary>Resolves the hostname a player typed into a backend server to forward to.</summary>
