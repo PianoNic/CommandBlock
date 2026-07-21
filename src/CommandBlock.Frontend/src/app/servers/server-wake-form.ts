@@ -31,18 +31,19 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
         <hlm-select [value]="wakeMode()" (valueChange)="setWakeMode($event ?? 'queue')">
           <hlm-select-trigger class="w-full max-w-sm"><hlm-select-value /></hlm-select-trigger>
           <hlm-select-content *hlmSelectPortal>
-            <hlm-select-item value="queue">Hold them &amp; let them in automatically (experimental)</hlm-select-item>
+            <hlm-select-item value="queue">Hold them &amp; let them in automatically</hlm-select-item>
             <hlm-select-item value="notify">Ask them to reconnect in a moment</hlm-select-item>
           </hlm-select-content>
         </hlm-select>
 
         @if (wakeMode() === 'queue') {
           <label hlmLabel for="wk-q" class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Max hold (seconds)</label>
-          <input hlmInput id="wk-q" type="number" min="1" max="25" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
+          <input hlmInput id="wk-q" type="number" min="1" max="600" class="w-40" [value]="wakeQueue()" (change)="setQueue($any($event.target).value)" />
           <span class="text-muted-foreground text-xs">
-            <span class="text-amber-500">Experimental</span> - hold the joining player and drop them straight in
-            the moment the server is ready. If it isn't up within this window they're asked to reconnect. Capped at
-            25s (under the client's ~30s login timeout); reliability depends on how fast the server boots.
+            Holds the joining player and drops them straight in the moment the server is ready; if it isn't up
+            within this window they're asked to reconnect instead. Clients on 1.13+ are kept alive for as long as
+            you set here, so a slow modpack can be waited out. Older clients still cut off at about 25s - their
+            protocol has no way to keep a login open.
           </span>
         } @else {
           <span class="text-muted-foreground text-xs">
@@ -82,7 +83,7 @@ export class ServerWakeForm implements OnInit {
 
   protected readonly wakeOnConnect = signal(false);
   protected readonly wakeMode = signal<'queue' | 'notify'>('queue');
-  protected readonly wakeQueue = signal(28);
+  protected readonly wakeQueue = signal(120);
   protected readonly autoSleep = signal(false);
   protected readonly autoSleepMinutes = signal(10);
   protected readonly saving = signal(false);
@@ -93,7 +94,7 @@ export class ServerWakeForm implements OnInit {
     this.wakeOnConnect.set(!!s.wakeOnConnect);
     const q = Number(s.wakeQueueSeconds ?? 0);
     this.wakeMode.set(q > 0 ? 'queue' : 'notify');
-    this.wakeQueue.set(q > 0 ? q : 28); // default hold window when switching to the queue mode
+    this.wakeQueue.set(q > 0 ? q : 120); // default hold window when switching to the queue mode
     this.autoSleep.set(!!s.autoSleepEnabled);
     this.autoSleepMinutes.set(Number(s.autoSleepIdleMinutes ?? 10));
   }

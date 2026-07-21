@@ -44,8 +44,9 @@ export class ServerStatusStream {
   private subscribe(): void {
     this.connection?.stream('StreamStatus').subscribe({
       next: (snapshot: ServerStatus[]) => {
+        const previous = this.statuses();
         const map: Record<string, ServerStatus> = {};
-        for (const s of snapshot) map[s.id] = s;
+        for (const s of snapshot) map[s.id] = mergeWithLastKnown(s, previous[s.id]);
         this.statuses.set(map);
         this.received.set(true);
       },
@@ -53,4 +54,18 @@ export class ServerStatusStream {
       complete: () => {},
     });
   }
+}
+
+/// A single dropped probe (the memory read or the server ping can time out) would otherwise make
+/// memory snap to 0 and player counts blank out for one tick, so the values visibly flicker. While a
+/// server is still up, carry the last known reading over instead of rendering a hole. Once it stops
+/// being up the nulls are real and pass straight through.
+function mergeWithLastKnown(next: ServerStatus, previous: ServerStatus | undefined): ServerStatus {
+  if (!previous || (next.state !== 'running' && next.state !== 'starting')) return next;
+  return {
+    ...next,
+    memoryBytes: next.memoryBytes ?? previous.memoryBytes ?? null,
+    playersOnline: next.playersOnline ?? previous.playersOnline ?? null,
+    playersMax: next.playersMax ?? previous.playersMax ?? null,
+  };
 }

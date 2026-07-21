@@ -26,7 +26,7 @@ namespace CommandBlock.API.Routing
         IReadOnlyList<ActiveConnection> Snapshot();
     }
 
-    public sealed class ServerConnectionTracker(TimeProvider time) : IServerConnectionTracker
+    public sealed class ServerConnectionTracker(TimeProvider time, IRouterTelemetry telemetry) : IServerConnectionTracker
     {
         private sealed class Entry { public int Active; public DateTime LastActivity; }
 
@@ -41,12 +41,14 @@ namespace CommandBlock.API.Routing
 
             var conn = new ActiveConnection(Guid.NewGuid(), serverId, remoteAddress, now);
             _connections[conn.Id] = conn;
+            telemetry.RecordConcurrent(_connections.Count);
             return new Handle(this, conn);
         }
 
         private void Close(ActiveConnection conn)
         {
             _connections.TryRemove(conn.Id, out _);
+            telemetry.RecordConnection(conn.ServerId, conn.RemoteAddress, conn.OpenedAt, time.GetUtcNow().UtcDateTime);
             if (_entries.TryGetValue(conn.ServerId, out var e))
                 lock (e) { if (e.Active > 0) e.Active--; e.LastActivity = time.GetUtcNow().UtcDateTime; }
         }

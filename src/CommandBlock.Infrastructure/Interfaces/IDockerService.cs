@@ -17,6 +17,13 @@ namespace CommandBlock.Infrastructure.Interfaces
         /// sample (cache excluded, like `docker stats`). Null when stopped or stats can't be read.</summary>
         Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default);
 
+        /// <summary>Container CPU use as a percentage of one host core * cores. Costs ~1s (the daemon has to
+        /// sample twice to produce a delta), so keep it off list/stream paths.</summary>
+        Task<double?> GetContainerCpuPercentAsync(string id, CancellationToken cancellationToken = default);
+
+        /// <summary>When the container was last started, for uptime. Null if it isn't running.</summary>
+        Task<DateTime?> GetContainerStartedAtAsync(string id, CancellationToken cancellationToken = default);
+
         /// <summary>Total physical memory of the Docker host in bytes (from the daemon's info), or 0
         /// if it can't be read. Used to bound how much a new server may be allocated.</summary>
         Task<long> GetHostMemoryTotalBytesAsync(CancellationToken cancellationToken = default);

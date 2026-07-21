@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideSearch, lucideDownload, lucideCheck, lucideChevronRight, lucideChevronDown } from '@ng-icons/lucide';
@@ -15,11 +15,9 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmSliderImports } from '@spartan-ng/helm/slider';
 import { ServerService } from '../api/api/server.service';
-import { ModpacksService } from '../api/api/modpacks.service';
 import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
 import { DomainsService } from '../api/api/domains.service';
 import { HostService } from '../api/api/host.service';
-import { ModpackSearchResult } from '../api/model/modpackSearchResult';
 import { DomainDto } from '../api/model/domainDto';
 
 type DialogContext = { onCreated: () => void };
@@ -67,12 +65,26 @@ type DialogContext = { onCreated: () => void };
       <div class="col-span-2 flex flex-col gap-1.5">
         <div class="flex items-baseline justify-between">
           <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Memory</label>
-          <span class="font-mono text-sm">{{ memoryLabel() }}</span>
+          <input
+            hlmInput
+            class="h-7 w-24 text-right font-mono text-sm"
+            aria-label="Memory, e.g. 4G or 2048M"
+            [value]="memoryText()"
+            (input)="memoryText.set($any($event.target).value)"
+            (change)="commitMemoryText()"
+            (keydown.enter)="commitMemoryText()"
+          />
         </div>
         <hlm-slider [value]="sliderValue()" (valueChange)="onMemory($event)" [min]="MIN_MB" [max]="maxMb()" [step]="512" />
         <span class="text-muted-foreground text-xs">
-          {{ mbLabel(availableMb()) }} free of {{ mbLabel(hostTotalMb()) }} on the host
+          Drag the slider or type an exact value ("6G", "3072M"). {{ mbLabel(availableMb()) }} free of
+          {{ mbLabel(hostTotalMb()) }} on the host.
         </span>
+        @if (memoryOverHost()) {
+          <span class="text-yellow-500 text-xs">
+            That's more than the host has free - the server may fail to start or get OOM-killed.
+          </span>
+        }
       </div>
 
       <div class="col-span-2 flex flex-col gap-1.5">
@@ -121,60 +133,6 @@ type DialogContext = { onCreated: () => void };
         }
       </div>
 
-      @if (isModpack()) {
-        <div class="col-span-2 flex flex-col gap-1.5">
-          <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Search Modrinth</label>
-          <div class="flex gap-2">
-            <input
-              hlmInput
-              class="flex-1"
-              placeholder="e.g. cobblemon, create, all the mods…"
-              [value]="modpackQuery()"
-              (input)="modpackQuery.set($any($event.target).value)"
-              (keydown.enter)="searchModpacks()"
-            />
-            <button hlmBtn variant="outline" type="button" (click)="searchModpacks()" [disabled]="searching()">
-              <ng-icon name="lucideSearch" size="14" />
-              {{ searching() ? 'Searching…' : 'Search' }}
-            </button>
-          </div>
-          @if (searchError(); as se) {
-            <p class="text-destructive text-xs">{{ se }}</p>
-          }
-          @if (results().length > 0) {
-            <ul class="divide-border max-h-56 divide-y overflow-auto rounded-md border">
-              @for (r of results(); track r.slug) {
-                <li
-                  class="hover:bg-accent flex cursor-pointer items-center gap-3 p-2"
-                  [class.bg-accent]="modpackRef() === r.slug"
-                  (click)="pickModpack(r)"
-                >
-                  @if (r.iconUrl) {
-                    <img [src]="r.iconUrl" alt="" class="size-9 shrink-0 rounded" />
-                  }
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                      <span class="truncate text-sm font-medium">{{ r.title }}</span>
-                      @if (modpackRef() === r.slug) {
-                        <ng-icon name="lucideCheck" size="14" class="text-primary shrink-0" />
-                      }
-                    </div>
-                    <p class="text-muted-foreground truncate text-xs">{{ r.description }}</p>
-                  </div>
-                  <span class="text-muted-foreground shrink-0 font-mono text-[10px]">{{ r.slug }}</span>
-                </li>
-              }
-            </ul>
-          }
-          <input
-            hlmInput
-            class="mt-1"
-            placeholder="…or paste a slug / .mrpack URL"
-            [value]="modpackRef()"
-            (input)="modpackRef.set($any($event.target).value)"
-          />
-        </div>
-      } @else {
         <div class="col-span-2 flex flex-col gap-1.5">
           <label hlmLabel for="srv-version" class="text-muted-foreground text-xs uppercase tracking-wide">Version</label>
           <hlm-select [value]="version()" (valueChange)="version.set($event ?? LATEST)" [itemToString]="versionLabel">
@@ -192,7 +150,6 @@ type DialogContext = { onCreated: () => void };
             <span class="text-muted-foreground text-xs">Couldn't load the version list - "Latest" still works.</span>
           }
         </div>
-      }
 
       <div class="col-span-2">
         <button
@@ -210,7 +167,7 @@ type DialogContext = { onCreated: () => void };
           [javaVersion]="javaVersion()"
           (javaVersionChange)="javaVersion.set($event)"
           [useAikarFlags]="useAikarFlags()"
-          (useAikarFlagsChange)="useAikarFlags.set($event)"
+          (useAikarFlagsChange)="onAikarToggled($event)"
           [allowAnyClientVersion]="allowAnyClientVersion()"
           (allowAnyClientVersionChange)="allowAnyClientVersion.set($event)"
           [jvmArgs]="jvmArgs()"
@@ -237,36 +194,13 @@ export class ServerCreateDialog {
   private readonly ref = inject<BrnDialogRef<unknown>>(BrnDialogRef);
   private readonly ctx = injectBrnDialogContext<DialogContext>();
   private readonly api = inject(ServerService);
-  private readonly modpacksApi = inject(ModpacksService);
   private readonly versionsApi = inject(MinecraftVersionsService);
   private readonly domainsApi = inject(DomainsService);
   private readonly hostApi = inject(HostService);
 
-  protected readonly modpackQuery = signal('');
-  protected readonly results = signal<ReadonlyArray<ModpackSearchResult>>([]);
   protected readonly searching = signal(false);
-  protected readonly searchError = signal<string | null>(null);
 
-  protected searchModpacks(): void {
-    const q = this.modpackQuery().trim();
-    if (q === '') return;
-    this.searching.set(true);
-    this.searchError.set(null);
-    this.modpacksApi.apiModpacksGet(q).subscribe({
-      next: (hits) => {
-        this.results.set(hits);
-        this.searching.set(false);
-      },
-      error: () => {
-        this.searchError.set('Search failed - Modrinth may be unreachable.');
-        this.searching.set(false);
-      },
-    });
-  }
 
-  protected pickModpack(r: ModpackSearchResult): void {
-    this.modpackRef.set(r.slug);
-  }
 
   protected icon(serverType: string): string {
     return platformIcon(serverType);
@@ -285,10 +219,7 @@ export class ServerCreateDialog {
     'FORGE',
     'NEOFORGE',
     'SPIGOT',
-    'MODRINTH',
   ] as const;
-
-  private static readonly modpackTypes = new Set(['MODRINTH', 'CURSEFORGE', 'FTBA']);
 
   // Sentinel for "no explicit version" - itzg then pulls the latest release on first boot.
   protected readonly LATEST = '__latest__';
@@ -302,6 +233,8 @@ export class ServerCreateDialog {
   protected readonly showAdvanced = signal(false);
   protected readonly javaVersion = signal('auto');
   protected readonly useAikarFlags = signal(true);
+  /// Once the user picks a value themselves, stop steering it from the version.
+  private readonly aikarTouched = signal(false);
   protected readonly allowAnyClientVersion = signal(false);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
@@ -318,14 +251,16 @@ export class ServerCreateDialog {
   protected readonly maxMb = computed(() => Math.max(this.MIN_MB, this.availableMb()));
   protected readonly sliderValue = computed(() => [Math.min(this.memoryMb(), this.maxMb())]);
   protected readonly memoryLabel = computed(() => this.mbLabel(this.memoryMb()));
+  /// What's in the text box; kept in step with the slider but editable directly.
+  protected readonly memoryText = signal('4G');
+  protected readonly memoryOverHost = computed(() => this.memoryMb() > this.availableMb());
 
   // Recommended starting memory per loader (MB).
   private readonly recommended: Record<string, number> = {
     VANILLA: 2048, PAPER: 4096, PURPUR: 4096, SPIGOT: 4096, FABRIC: 4096, QUILT: 4096,
-    FORGE: 6144, NEOFORGE: 6144, MODRINTH: 6144, CURSEFORGE: 6144, FTBA: 6144,
+    FORGE: 6144, NEOFORGE: 6144,
   };
   protected readonly version = signal<string>(this.LATEST);
-  protected readonly modpackRef = signal('');
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -340,6 +275,18 @@ export class ServerCreateDialog {
     const dom = this.domain();
     return sub && dom ? `${sub}.${dom}` : '';
   });
+
+  /// Keeps the GC-flag default in step with the chosen version until the user overrides it.
+  private readonly aikarDefault = effect(() => {
+    const version = this.version();
+    if (this.aikarTouched()) return;
+    this.useAikarFlags.set(needsAikarFlags(version));
+  });
+
+  protected onAikarToggled(value: boolean): void {
+    this.aikarTouched.set(true);
+    this.useAikarFlags.set(value);
+  }
 
   constructor() {
     // Versions come live from Mojang's manifest (proxied by the API); the picker defaults to Latest.
@@ -367,11 +314,28 @@ export class ServerCreateDialog {
 
   protected onTypeChange(t: string | null): void {
     this.serverType.set(t);
-    if (t && this.recommended[t]) this.memoryMb.set(this.clamp(this.recommended[t]));
+    if (t && this.recommended[t]) {
+      this.memoryMb.set(this.clamp(this.recommended[t]));
+      this.memoryText.set(this.mbToMemString(this.memoryMb()));
+    }
   }
 
   protected onMemory(value: number[]): void {
     this.memoryMb.set(this.clamp(value[0] ?? this.memoryMb()));
+    this.memoryText.set(this.mbToMemString(this.memoryMb()));
+  }
+
+  /// Typed values bypass the slider's host-RAM ceiling on purpose - the slider guides, but an operator
+  /// who knows they're about to free memory (or is provisioning ahead) shouldn't be blocked by it. The
+  /// floor still applies, and going over the host's free RAM is warned about rather than prevented.
+  protected commitMemoryText(): void {
+    const mb = parseMemoryMb(this.memoryText());
+    if (mb === null) {
+      this.memoryText.set(this.mbToMemString(this.memoryMb()));   // unparseable - snap back
+      return;
+    }
+    this.memoryMb.set(Math.max(this.MIN_MB, mb));
+    this.memoryText.set(this.mbToMemString(this.memoryMb()));
   }
 
   private clampMemory(): void {
@@ -390,14 +354,10 @@ export class ServerCreateDialog {
   }
 
   /// MB -> the itzg MEMORY value ("4G" when whole GB, else "<mb>M").
-  private mbToMemString(mb: number): string {
+  protected mbToMemString(mb: number): string {
     return mb % 1024 === 0 ? `${mb / 1024}G` : `${mb}M`;
   }
 
-  protected readonly isModpack = computed(() => {
-    const t = this.serverType();
-    return t !== null && ServerCreateDialog.modpackTypes.has(t);
-  });
 
   protected readonly canSubmit = computed(
     () =>
@@ -405,8 +365,7 @@ export class ServerCreateDialog {
       !!this.serverType() &&
       this.displayName().trim() !== '' &&
       this.fullHostname() !== '' &&
-      this.memoryMb() >= this.MIN_MB &&
-      (!this.isModpack() || this.modpackRef().trim() !== ''),
+      this.memoryMb() >= this.MIN_MB,
   );
 
   protected submit(): void {
@@ -414,15 +373,13 @@ export class ServerCreateDialog {
     this.submitting.set(true);
     this.error.set(null);
 
-    const modpack = this.isModpack();
     this.api
       .apiServerPost({
         serverType: this.serverType()!,
         displayName: this.displayName().trim(),
         hostname: this.fullHostname(),
         memory: this.mbToMemString(this.memoryMb()),
-        version: modpack || this.version() === this.LATEST ? undefined : this.version(),
-        modpackRef: modpack ? this.modpackRef().trim() : undefined,
+        version: this.version() === this.LATEST ? undefined : this.version(),
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
         useAikarFlags: this.useAikarFlags(),
         allowAnyClientVersion: this.allowAnyClientVersion(),
@@ -455,4 +412,27 @@ function messageOf(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return 'Create failed';
+}
+
+/// Aikar's flags are tuned for the older Java/G1GC era, so they're the default below 1.21 and off for
+/// 1.21+ and the 26.x scheme, where modern defaults do better.
+function needsAikarFlags(version: string): boolean {
+  if (!version || version === 'latest') return false;
+  const parts = version.split('.');
+  const major = Number(parts[0]);
+  if (!Number.isFinite(major)) return false;
+  if (major >= 2) return false;
+  const minor = Number(parts[1]);
+  return Number.isFinite(minor) && minor < 21;
+}
+
+/// Accepts "6G", "3072M" or a bare MB number, returning megabytes. Null when it can't be read.
+function parseMemoryMb(text: string): number | null {
+  const t = text.trim().toUpperCase();
+  const m = /^(\d+(?:\.\d+)?)\s*(G|GB|M|MB)?$/.exec(t);
+  if (!m) return null;
+  const value = Number(m[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const unit = m[2] ?? 'M';
+  return Math.round(unit.startsWith('G') ? value * 1024 : value);
 }

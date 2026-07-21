@@ -9,8 +9,6 @@
  */
 
 
-export interface RenameServerDto { 
-    displayName: string;
-    hostname: string;
+export interface ServerStatsDtoCpuPercent { 
 }
 

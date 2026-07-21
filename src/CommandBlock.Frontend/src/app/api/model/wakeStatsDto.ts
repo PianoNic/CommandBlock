@@ -9,8 +9,11 @@
  */
 
 
-export interface RenameServerDto { 
-    displayName: string;
-    hostname: string;
+export interface WakeStatsDto { 
+    total: number;
+    failed: number;
+    medianSeconds: number | null;
+    p95Seconds: number | null;
+    slowestSeconds: number | null;
 }
 

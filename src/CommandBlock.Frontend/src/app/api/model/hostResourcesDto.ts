@@ -7,12 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { BackupEntryDtoSizeBytes } from './backupEntryDtoSizeBytes';
 
 
 export interface HostResourcesDto { 
-    totalMemoryBytes: BackupEntryDtoSizeBytes;
-    allocatedMemoryBytes: BackupEntryDtoSizeBytes;
-    availableMemoryBytes: BackupEntryDtoSizeBytes;
+    totalMemoryBytes: number;
+    allocatedMemoryBytes: number;
+    availableMemoryBytes: number;
 }
 

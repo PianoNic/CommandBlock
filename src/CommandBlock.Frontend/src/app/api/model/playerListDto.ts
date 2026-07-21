@@ -7,12 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
 export interface PlayerListDto { 
-    online: PlayerListDtoOnline;
-    max: PlayerListDtoOnline;
+    online: number;
+    max: number;
     players: Array<string>;
     reachable: boolean;
 }

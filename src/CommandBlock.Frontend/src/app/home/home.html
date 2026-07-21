@@ -1,61 +1,128 @@
 <app-content-header />
 
 <div class="min-h-0 flex-1 overflow-auto p-6">
-  <div class="mx-auto flex max-w-5xl flex-col gap-6">
-    <div class="flex items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-semibold">Welcome to CommandBlock</h1>
-        <p class="text-muted-foreground text-sm">One click. Every server. Routed and ready.</p>
-      </div>
-      <button hlmBtn (click)="createServer()">
-        <ng-icon name="lucidePlus" size="16" />
-        Create server
-      </button>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <a routerLink="/servers" class="hover:bg-accent rounded-lg border p-4 transition-colors">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
-          <ng-icon name="lucideServer" size="14" /> Servers
-        </div>
-        <div class="mt-2 text-3xl font-semibold">{{ total() }}</div>
-      </a>
-      <div class="rounded-lg border p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
-          <ng-icon name="lucidePlay" size="14" /> Running
-        </div>
-        <div class="mt-2 text-3xl font-semibold">
-          {{ running() }} <span class="text-muted-foreground text-base">/ {{ total() }}</span>
-        </div>
-      </div>
-      <div class="rounded-lg border p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
-          <ng-icon name="lucideUsers" size="14" /> Players online
-        </div>
-        <div class="mt-2 text-3xl font-semibold">{{ players() }}</div>
-      </div>
-      <div class="rounded-lg border p-4">
-        <div class="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-wide">
-          <ng-icon name="lucideHardDrive" size="14" /> Memory allocated
-        </div>
-        <div class="mt-2 text-3xl font-semibold">{{ memory() }}</div>
-      </div>
-    </div>
-
-    @if (byType().length > 0) {
-      <div class="rounded-lg border">
-        <header class="border-b px-4 py-2">
-          <h2 class="text-sm font-medium">By type</h2>
-        </header>
-        <div class="flex flex-wrap gap-2 p-4">
-          @for (t of byType(); track t.type) {
-            <span class="bg-muted/50 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
-              <ng-icon [name]="icon(t.type)" size="16" />
-              <span class="font-medium">{{ label(t.type) }}</span>
-              <span class="text-muted-foreground">{{ t.count }}</span>
+  <div class="mx-auto flex max-w-5xl flex-col gap-5">
+    <!-- Needs attention: symptom-level only, and absent entirely when nothing is wrong. -->
+    @if (attention().length > 0) {
+      <div class="border-destructive/40 bg-destructive/5 flex flex-col gap-2 rounded-lg border p-3">
+        @for (s of attention(); track s.id) {
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-destructive inline-flex items-center gap-2 text-sm">
+              <ng-icon name="lucideTriangleAlert" size="15" />
+              <a [routerLink]="['/servers', s.id]" class="font-medium hover:underline">{{ s.displayName }}</a>
+              exited unexpectedly
             </span>
-          }
-        </div>
+            <div class="flex gap-1.5">
+              <button hlmBtn size="sm" variant="outline" type="button" (click)="start(s)">Start</button>
+              <a hlmBtn size="sm" variant="ghost" [routerLink]="['/servers', s.id]">Console</a>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-semibold">
+          {{ running() }} of {{ total() }} running<span class="text-muted-foreground font-normal">, {{ players() }} playing</span>
+        </h1>
+        @if (sleepingCount() > 0) {
+          <p class="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+            <ng-icon name="lucideMoon" size="12" /> {{ sleepingCount() }} asleep, waking on join
+          </p>
+        } @else if (attention().length === 0 && total() > 0) {
+          <p class="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+            <ng-icon name="lucideCircleCheck" size="12" /> Everything healthy
+          </p>
+        }
+      </div>
+      <div class="flex gap-2">
+        @if (runningServers().length > 0) {
+          <button hlmBtn size="sm" variant="outline" type="button" (click)="stopAll()">
+            <ng-icon name="lucideSquare" size="14" /> Stop all
+          </button>
+        }
+        <button hlmBtn size="sm" (click)="createServer()">
+          <ng-icon name="lucidePlus" size="14" /> Create server
+        </button>
+      </div>
+    </div>
+
+    <!-- Host headroom: the number that decides whether another server can start. -->
+    <div class="rounded-lg border p-3">
+      <div class="mb-1.5 flex items-center justify-between text-xs">
+        <span class="text-muted-foreground uppercase tracking-wide">Host memory</span>
+        <span class="font-mono">{{ hostUsedLabel() }}</span>
+      </div>
+      <div class="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+        <div class="h-full rounded-full transition-all" [class]="hostBarClass()" [style.width.%]="hostUsedPercent()"></div>
+      </div>
+    </div>
+
+    <!-- Servers: state, load and power controls without leaving the page. -->
+    @if (servers().length === 0) {
+      <div class="text-muted-foreground rounded-lg border p-8 text-center text-sm">
+        No servers yet. Create one to get started.
+      </div>
+    } @else {
+      <div class="grid gap-3 md:grid-cols-2">
+        @for (s of servers(); track s.id) {
+          <div class="relative overflow-hidden rounded-lg border pl-3">
+            <span class="absolute inset-y-0 left-0 w-1" [class]="stripeClass(s)"></span>
+
+            <div class="flex items-start justify-between gap-3 p-3">
+              <div class="flex min-w-0 gap-2.5">
+                <img
+                  [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'"
+                  alt=""
+                  class="mt-0.5 h-8 w-8 shrink-0 rounded"
+                  style="image-rendering: pixelated"
+                />
+                <div class="min-w-0">
+                  <a [routerLink]="['/servers', s.id]" class="block truncate text-sm font-medium hover:underline">{{ s.displayName }}</a>
+                  <p class="text-xs" [class]="stateTextClass(s)">{{ stateLabel(s) }}</p>
+                  <p class="text-muted-foreground truncate font-mono text-[11px]">{{ s.hostname }}</p>
+                </div>
+              </div>
+
+              <div class="flex shrink-0 gap-1">
+                @if (isBusy(s)) {
+                  <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working">
+                    <ng-icon name="lucideHourglass" size="14" />
+                  </button>
+                } @else if (isRunning(s)) {
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">
+                    <ng-icon name="lucideSquare" size="14" />
+                  </button>
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="restart(s)" title="Restart">
+                    <ng-icon name="lucideRotateCcw" size="14" />
+                  </button>
+                } @else {
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start">
+                    <ng-icon name="lucidePlay" size="14" />
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (isRunning(s)) {
+              <div class="flex items-center gap-3 px-3 pb-3 text-xs">
+                <span class="text-muted-foreground inline-flex shrink-0 items-center gap-1">
+                  <ng-icon name="lucideUsers" size="12" /> <span class="text-foreground font-mono">{{ playersOf(s) }}</span>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="mb-1 flex justify-between">
+                    <span class="text-muted-foreground">Memory</span>
+                    <span class="font-mono">{{ memoryLabel(s) }}</span>
+                  </div>
+                  <div class="bg-muted h-1 w-full overflow-hidden rounded-full">
+                    <div class="h-full rounded-full transition-all" [class]="memoryBarClass(s)" [style.width.%]="memoryPercent(s)"></div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     }
 

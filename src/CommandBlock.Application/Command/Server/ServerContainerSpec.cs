@@ -70,10 +70,6 @@ namespace CommandBlock.Application.Command.Server
 
             switch (s.ServerType)
             {
-                case "MODRINTH":
-                    RequireModpack(s);
-                    env.Add($"MODRINTH_MODPACK={s.ModpackRef}");
-                    break;
                 case "CURSEFORGE":
                 case "AUTO_CURSEFORGE":
                     RequireModpack(s);
@@ -164,7 +160,7 @@ namespace CommandBlock.Application.Command.Server
         /// <summary>Modpack loaders pin their Minecraft version through <c>ModpackRef</c> rather than
         /// <c>VERSION</c>, so an explicit version means nothing for them.</summary>
         public static bool IsModpackType(string? serverType) =>
-            serverType is "MODRINTH" or "CURSEFORGE" or "AUTO_CURSEFORGE" or "FTBA";
+            serverType is "CURSEFORGE" or "AUTO_CURSEFORGE" or "FTBA";
 
         private static void RequireModpack(ServerInstance s)
         {

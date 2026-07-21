@@ -60,11 +60,9 @@ import { ServerRuntimeFields } from './server-runtime-fields';
 
     @if (error(); as err) { <p class="text-destructive text-sm">{{ err }}</p> }
 
-    <div class="flex justify-end gap-2">
-      <button hlmBtn size="sm" type="button" (click)="save()" [disabled]="!canSave()">
-        {{ saving() ? 'Applying…' : 'Save & restart' }}
-      </button>
-    </div>
+    @if (saving()) {
+      <p class="text-muted-foreground text-right text-xs">Applying…</p>
+    }
   `,
 })
 export class ServerRuntimeForm implements OnInit {
@@ -112,7 +110,8 @@ export class ServerRuntimeForm implements OnInit {
     }
   }
 
-  protected save(): void {
+  /// Public so the settings dialog's pinned action row can commit this tab.
+  save(): void {
     if (!this.canSave()) return;
     this.saving.set(true);
     this.error.set(null);
@@ -133,7 +132,7 @@ export class ServerRuntimeForm implements OnInit {
   }
 }
 
-const MODPACK_TYPES = ['MODRINTH', 'CURSEFORGE', 'AUTO_CURSEFORGE', 'FTBA'];
+const MODPACK_TYPES = ['CURSEFORGE', 'AUTO_CURSEFORGE', 'FTBA'];
 
 function messageOf(err: unknown): string {
   if (err && typeof err === 'object' && 'error' in err) {

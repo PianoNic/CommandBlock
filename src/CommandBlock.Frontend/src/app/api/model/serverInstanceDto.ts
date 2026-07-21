@@ -7,9 +7,6 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ServerInstanceDtoMemoryBytes } from './serverInstanceDtoMemoryBytes';
-import { ProblemDetailsStatus } from './problemDetailsStatus';
-import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
 export interface ServerInstanceDto { 
@@ -25,20 +22,20 @@ export interface ServerInstanceDto {
     extraEnv?: string | null;
     displayName: string;
     hostname: string;
-    port: PlayerListDtoOnline;
+    port: number;
     containerName?: string | null;
     isManaged: boolean;
     isPublic: boolean;
     state?: string | null;
     isConfigManaged: boolean;
-    playersOnline?: ProblemDetailsStatus | null;
-    playersMax?: ProblemDetailsStatus | null;
-    memoryBytes?: ServerInstanceDtoMemoryBytes | null;
+    playersOnline?: number | null;
+    playersMax?: number | null;
+    memoryBytes?: number | null;
     hasIcon: boolean;
     wakeOnConnect: boolean;
-    wakeQueueSeconds: PlayerListDtoOnline;
+    wakeQueueSeconds: number;
     autoSleepEnabled: boolean;
-    autoSleepIdleMinutes: PlayerListDtoOnline;
+    autoSleepIdleMinutes: number;
     createdAt: string;
 }
 

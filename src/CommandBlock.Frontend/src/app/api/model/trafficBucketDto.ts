@@ -9,8 +9,8 @@
  */
 
 
-export interface RenameServerDto { 
-    displayName: string;
-    hostname: string;
+export interface TrafficBucketDto { 
+    hourUtc: string;
+    connections: number;
 }
 

@@ -27,6 +27,7 @@ builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<OAuth2SecuritySchemeTransformer>();
+    options.AddSchemaTransformer<NumericSchemaTransformer>();
 });
 
 builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifetime.Scoped; });
@@ -41,14 +42,6 @@ builder.Services.AddHealthChecks().AddCheck<CommandBlock.API.Health.DatabaseHeal
 // World backups to an S3/SeaweedFS bucket.
 builder.Services.Configure<CommandBlock.Infrastructure.Options.BackupOptions>(builder.Configuration.GetSection("Backup"));
 builder.Services.AddScoped<IBackupStorage, CommandBlock.Infrastructure.Services.S3BackupStorage>();
-
-// Modrinth modpack search (public API, no key). Typed HttpClient with the UA Modrinth asks for.
-builder.Services.AddHttpClient<IModrinthClient, CommandBlock.Infrastructure.Services.ModrinthClient>(c =>
-{
-    c.BaseAddress = new Uri("https://api.modrinth.com/");
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("CommandBlock/1.0 (+https://github.com/PianoNic/CommandBlock)");
-    c.Timeout = TimeSpan.FromSeconds(10);
-});
 
 // Minecraft version list, proxied from Mojang's official manifest and cached in memory.
 builder.Services.AddMemoryCache();
@@ -70,6 +63,7 @@ builder.Services.AddScoped<IServerStatusService, CommandBlock.Infrastructure.Ser
 builder.Services.Configure<RouterOptions>(builder.Configuration.GetSection("Router"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
+builder.Services.AddSingleton<IRouterTelemetry, RouterTelemetry>();
 builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboRegistry>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboSession>();

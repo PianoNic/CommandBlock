@@ -9,8 +9,8 @@
  */
 
 
-export interface RenameServerDto { 
-    displayName: string;
-    hostname: string;
+export interface RejectionDto { 
+    reason: string;
+    count: number;
 }
 

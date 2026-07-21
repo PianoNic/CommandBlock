@@ -9,8 +9,10 @@
  */
 
 
-export interface RenameServerDto { 
-    displayName: string;
-    hostname: string;
+export interface RecentConnectionDto { 
+    serverName: string;
+    remoteAddress: string;
+    openedAt: string;
+    durationSeconds: number;
 }
 

@@ -11,17 +11,24 @@ namespace CommandBlock.Infrastructure.Services
         {
             var rows = await db.ServerInstances
                 .AsNoTracking()
-                .Select(s => new { s.Id, s.ContainerName, s.ContainerId })
+                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.WakeOnConnect, s.AutoSleepEnabled })
                 .ToListAsync(cancellationToken);
 
-            // Docker state per container in one daemon call.
+            // Docker state per container in one daemon call. The status line ("Exited (137) 2 hours ago")
+            // carries the exit code, which is what separates a crash from a deliberate stop.
             var stateByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var exitCodeByName = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 foreach (var c in await docker.ListContainersAsync(all: true, cancellationToken))
                     if (c.Names is not null)
                         foreach (var n in c.Names)
-                            stateByName[n.TrimStart('/')] = c.State ?? "unknown";
+                        {
+                            var name = n.TrimStart('/');
+                            stateByName[name] = c.State ?? "unknown";
+                            var em = c.Status is null ? Match.Empty : ExitCodeRegex().Match(c.Status);
+                            exitCodeByName[name] = em.Success ? int.Parse(em.Groups[1].Value) : null;
+                        }
             }
             catch { /* daemon unreachable -> null state */ }
 
@@ -32,7 +39,10 @@ namespace CommandBlock.Infrastructure.Services
             {
                 var containerState = r.ContainerName is not null && stateByName.TryGetValue(r.ContainerName, out var st) ? st : null;
                 if (containerState != "running" || r.ContainerId is null)
-                    return new ServerStatus(r.Id, containerState, null, null, null);
+                {
+                    var exitCode = r.ContainerName is not null && exitCodeByName.TryGetValue(r.ContainerName, out var ec) ? ec : null;
+                    return new ServerStatus(r.Id, RefineStoppedState(containerState, exitCode, r.WakeOnConnect, r.AutoSleepEnabled), null, null, null);
+                }
 
                 var svc = docker;
                 string state = "running";
@@ -51,10 +61,32 @@ namespace CommandBlock.Infrastructure.Services
                 if (m.Success) { online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
                 else state = "starting"; // container up but the server isn't answering pings yet
 
-                return new ServerStatus(r.Id, state, online, max, memoryBytes);
+                // Same line also carries the running build and MOTD - free to pick up here.
+                string? version = null, motd = null;
+                if (raw is not null)
+                {
+                    var vm = VersionRegex().Match(raw);
+                    if (vm.Success) version = vm.Groups[1].Value.Trim();
+                    var mm = MotdRegex().Match(raw);
+                    if (mm.Success) motd = mm.Groups[1].Value.Trim();
+                }
+
+                return new ServerStatus(r.Id, state, online, max, memoryBytes, version, motd);
             });
 
             return await Task.WhenAll(tasks);
+        }
+
+        /// <summary>Splits a stopped container into the three cases an operator cares about, which Docker
+        /// reports identically as "exited": a server that auto-slept and will wake on join, one that was
+        /// deliberately stopped, and one that died. 0/143 (SIGTERM) and 137 (SIGKILL after a stop timeout)
+        /// all mean "we asked it to stop" - only other codes are treated as a crash, so a slow shutdown
+        /// never raises a false alarm.</summary>
+        private static string? RefineStoppedState(string? containerState, int? exitCode, bool wakeOnConnect, bool autoSleepEnabled)
+        {
+            if (containerState != "exited") return containerState;
+            if (exitCode is not null and not 0 and not 143 and not 137) return "crashed";
+            return wakeOnConnect || autoSleepEnabled ? "sleeping" : containerState;
         }
 
         private static async Task<string?> SafeExecMonitorAsync(IDockerService svc, string containerId, CancellationToken ct)
@@ -65,5 +97,16 @@ namespace CommandBlock.Infrastructure.Services
 
         [GeneratedRegex(@"online=(\d+)\s+max=(\d+)")]
         private static partial Regex PlayerCountRegex();
+
+        // Lazy up to " online=" because the reported name can contain spaces ("Paper 26.1.2").
+        [GeneratedRegex(@"version=(.*?)\s+online=")]
+        private static partial Regex VersionRegex();
+
+        [GeneratedRegex(@"motd='([^']*)'")]
+        private static partial Regex MotdRegex();
+
+        // Docker status lines read "Exited (137) 2 hours ago".
+        [GeneratedRegex(@"Exited \((\d+)\)")]
+        private static partial Regex ExitCodeRegex();
     }
 }

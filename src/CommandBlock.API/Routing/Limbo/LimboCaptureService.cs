@@ -18,11 +18,21 @@ namespace CommandBlock.API.Routing.Limbo
     /// find the play packet whose bytes contain it) plus keep-alive by timing. Only protocol >= 766 (1.20.5) is
     /// captured - older versions have no Transfer packet, so the limbo can't auto-join them anyway. Fires RCON
     /// titles at @a, so it should only run against a server with no players online.</summary>
-    public sealed partial class LimboCaptureService(IServiceScopeFactory scopeFactory, IDockerService docker, ILogger<LimboCaptureService> logger)
+    public sealed partial class LimboCaptureService(IServiceScopeFactory scopeFactory, ILogger<LimboCaptureService> logger)
     {
         private const string ProbeName = "CBLimboProbe";
         private const int MinTransferProtocol = 766;   // 1.20.5 - first version with the Transfer packet
         private const string CaptureLabel = "commandblock.limbo-capture";
+
+        /// <summary>This service is a singleton but <see cref="IDockerService"/> is scoped, so it can't be
+        /// injected - that's a captive dependency and Development-mode DI validation rejects it outright.
+        /// Each operation takes a short-lived scope instead. The caller must keep the scope alive for the
+        /// duration of the work, hence returning it alongside the service.</summary>
+        private (IServiceScope Scope, IDockerService Docker) DockerScope()
+        {
+            var scope = scopeFactory.CreateScope();
+            return (scope, scope.ServiceProvider.GetRequiredService<IDockerService>());
+        }
 
         /// <summary>Captures + stores a snapshot for the server's protocol unless one already exists or the
         /// version is too old to matter. Best-effort: logs and returns on any failure.</summary>
@@ -91,6 +101,8 @@ namespace CommandBlock.API.Routing.Limbo
         {
             var cname = $"commandblock-limbocap-{Guid.NewGuid():N}"[..28];
             string? id = null;
+            var (dockerScope, docker) = DockerScope();
+            using var _ = dockerScope;
             try
             {
                 var tag = ServerContainerSpec.ImageTagForJava(ServerContainerSpec.AutoJavaForMinecraft(version));
@@ -148,6 +160,8 @@ namespace CommandBlock.API.Routing.Limbo
         {
             try
             {
+                var (scope, docker) = DockerScope();
+                using var _ = scope;
                 foreach (var c in await docker.ListContainersAsync(all: true, ct))
                 {
                     if (c.Labels is null || !c.Labels.ContainsKey(CaptureLabel)) continue;
@@ -175,7 +189,11 @@ namespace CommandBlock.API.Routing.Limbo
 
         private async Task<string?> ReadServerPropertiesAsync(string containerId, CancellationToken ct)
         {
-            try { return Encoding.UTF8.GetString(await docker.ExecCaptureAsync(containerId, ["cat", "/data/server.properties"], ct)); }
+            try
+            {
+                var (scope, docker) = DockerScope();
+                using (scope) return Encoding.UTF8.GetString(await docker.ExecCaptureAsync(containerId, ["cat", "/data/server.properties"], ct));
+            }
             catch { return null; }
         }
 

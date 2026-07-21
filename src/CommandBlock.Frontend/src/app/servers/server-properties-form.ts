@@ -154,8 +154,8 @@ interface MotdToken {
       @if (error(); as e) { <p class="text-destructive text-sm">{{ e }}</p> }
 
       <div class="flex items-center justify-end gap-2">
-        @if (savedOk()) { <span class="text-primary text-xs">Saved</span> }
-        <button hlmBtn size="sm" type="button" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+        @if (saving()) { <span class="text-muted-foreground text-xs">Saving…</span> }
+        @else if (savedOk()) { <span class="text-primary text-xs">Saved</span> }
       </div>
     }
   `,
@@ -303,7 +303,8 @@ export class ServerPropertiesForm implements OnInit {
     }
   }
 
-  protected save(): void {
+  /// Public so the settings dialog's pinned action row can commit this tab.
+  save(): void {
     this.saving.set(true);
     this.savedOk.set(false);
     this.error.set(null);

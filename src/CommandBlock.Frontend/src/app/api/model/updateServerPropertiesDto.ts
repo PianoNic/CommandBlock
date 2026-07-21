@@ -7,12 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
 export interface UpdateServerPropertiesDto { 
     motd?: string;
-    maxPlayers?: PlayerListDtoOnline;
+    maxPlayers?: number;
     difficulty?: string;
     gamemode?: string;
     pvp?: boolean;
@@ -21,7 +20,7 @@ export interface UpdateServerPropertiesDto {
     hardcore?: boolean;
     allowFlight?: boolean;
     enableCommandBlock?: boolean;
-    viewDistance?: PlayerListDtoOnline;
-    spawnProtection?: PlayerListDtoOnline;
+    viewDistance?: number;
+    spawnProtection?: number;
 }
 

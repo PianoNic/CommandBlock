@@ -67,6 +67,45 @@ namespace CommandBlock.Infrastructure.Services
             catch { return null; }
         }
 
+        public async Task<double?> GetContainerCpuPercentAsync(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // CPU percent is a delta between two samples, so this deliberately does NOT use OneShot:
+                // the daemon samples over ~1s and fills precpu_stats. That second of latency is why this
+                // is kept off the list/stream path and only used where one server is being inspected.
+                ContainerStatsResponse? snap = null;
+                var progress = new Progress<ContainerStatsResponse>(r => snap ??= r);
+                await client.Containers.GetContainerStatsAsync(id, new ContainerStatsParameters { Stream = false }, progress, cancellationToken);
+                if (snap?.CPUStats is null || snap.PreCPUStats is null) return null;
+
+                var cpuDelta = (double)snap.CPUStats.CPUUsage.TotalUsage - snap.PreCPUStats.CPUUsage.TotalUsage;
+                var systemDelta = (double)snap.CPUStats.SystemUsage - snap.PreCPUStats.SystemUsage;
+                if (cpuDelta <= 0 || systemDelta <= 0) return 0;
+
+                var cpus = snap.CPUStats.OnlineCPUs > 0
+                    ? snap.CPUStats.OnlineCPUs
+                    : (uint)(snap.CPUStats.CPUUsage.PercpuUsage?.Count ?? 1);
+                return Math.Round(cpuDelta / systemDelta * cpus * 100.0, 1);
+            }
+            catch { return null; }
+        }
+
+        public async Task<DateTime?> GetContainerStartedAtAsync(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var info = await client.Containers.InspectContainerAsync(id, cancellationToken);
+                // The daemon reports this as an RFC3339 string, and uses a zero date for "never started".
+                if (info?.State?.StartedAt is not string raw || raw.Length == 0) return null;
+                if (!DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var started))
+                    return null;
+                return started.Year > 1 ? started : null;
+            }
+            catch { return null; }
+        }
+
         public Task PullImageAsync(string image, string tag = "latest", CancellationToken cancellationToken = default)
         {
             return client.Images.CreateImageAsync(
