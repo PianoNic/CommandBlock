@@ -9,9 +9,11 @@
  */
 
 
-export interface HostResourcesDto { 
-    totalMemoryBytes: number;
-    allocatedMemoryBytes: number;
-    availableMemoryBytes: number;
+export interface WakeStatsDto { 
+    total: number;
+    failed: number;
+    medianSeconds: number | null;
+    p95Seconds: number | null;
+    slowestSeconds: number | null;
 }
 

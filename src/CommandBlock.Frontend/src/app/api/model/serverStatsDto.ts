@@ -7,20 +7,17 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { ServerInstanceDtoMemoryBytes } from './serverInstanceDtoMemoryBytes';
-import { ProblemDetailsStatus } from './problemDetailsStatus';
-import { ServerStatsDtoCpuPercent } from './serverStatsDtoCpuPercent';
 
 
 export interface ServerStatsDto { 
     state?: string | null;
-    cpuPercent?: ServerStatsDtoCpuPercent | null;
-    memoryBytes?: ServerInstanceDtoMemoryBytes | null;
-    memoryLimitBytes?: ServerInstanceDtoMemoryBytes | null;
+    cpuPercent?: number | null;
+    memoryBytes?: number | null;
+    memoryLimitBytes?: number | null;
     startedAt?: string | null;
     runningVersion?: string | null;
     motd?: string | null;
-    playersOnline?: ProblemDetailsStatus | null;
-    playersMax?: ProblemDetailsStatus | null;
+    playersOnline?: number | null;
+    playersMax?: number | null;
 }
 

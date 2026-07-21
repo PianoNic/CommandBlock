@@ -9,9 +9,8 @@
  */
 
 
-export interface HostResourcesDto { 
-    totalMemoryBytes: number;
-    allocatedMemoryBytes: number;
-    availableMemoryBytes: number;
+export interface TrafficBucketDto { 
+    hourUtc: string;
+    connections: number;
 }
 

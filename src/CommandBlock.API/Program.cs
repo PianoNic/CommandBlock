@@ -27,6 +27,7 @@ builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer<OAuth2SecuritySchemeTransformer>();
+    options.AddSchemaTransformer<NumericSchemaTransformer>();
 });
 
 builder.Services.AddMediator(options => { options.ServiceLifetime = ServiceLifetime.Scoped; });
@@ -62,6 +63,7 @@ builder.Services.AddScoped<IServerStatusService, CommandBlock.Infrastructure.Ser
 builder.Services.Configure<RouterOptions>(builder.Configuration.GetSection("Router"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IServerRouteResolver, DbServerRouteResolver>();
+builder.Services.AddSingleton<IRouterTelemetry, RouterTelemetry>();
 builder.Services.AddSingleton<IServerConnectionTracker, ServerConnectionTracker>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboRegistry>();
 builder.Services.AddSingleton<CommandBlock.API.Routing.Limbo.LimboSession>();

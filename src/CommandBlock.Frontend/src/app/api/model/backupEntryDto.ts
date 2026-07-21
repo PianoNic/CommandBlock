@@ -7,14 +7,13 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { BackupEntryDtoSizeBytes } from './backupEntryDtoSizeBytes';
 
 
 export interface BackupEntryDto { 
     id: string;
     serverId: string;
     fileName: string;
-    sizeBytes: BackupEntryDtoSizeBytes;
+    sizeBytes: number;
     kind: string;
     createdAt: string;
 }

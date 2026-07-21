@@ -9,9 +9,10 @@
  */
 
 
-export interface HostResourcesDto { 
-    totalMemoryBytes: number;
-    allocatedMemoryBytes: number;
-    availableMemoryBytes: number;
+export interface ServerTrafficDto { 
+    serverId: string;
+    serverName: string;
+    connections: number;
+    activeNow: number;
 }
 

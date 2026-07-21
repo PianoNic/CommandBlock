@@ -35,6 +35,7 @@ namespace CommandBlock.API.Routing
     public sealed class MinecraftRouter(
         IServiceScopeFactory scopeFactory,
         IServerConnectionTracker tracker,
+        IRouterTelemetry telemetry,
         IOptions<RouterOptions> options,
         Limbo.LimboRegistry limboRegistry,
         Limbo.LimboSession limboSession,
@@ -113,7 +114,12 @@ namespace CommandBlock.API.Routing
                     var resolver = scope.ServiceProvider.GetRequiredService<IServerRouteResolver>();
                     target = await resolver.ResolveAsync(hostname, stoppingToken);
                 }
-                if (target is null) { logger.LogDebug("No route for host '{Host}'; dropping.", hostname); return; }
+                if (target is null)
+                {
+                    logger.LogDebug("No route for host '{Host}'; dropping.", hostname);
+                    if (handshake.NextState is 2 or 3) telemetry.RecordRejection("unknown-host");
+                    return;
+                }
 
                 backend = await TryConnectBackendAsync(target, stoppingToken);
 
@@ -131,6 +137,7 @@ namespace CommandBlock.API.Routing
                     {
                         if (!target.WakeOnConnect)
                         {
+                            telemetry.RecordRejection("server-offline");
                             await SendLoginDisconnectAsync(clientStream, $"§7{target.DisplayName} is offline.", stoppingToken);
                             return;
                         }
@@ -144,6 +151,7 @@ namespace CommandBlock.API.Routing
                         var holdSeconds = Math.Min(target.WakeQueueSeconds, _options.MaxHoldSeconds);
                         if (holdSeconds <= 0)
                         {
+                            telemetry.RecordRejection("asked-to-reconnect");
                             await SendLoginDisconnectAsync(clientStream,
                                 $"§e{target.DisplayName} is starting up.§r\nGive it a moment, then reconnect.", stoppingToken);
                             return;
@@ -183,6 +191,7 @@ namespace CommandBlock.API.Routing
                             return;
                         }
 
+                        telemetry.RecordRejection("wake-timed-out");
                         await SendLoginDisconnectAsync(clientStream,
                             $"§e{target.DisplayName} is starting up.§r\nGive it a moment, then reconnect.", stoppingToken);
                     }
@@ -339,6 +348,17 @@ namespace CommandBlock.API.Routing
                 {
                     logger.LogInformation("Waking server '{Name}' on connect.", target.DisplayName);
                     await docker.StartContainerAsync(target.ContainerId, stoppingToken);
+                    tracker.Touch(target.ServerId); // reset the idle clock so we don't immediately re-sleep it
+
+                    // Time the boot for the Connections view. This deliberately outlives the joining player's
+                    // own hold: how long the server really takes to accept players is worth knowing even when
+                    // they gave up first, and the generous cap stops a server that never comes up from being
+                    // recorded as a suspiciously quick wake.
+                    var startedAt = Environment.TickCount64;
+                    var ready = await WaitForBackendAsync(target, _options.MaxHoldSeconds + 120, stoppingToken);
+                    ready?.Dispose();
+                    telemetry.RecordWake(target.ServerId, (Environment.TickCount64 - startedAt) / 1000.0, ready is not null);
+                    return;
                 }
                 tracker.Touch(target.ServerId); // reset the idle clock so we don't immediately re-sleep it
             }

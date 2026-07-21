@@ -9,9 +9,8 @@
  */
 
 
-export interface HostResourcesDto { 
-    totalMemoryBytes: number;
-    allocatedMemoryBytes: number;
-    availableMemoryBytes: number;
+export interface RejectionDto { 
+    reason: string;
+    count: number;
 }
 

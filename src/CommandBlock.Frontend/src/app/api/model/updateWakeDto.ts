@@ -7,13 +7,12 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { PlayerListDtoOnline } from './playerListDtoOnline';
 
 
 export interface UpdateWakeDto { 
     wakeOnConnect: boolean;
-    wakeQueueSeconds?: PlayerListDtoOnline;
+    wakeQueueSeconds?: number;
     autoSleepEnabled?: boolean;
-    autoSleepIdleMinutes?: PlayerListDtoOnline;
+    autoSleepIdleMinutes?: number;
 }
 

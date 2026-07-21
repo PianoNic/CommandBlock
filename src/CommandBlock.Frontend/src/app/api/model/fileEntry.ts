@@ -7,12 +7,11 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
-import { BackupEntryDtoSizeBytes } from './backupEntryDtoSizeBytes';
 
 
 export interface FileEntry { 
     name: string;
     isDirectory: boolean;
-    size: BackupEntryDtoSizeBytes;
+    size: number;
 }
 
