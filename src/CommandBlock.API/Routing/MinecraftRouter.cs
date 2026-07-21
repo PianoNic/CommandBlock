@@ -139,6 +139,16 @@ namespace CommandBlock.API.Routing
                         // the limbo replays immediately and its readiness probe picks the backend up once it's live.
                         _ = WakeAsync(target, stoppingToken);
 
+                        // Per-server hold budget. Zero means the operator chose "tell them to reconnect", so we
+                        // neither park them in the limbo nor stall the socket - we wake the server and say so.
+                        var holdSeconds = Math.Min(target.WakeQueueSeconds, _options.MaxHoldSeconds);
+                        if (holdSeconds <= 0)
+                        {
+                            await SendLoginDisconnectAsync(clientStream,
+                                $"§e{target.DisplayName} is starting up.§r\nGive it a moment, then reconnect.", stoppingToken);
+                            return;
+                        }
+
                         // Limbo: if we have a registry snapshot for this client's protocol, hold them in a live
                         // "starting" world and Transfer them back to the router once the backend is up (seamless
                         // auto-join, no manual reconnect). Otherwise fall through to the queue-then-kick.
@@ -158,7 +168,7 @@ namespace CommandBlock.API.Routing
                         // and pipe it straight in. We never interpret the game protocol here, so this covers every
                         // version and every mod loader - including Forge/NeoForge, which the limbo can never serve
                         // because it would have to impersonate their mod negotiation.
-                        var (ready, loginStart) = await HoldForBackendAsync(clientStream, target, _options.MaxHoldSeconds, handshake.ProtocolVersion, stoppingToken);
+                        var (ready, loginStart) = await HoldForBackendAsync(clientStream, target, holdSeconds, handshake.ProtocolVersion, stoppingToken);
                         if (ready is not null)
                         {
                             backend = ready;

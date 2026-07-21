@@ -17,7 +17,10 @@ namespace CommandBlock.Application.Command.Server
                 ?? throw new ServerNotFoundException(command.ServerId);
 
             server.WakeOnConnect = command.WakeOnConnect;
-            server.WakeQueueSeconds = Math.Clamp(command.WakeQueueSeconds, 0, 25);
+            // 0 means "tell them to reconnect". The old 25s ceiling existed because a silent hold died at the
+            // client's ~30s login timeout; keep-alive plugin requests removed that limit, so a modpack that takes
+            // minutes to boot can now be waited out. The router still caps this at Router:MaxHoldSeconds.
+            server.WakeQueueSeconds = Math.Clamp(command.WakeQueueSeconds, 0, 600);
             server.AutoSleepEnabled = command.AutoSleepEnabled;
             server.AutoSleepIdleMinutes = Math.Clamp(command.AutoSleepIdleMinutes, 1, 1440);
             await db.SaveChangesAsync(cancellationToken);
