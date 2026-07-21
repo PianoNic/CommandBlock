@@ -138,21 +138,38 @@ namespace CommandBlock.Application.Command.Server
             return minor >= 20;                                           // 1.20+ only
         }
 
-        /// <summary>The full Docker create parameters for a server container. No host port is
-        /// published - the server sits on CommandBlock's network and is reached through the router.</summary>
+        /// <summary>The full Docker create parameters for a server container. By default no host port is
+        /// published - the server sits on CommandBlock's network and is reached through the router. A
+        /// <see cref="ServerInstance.LanPort"/> additionally binds it on the host for direct access.</summary>
         public static CreateContainerParameters BuildCreateParams(ServerInstance s, string containerName, string bindSpec)
         {
+            var hostConfig = new HostConfig
+            {
+                Binds = new List<string> { bindSpec },
+                RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
+            };
+
+            // Publishing is opt-in per server. An empty HostIP lets Docker bind every interface; a private
+            // address keeps the port off a public one. Port bindings are fixed at create time, which is why
+            // changing them recreates the container.
+            if (s.LanPort is int lanPort)
+            {
+                hostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>
+                {
+                    [$"{McPort}/tcp"] = new List<PortBinding>
+                    {
+                        new() { HostPort = lanPort.ToString(), HostIP = s.LanBindAddress ?? "" },
+                    },
+                };
+            }
+
             return new CreateContainerParameters
             {
                 Image = $"{Image}:{ImageTag(s)}",
                 Name = containerName,
                 Env = BuildEnv(s),
                 ExposedPorts = new Dictionary<string, EmptyStruct> { [$"{McPort}/tcp"] = default },
-                HostConfig = new HostConfig
-                {
-                    Binds = new List<string> { bindSpec },
-                    RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
-                },
+                HostConfig = hostConfig,
                 Labels = CommandBlockContainerLabels.ForServer(s.ServerType, s.Id, s.Hostname, s.DisplayName),
             };
         }

@@ -11,7 +11,7 @@ namespace CommandBlock.Infrastructure.Services
         {
             var rows = await db.ServerInstances
                 .AsNoTracking()
-                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.WakeOnConnect, s.AutoSleepEnabled })
+                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.WakeOnConnect, s.AutoSleepEnabled, s.Version })
                 .ToListAsync(cancellationToken);
 
             // Docker state per container in one daemon call. The status line ("Exited (137) 2 hours ago")
@@ -48,13 +48,25 @@ namespace CommandBlock.Infrastructure.Services
                 string state = "running";
                 int? online = null, max = null;
 
-                // mc-monitor (bundled in the itzg image) reads player counts via the silent
-                // server-list ping - unlike `rcon-cli list` it opens no RCON connection, so it
-                // doesn't flood the console. Its ping and the stats read are independent, so run
-                // them together. Output: "host:port : version=... online=0 max=20 motd='...'".
-                var monitorTask = SafeExecMonitorAsync(svc, r.ContainerId, cancellationToken);
+                // The ping and the stats read are independent, so start the memory read first and let it
+                // run alongside whichever ping this server needs.
                 var memTask = svc.GetContainerMemoryBytesAsync(r.ContainerId, cancellationToken);
-                var raw = await monitorTask;
+                string? version = null, motd = null;
+
+                if (UsesLegacyPing(r.Version) && r.ContainerName is not null)
+                {
+                    // Too old for the modern ping - ask it the only way it understands.
+                    var legacy = await LegacyServerPing.TryPingAsync(r.ContainerName, McPort, LegacyPingTimeout, cancellationToken);
+                    if (legacy is not null) { online = legacy.Online; max = legacy.Max; motd = legacy.Motd; version = r.Version; }
+                    else state = "starting";
+
+                    return new ServerStatus(r.Id, state, online, max, await memTask, version, motd);
+                }
+
+                // mc-monitor (bundled in the itzg image) reads player counts via the silent server-list
+                // ping - unlike `rcon-cli list` it opens no RCON connection, so it doesn't flood the
+                // console. Output: "host:port : version=... online=0 max=20 motd='...'".
+                var raw = await SafeExecMonitorAsync(svc, r.ContainerId, cancellationToken);
                 var memoryBytes = await memTask;
 
                 var m = raw is null ? Match.Empty : PlayerCountRegex().Match(raw);
@@ -62,7 +74,6 @@ namespace CommandBlock.Infrastructure.Services
                 else state = "starting"; // container up but the server isn't answering pings yet
 
                 // Same line also carries the running build and MOTD - free to pick up here.
-                string? version = null, motd = null;
                 if (raw is not null)
                 {
                     var vm = VersionRegex().Match(raw);
@@ -89,10 +100,23 @@ namespace CommandBlock.Infrastructure.Services
             return wakeOnConnect || autoSleepEnabled ? "sleeping" : containerState;
         }
 
+        private const int McPort = 25565;
+        private static readonly TimeSpan LegacyPingTimeout = TimeSpan.FromSeconds(2);
+
         private static async Task<string?> SafeExecMonitorAsync(IDockerService svc, string containerId, CancellationToken ct)
         {
             try { return Encoding.UTF8.GetString(await svc.ExecCaptureAsync(containerId, new[] { "mc-monitor", "status" }, ct)); }
             catch { return null; }
+        }
+
+        /// <summary>Versions that only answer the pre-1.4 server list ping. 1.3 and older predate the
+        /// handshake-based ping entirely. Unknown or LATEST is treated as modern.</summary>
+        internal static bool UsesLegacyPing(string? mcVersion)
+        {
+            if (string.IsNullOrWhiteSpace(mcVersion)) return false;
+            var parts = mcVersion.Trim().Split('.', '-');
+            if (!int.TryParse(parts[0], out var major) || major != 1) return false;
+            return parts.Length >= 2 && int.TryParse(parts[1], out var minor) && minor <= 3;
         }
 
         [GeneratedRegex(@"online=(\d+)\s+max=(\d+)")]

@@ -44,7 +44,7 @@ namespace CommandBlock.API.Routing.Limbo
             var servers = await db.ServerInstances
                 .AsNoTracking()
                 .Where(s => s.IsManaged && s.ContainerId != null && s.ContainerName != null)
-                .Select(s => new { s.Id, s.ContainerId, s.ContainerName, s.Port, s.DisplayName })
+                .Select(s => new { s.Id, s.ContainerId, s.ContainerName, s.Port, s.DisplayName, s.Version })
                 .ToListAsync(ct);
             if (servers.Count == 0) return;
 
@@ -60,10 +60,32 @@ namespace CommandBlock.API.Routing.Limbo
                 if (!running.Contains(s.ContainerName!)) continue;   // not up, nothing to probe
                 if (tracker.ActiveCount(s.Id) > 0) continue;         // someone is playing on it
 
+                // Servers too old for the Transfer packet can never yield a usable snapshot. Skip them on
+                // the configured version, before opening a socket: the capture probe would otherwise ping
+                // them the modern way every sweep, which an old server answers by logging a protocol error
+                // to its own console forever.
+                if (!CouldSupportTransfer(s.Version)) continue;
+
                 // No-ops unless this protocol is >= 1.20.5, not yet captured, and the server is empty.
                 // A probe takes ~a minute, so stop after one capture and pick the rest up next sweep.
                 if (await capture.CaptureAsync(s.ContainerId!, s.ContainerName!, s.Port, ct)) return;
             }
+        }
+
+        /// <summary>Whether a server could plausibly speak the Transfer packet (1.20.5+), judged from the
+        /// version the operator configured. Unknown/LATEST is treated as new, letting the probe decide.</summary>
+        internal static bool CouldSupportTransfer(string? mcVersion)
+        {
+            if (string.IsNullOrWhiteSpace(mcVersion)) return true;
+            var v = mcVersion.Trim();
+            if (v.Equals("LATEST", StringComparison.OrdinalIgnoreCase)) return true;
+
+            var parts = v.Split('.', '-');
+            if (!int.TryParse(parts[0], out var major)) return true;
+            if (major >= 2) return true;                                    // 26.x year-based scheme
+            if (parts.Length < 2 || !int.TryParse(parts[1], out var minor)) return true;
+            if (minor != 20) return minor > 20;
+            return parts.Length >= 3 && int.TryParse(parts[2], out var patch) && patch >= 5;
         }
     }
 }

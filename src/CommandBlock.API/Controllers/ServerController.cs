@@ -208,6 +208,21 @@ namespace CommandBlock.API.Controllers
             catch (ServerNotFoundException) { return NotFound(); }
         }
 
+        [HttpPut("{id:guid}/network")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateNetwork(Guid id, [FromBody] UpdateNetworkDto body, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await mediator.Send(new UpdateNetworkCommand(id, body.LanPort, body.LanBindAddress, body.RoutedThroughProxy), cancellationToken);
+                return NoContent();
+            }
+            catch (ServerNotFoundException) { return NotFound(); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
         [HttpPut("{id:guid}/name")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

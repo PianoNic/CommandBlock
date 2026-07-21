@@ -32,6 +32,15 @@ namespace CommandBlock.Application.Dtos.Server
         public required bool IsManaged { get; init; }
         /// <summary>True when the container publishes its own host port instead of sitting behind the router.</summary>
         public required bool IsPublic { get; init; }
+
+        /// <summary>Host port the server is published on for direct access, or null when it isn't.</summary>
+        public int? LanPort { get; init; }
+
+        /// <summary>Host interface the published port binds to; null/empty means every interface.</summary>
+        public string? LanBindAddress { get; init; }
+
+        /// <summary>Whether the router answers for this server's hostname.</summary>
+        public bool RoutedThroughProxy { get; init; }
         /// <summary>Container state from Docker ("running", "exited", "created", ...). Null when
         /// no container is associated or Docker couldn't be queried.</summary>
         public string? State { get; init; }

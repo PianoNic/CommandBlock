@@ -79,9 +79,28 @@ namespace CommandBlock.Domain
         public bool IsManaged { get; init; } = true;
 
         /// <summary>True when the container binds its own host port and is reachable directly,
-        /// bypassing the router. Defaults to false: managed servers sit on the internal network and
-        /// are reached only through the router, so the VPS exposes a single public port.</summary>
+        /// bypassing the router. Kept in sync with <see cref="LanPort"/>. Defaults to false: managed
+        /// servers sit on the internal network and are reached only through the router, so the host
+        /// exposes a single public port.</summary>
         public bool IsPublic { get; set; }
+
+        /// <summary>Host port this server is published on for direct access, e.g. 25566, reached as
+        /// <c>&lt;host-ip&gt;:&lt;port&gt;</c> without going through the router. Null (the default) publishes
+        /// nothing, which is what keeps the host down to a single open game port. Baked into the container
+        /// at create time, so changing it recreates the container.</summary>
+        public int? LanPort { get; set; }
+
+        /// <summary>Host interface <see cref="LanPort"/> binds to. Null or empty binds every interface, which
+        /// on an internet-facing box means the port is public. Set it to a private address (e.g.
+        /// <c>192.168.1.50</c>) to keep the server reachable only from the LAN, or <c>127.0.0.1</c> for the
+        /// host alone.</summary>
+        public string? LanBindAddress { get; set; }
+
+        /// <summary>Whether the router answers for this server's <see cref="Hostname"/>. Default true. Set
+        /// false for a server that should only be reachable on its <see cref="LanPort"/> - the router then
+        /// treats the hostname as unknown and drops the connection, so nothing is exposed through the
+        /// shared public port.</summary>
+        public bool RoutedThroughProxy { get; set; } = true;
 
         /// <summary>True when the instance is owned by servers.yaml. Mutation endpoints reject
         /// changes so the declared config remains the source of truth. Cleared automatically on

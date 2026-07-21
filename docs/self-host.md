@@ -111,7 +111,7 @@ Clone the repo and run its `compose.yml` - it bundles a mock OAuth2 server so yo
 ## Networking
 
 - **DNS**: point your hostnames at the host IP. A wildcard `A` record (`*.example.com`) covers every server with no per-server DNS. See [Hostname routing](./routing).
-- **Firewall**: open **25565/tcp** for players and your UI port (proxied over HTTPS in production). Provisioned servers open no ports of their own.
+- **Firewall**: open **25565/tcp** for players and your UI port (proxied over HTTPS in production). Provisioned servers open no ports of their own unless you [publish one](./routing#direct-access-without-the-router).
 
 ## Storage
 
