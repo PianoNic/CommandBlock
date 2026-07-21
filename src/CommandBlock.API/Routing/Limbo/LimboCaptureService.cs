@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Net.Sockets;
 using System.Text;
@@ -275,12 +276,31 @@ namespace CommandBlock.API.Routing.Limbo
             await rcon.ExecAsync("bossbar add cbcap {\"text\":\"CBmkBOSS\"}", ct); await Task.Delay(400, ct);
             var bossBar = await Sniff("bossbar set cbcap players @a", "CBmkBOSS"u8.ToArray());
 
-            // keep-alive: the 8-byte-payload packet first seen ~15s in (entity noise starts at t=0).
-            await Task.Delay(18000, ct);
+            // Keep-alive: the server puts System.currentTimeMillis() in the payload, so the 8-byte packet whose
+            // payload reads as "about now" in epoch millis identifies it outright - entity packets never do.
+            // (Timing alone is unreliable: servers often send the first keep-alive immediately after join.)
+            await Task.Delay(20000, ct);
+            int? keepAlive = null;
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var eights = new Dictionary<int, long>();
-            lock (play) { for (var i = 0; i < play.Count; i++) { var pos = 0; MinecraftProtocol.TryReadVarInt(play[i], ref pos, out var id); if (play[i].Length - pos == 8) { var t = playT[i] - t0; if (!eights.TryGetValue(id, out var mn) || t < mn) eights[id] = t; } } }
-            int? keepAlive = null; long best = long.MaxValue;
-            foreach (var (id, mn) in eights) if (mn > 10000 && Math.Abs(mn - 15000) < best) { best = Math.Abs(mn - 15000); keepAlive = id; }
+            lock (play)
+            {
+                for (var i = 0; i < play.Count; i++)
+                {
+                    var pos = 0;
+                    if (!MinecraftProtocol.TryReadVarInt(play[i], ref pos, out var id) || play[i].Length - pos != 8) continue;
+                    if (keepAlive is null && Math.Abs(BinaryPrimitives.ReadInt64BigEndian(play[i].AsSpan(pos)) - nowMs) < 300_000) keepAlive = id;
+                    var t = playT[i] - t0;
+                    if (!eights.TryGetValue(id, out var mn) || t < mn) eights[id] = t;
+                }
+            }
+            // Fallback for forks that send a counter rather than a timestamp: the 8-byte id that first shows up
+            // well after the join burst.
+            if (keepAlive is null)
+            {
+                long best = long.MaxValue;
+                foreach (var (id, mn) in eights) if (mn > 3000 && Math.Abs(mn - 15000) < best) { best = Math.Abs(mn - 15000); keepAlive = id; }
+            }
 
             // Target the probe by name, not @a: if someone slipped onto the server mid-probe, @a would
             // transfer THEM to a bogus address.
