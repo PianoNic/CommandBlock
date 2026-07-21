@@ -131,6 +131,13 @@ namespace CommandBlock.API.Routing
             return Packet(0x00, EncodeString(chatJson));
         }
 
+        /// <summary>A login Plugin Request (id 0x04): message id + channel, no payload. Clients always answer one
+        /// (understood or not), and their login read-timeout is on inactivity rather than total duration - so
+        /// sending these every few seconds holds a joining player in the login phase indefinitely. Measured against
+        /// a real 26.2 client: still answering after 137s, where a silent hold dies at ~30s.</summary>
+        public static byte[] LoginPluginRequestPacket(int messageId, string channel) =>
+            Packet(0x04, [.. EncodeVarInt(messageId), .. EncodeString(channel)]);
+
         /// <summary>Builds a Handshake packet (id 0x00) with the given next-state. Used to rewrite a Transfer
         /// reconnect (intent 3) into a normal login (intent 2) before piping to a backend that has no
         /// accepts-transfers flag.</summary>

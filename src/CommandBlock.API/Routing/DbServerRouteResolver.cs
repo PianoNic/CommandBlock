@@ -13,12 +13,12 @@ namespace CommandBlock.API.Routing
             var server = await db.ServerInstances
                 .AsNoTracking()
                 .Where(s => s.Hostname == hostname && s.ContainerName != null && s.ContainerId != null)
-                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.Port, s.DisplayName, s.WakeOnConnect, s.WakeQueueSeconds })
+                .Select(s => new { s.Id, s.ContainerName, s.ContainerId, s.Port, s.DisplayName, s.WakeOnConnect, s.WakeQueueSeconds, s.ServerType })
                 .FirstOrDefaultAsync(cancellationToken);
 
             return server is null
                 ? null
-                : new RouteTarget(server.ContainerName!, server.Port, server.Id, server.ContainerId!, server.DisplayName, server.WakeOnConnect, server.WakeQueueSeconds);
+                : new RouteTarget(server.ContainerName!, server.Port, server.Id, server.ContainerId!, server.DisplayName, server.WakeOnConnect, server.WakeQueueSeconds, server.ServerType ?? "");
         }
     }
 }
