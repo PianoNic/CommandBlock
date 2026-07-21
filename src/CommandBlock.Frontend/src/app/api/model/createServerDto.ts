@@ -18,6 +18,7 @@ export interface CreateServerDto {
     modpackRef?: string | null;
     javaVersion?: string | null;
     useAikarFlags?: boolean;
+    allowAnyClientVersion?: boolean;
     jvmArgs?: string | null;
     extraEnv?: string | null;
 }
