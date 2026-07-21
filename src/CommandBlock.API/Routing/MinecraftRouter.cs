@@ -158,7 +158,7 @@ namespace CommandBlock.API.Routing
                         // and pipe it straight in. We never interpret the game protocol here, so this covers every
                         // version and every mod loader - including Forge/NeoForge, which the limbo can never serve
                         // because it would have to impersonate their mod negotiation.
-                        var (ready, loginStart) = await HoldForBackendAsync(clientStream, target, _options.MaxHoldSeconds, stoppingToken);
+                        var (ready, loginStart) = await HoldForBackendAsync(clientStream, target, _options.MaxHoldSeconds, handshake.ProtocolVersion, stoppingToken);
                         if (ready is not null)
                         {
                             backend = ready;
@@ -226,9 +226,15 @@ namespace CommandBlock.API.Routing
         /// inactivity rather than total duration - and its answers to those are consumed here so the backend never
         /// sees replies to requests it never sent. No game-protocol state is interpreted, which is exactly why this
         /// works for every version and every mod loader, including Forge/NeoForge.</summary>
+        /// <summary>1.13 (protocol 393) added the login Plugin Request. Older clients would treat it as an unknown
+        /// packet and drop, so they can only be held silently - which their ~30s login timeout caps.</summary>
+        private const int MinPluginRequestProtocol = 393;
+
         private async Task<(TcpClient? backend, byte[]? loginStart)> HoldForBackendAsync(
-            NetworkStream clientStream, RouteTarget target, int maxSeconds, CancellationToken ct)
+            NetworkStream clientStream, RouteTarget target, int maxSeconds, int protocolVersion, CancellationToken ct)
         {
+            var canPing = protocolVersion >= MinPluginRequestProtocol;
+            if (!canPing) maxSeconds = Math.Min(maxSeconds, 25);   // no keepalive available; stay under the timeout
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
             byte[]? loginStart = null;
 
@@ -261,7 +267,7 @@ namespace CommandBlock.API.Routing
                     var probe = await TryConnectBackendAsync(target, ct);
                     if (probe is not null) return (probe, loginStart);
 
-                    if (Environment.TickCount64 >= nextPing)
+                    if (canPing && Environment.TickCount64 >= nextPing)
                     {
                         try
                         {
