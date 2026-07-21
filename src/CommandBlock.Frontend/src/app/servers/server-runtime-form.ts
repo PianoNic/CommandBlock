@@ -28,6 +28,8 @@ import { ServerRuntimeFields } from './server-runtime-fields';
       (javaVersionChange)="javaVersion.set($event)"
       [useAikarFlags]="useAikarFlags()"
       (useAikarFlagsChange)="useAikarFlags.set($event)"
+      [allowAnyClientVersion]="allowAnyClientVersion()"
+      (allowAnyClientVersionChange)="allowAnyClientVersion.set($event)"
       [jvmArgs]="jvmArgs()"
       (jvmArgsChange)="jvmArgs.set($event)"
       [extraEnv]="extraEnv()"
@@ -52,6 +54,7 @@ export class ServerRuntimeForm implements OnInit {
   protected readonly memory = signal('4G');
   protected readonly javaVersion = signal('auto');
   protected readonly useAikarFlags = signal(false);
+  protected readonly allowAnyClientVersion = signal(false);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
   protected readonly saving = signal(false);
@@ -64,6 +67,7 @@ export class ServerRuntimeForm implements OnInit {
     this.memory.set(s.memory ?? '4G');
     this.javaVersion.set(s.javaVersion ?? 'auto');
     this.useAikarFlags.set(s.useAikarFlags ?? false);
+    this.allowAnyClientVersion.set(s.allowAnyClientVersion ?? false);
     this.jvmArgs.set(s.jvmArgs ?? '');
     this.extraEnv.set(s.extraEnv ?? '');
   }
@@ -77,6 +81,7 @@ export class ServerRuntimeForm implements OnInit {
         memory: this.memory().trim(),
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
         useAikarFlags: this.useAikarFlags(),
+        allowAnyClientVersion: this.allowAnyClientVersion(),
         jvmArgs: this.jvmArgs().trim() === '' ? undefined : this.jvmArgs().trim(),
         extraEnv: this.extraEnv().trim() === '' ? undefined : this.extraEnv(),
       })

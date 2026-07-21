@@ -35,6 +35,18 @@ import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
     </div>
 
     <div class="col-span-2 flex flex-col gap-1.5">
+      <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Client versions</label>
+      <div class="border-input flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
+        <hlm-checkbox [checked]="allowAnyClientVersion()" (checkedChange)="allowAnyClientVersion.set($event)" />
+        <span class="cursor-pointer" (click)="allowAnyClientVersion.set(!allowAnyClientVersion())">Let any Minecraft version join</span>
+      </div>
+      <span class="text-muted-foreground text-xs">
+        Installs ViaVersion so older clients can join (Paper/Fabric, 1.20+). Skins and UUIDs are unaffected.
+        Modded servers still require the matching pack.
+      </span>
+    </div>
+
+    <div class="col-span-2 flex flex-col gap-1.5">
       <label hlmLabel for="rt-jvm" class="text-muted-foreground text-xs uppercase tracking-wide">JVM arguments</label>
       <input
         hlmInput
@@ -65,6 +77,7 @@ import { HlmCheckboxImports } from '@spartan-ng/helm/checkbox';
 export class ServerRuntimeFields {
   readonly javaVersion = model<string>('auto');
   readonly useAikarFlags = model<boolean>(false);
+  readonly allowAnyClientVersion = model<boolean>(false);
   readonly jvmArgs = model<string>('');
   readonly extraEnv = model<string>('');
 

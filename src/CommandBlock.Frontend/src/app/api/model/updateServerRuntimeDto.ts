@@ -13,6 +13,7 @@ export interface UpdateServerRuntimeDto {
     memory: string;
     javaVersion?: string | null;
     useAikarFlags?: boolean;
+    allowAnyClientVersion?: boolean;
     jvmArgs?: string | null;
     extraEnv?: string | null;
 }

@@ -10,6 +10,8 @@ namespace CommandBlock.Application.Dtos.Server
         public string? JavaVersion { get; init; }
         /// <summary>Apply Aikar's tuned GC flags (USE_AIKAR_FLAGS).</summary>
         public bool UseAikarFlags { get; init; }
+        /// <summary>Install the Via stack so clients of any Minecraft version can join.</summary>
+        public bool AllowAnyClientVersion { get; init; }
         /// <summary>Extra JVM options (JVM_OPTS).</summary>
         public string? JvmArgs { get; init; }
         /// <summary>Extra itzg env vars, one KEY=VALUE per line.</summary>

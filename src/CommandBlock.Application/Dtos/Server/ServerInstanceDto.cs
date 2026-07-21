@@ -15,6 +15,8 @@ namespace CommandBlock.Application.Dtos.Server
         public string? JavaVersion { get; init; }
         /// <summary>Whether Aikar's tuned GC flags are applied.</summary>
         public required bool UseAikarFlags { get; init; }
+        /// <summary>Whether the Via stack is installed so any client version can join.</summary>
+        public required bool AllowAnyClientVersion { get; init; }
         /// <summary>Extra JVM options (JVM_OPTS), or null.</summary>
         public string? JvmArgs { get; init; }
         /// <summary>Extra itzg env vars, one KEY=VALUE per line, or null.</summary>

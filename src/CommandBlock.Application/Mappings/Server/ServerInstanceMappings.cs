@@ -13,6 +13,7 @@ namespace CommandBlock.Application.Mappings.Server
             Memory = s.Memory,
             JavaVersion = s.JavaVersion,
             UseAikarFlags = s.UseAikarFlags,
+            AllowAnyClientVersion = s.AllowAnyClientVersion,
             JvmArgs = s.JvmArgs,
             ExtraEnv = s.ExtraEnv,
             DisplayName = s.DisplayName,

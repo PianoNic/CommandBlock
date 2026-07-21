@@ -50,7 +50,7 @@ namespace CommandBlock.API.Controllers
             try
             {
                 var result = await mediator.Send(new RecreateServerCommand(
-                    id, body.Memory, body.JavaVersion, body.UseAikarFlags, body.JvmArgs, body.ExtraEnv), cancellationToken);
+                    id, body.Memory, body.JavaVersion, body.UseAikarFlags, body.AllowAnyClientVersion, body.JvmArgs, body.ExtraEnv), cancellationToken);
                 return Ok(result);
             }
             catch (ServerNotFoundException) { return NotFound(); }

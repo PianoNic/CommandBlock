@@ -19,6 +19,7 @@ namespace CommandBlock.Application.Command.Server
         string Memory,
         string? JavaVersion = null,
         bool UseAikarFlags = false,
+        bool AllowAnyClientVersion = false,
         string? JvmArgs = null,
         string? ExtraEnv = null) : ICommand<ServerInstanceDto>;
 
@@ -45,6 +46,7 @@ namespace CommandBlock.Application.Command.Server
             server.Memory = command.Memory.Trim();
             server.JavaVersion = string.IsNullOrWhiteSpace(command.JavaVersion) ? null : command.JavaVersion.Trim();
             server.UseAikarFlags = command.UseAikarFlags;
+            server.AllowAnyClientVersion = command.AllowAnyClientVersion;
             server.JvmArgs = string.IsNullOrWhiteSpace(command.JvmArgs) ? null : command.JvmArgs;
             server.ExtraEnv = string.IsNullOrWhiteSpace(command.ExtraEnv) ? null : command.ExtraEnv;
 

@@ -211,6 +211,8 @@ type DialogContext = { onCreated: () => void };
           (javaVersionChange)="javaVersion.set($event)"
           [useAikarFlags]="useAikarFlags()"
           (useAikarFlagsChange)="useAikarFlags.set($event)"
+          [allowAnyClientVersion]="allowAnyClientVersion()"
+          (allowAnyClientVersionChange)="allowAnyClientVersion.set($event)"
           [jvmArgs]="jvmArgs()"
           (jvmArgsChange)="jvmArgs.set($event)"
           [extraEnv]="extraEnv()"
@@ -300,6 +302,7 @@ export class ServerCreateDialog {
   protected readonly showAdvanced = signal(false);
   protected readonly javaVersion = signal('auto');
   protected readonly useAikarFlags = signal(true);
+  protected readonly allowAnyClientVersion = signal(false);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
 
@@ -422,6 +425,7 @@ export class ServerCreateDialog {
         modpackRef: modpack ? this.modpackRef().trim() : undefined,
         javaVersion: this.javaVersion() === 'auto' ? undefined : this.javaVersion(),
         useAikarFlags: this.useAikarFlags(),
+        allowAnyClientVersion: this.allowAnyClientVersion(),
         jvmArgs: this.jvmArgs().trim() === '' ? undefined : this.jvmArgs().trim(),
         extraEnv: this.extraEnv().trim() === '' ? undefined : this.extraEnv(),
       })

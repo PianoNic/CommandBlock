@@ -20,6 +20,7 @@ export interface ServerInstanceDto {
     memory: string;
     javaVersion?: string | null;
     useAikarFlags: boolean;
+    allowAnyClientVersion: boolean;
     jvmArgs?: string | null;
     extraEnv?: string | null;
     displayName: string;
