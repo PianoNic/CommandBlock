@@ -18,19 +18,23 @@ namespace CommandBlock.Application.Command.Server
         {
             var v = new string((s.JavaVersion ?? "").Where(char.IsDigit).ToArray());
             if (v.Length == 0) v = AutoJavaForMinecraft(s.Version);
-            return v switch
-            {
-                "8" => "java8",
-                "11" => "java11",
-                "16" => "java16",
-                "17" => "java17",
-                "21" => "java21",
-                "23" => "java23",
-                "24" => "java24",
-                "25" => "java25",
-                _ => "latest",
-            };
+            return ImageTagForJava(v);
         }
+
+        /// <summary>Maps a Java major version to its itzg image tag. Split out of <see cref="ImageTag"/> so
+        /// callers without a <see cref="ServerInstance"/> (e.g. a throwaway capture server) share the same map.</summary>
+        public static string ImageTagForJava(string javaVersion) => javaVersion switch
+        {
+            "8" => "java8",
+            "11" => "java11",
+            "16" => "java16",
+            "17" => "java17",
+            "21" => "java21",
+            "23" => "java23",
+            "24" => "java24",
+            "25" => "java25",
+            _ => "latest",
+        };
 
         /// <summary>itzg's recommended Java per Minecraft version: 1.21.5+/newest → 25, 1.20.5-1.21.4 → 21,
         /// 1.17-1.20.4 → 17, ≤1.16 → 8. Unknown/LATEST/modpack-derived versions default to the newest

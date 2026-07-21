@@ -93,10 +93,13 @@ namespace CommandBlock.API.Routing.Limbo
             string? id = null;
             try
             {
-                logger.LogInformation("Starting throwaway {Name} (vanilla {V}) to capture a limbo snapshot", cname, version);
+                var tag = ServerContainerSpec.ImageTagForJava(ServerContainerSpec.AutoJavaForMinecraft(version));
+                logger.LogInformation("Starting throwaway {Name} (vanilla {V}, {Tag}) to capture a limbo snapshot", cname, version, tag);
+                // The tag may not be local yet - pull first, but don't fail the capture if we're offline and it is.
+                try { await docker.PullImageAsync(ServerContainerSpec.Image, tag, ct); } catch (Exception ex) { logger.LogDebug(ex, "Could not pull {Image}:{Tag}", ServerContainerSpec.Image, tag); }
                 var created = await docker.CreateContainerAsync(new CreateContainerParameters
                 {
-                    Image = $"{ServerContainerSpec.Image}:{ServerContainerSpec.AutoJavaForMinecraft(version)}",
+                    Image = $"{ServerContainerSpec.Image}:{tag}",
                     Name = cname,
                     Env =
                     [
