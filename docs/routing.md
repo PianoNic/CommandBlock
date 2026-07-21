@@ -17,6 +17,32 @@ If the matching server is stopped, the router doesn't just fail the connection: 
 
 The **Connections** page shows every connection the router is handling, along with traffic, wake timings and the joins it turned away.
 
+## Direct access without the router
+
+Routing is the default because it keeps the host down to one open game port. A server can also be
+published on a host port of its own - handy on a LAN, where you'd rather type `192.168.1.50:25566`
+than set up DNS.
+
+Under **Settings → Network**, per server:
+
+| Option | What it does |
+| --- | --- |
+| **Reachable through the router by hostname** | Whether the router answers for this server's hostname. Turn it off and the router treats the hostname as unknown, so the server is reachable only on its own port. |
+| **Publish a port on the host** | Binds the container's game port to a host port, reached as `<host-ip>:<port>`. |
+| **Bind to address** | Which host interface that port listens on. Empty means all of them. |
+
+The two are independent: a server can be on the router, on its own port, or both. It can't be on
+neither - CommandBlock rejects that rather than leaving a server nothing can reach.
+
+::: warning "LAN only" means binding a LAN address
+An empty bind address listens on **every** interface, so on an internet-facing host the port is
+reachable from anywhere the firewall allows - it does not pass through the router. To keep a server on
+the local network, bind it to a private address (e.g. `192.168.1.50`), or `127.0.0.1` for the host alone.
+:::
+
+Publishing is fixed when the container is created, so changing the port or its bind address recreates
+the container. The world is bind-mounted by name and survives.
+
 ## DNS
 
 Point the hostnames at your host's IP. A **wildcard** record is easiest - one record covers every server:
@@ -33,7 +59,7 @@ Set the record to **DNS only** (grey cloud). Cloudflare's proxy only handles HTT
 
 ## Firewall
 
-Open only **25565/tcp**. Provisioned servers publish no port of their own - they're reached solely through the router - so that single port is the whole surface.
+Open only **25565/tcp**. Provisioned servers publish no port of their own unless you give them one, so that single port is the whole surface by default.
 
 ## Configuration
 

@@ -26,6 +26,9 @@ export interface ServerInstanceDto {
     containerName?: string | null;
     isManaged: boolean;
     isPublic: boolean;
+    lanPort?: number | null;
+    lanBindAddress?: string | null;
+    routedThroughProxy?: boolean;
     state?: string | null;
     isConfigManaged: boolean;
     playersOnline?: number | null;

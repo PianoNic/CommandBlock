@@ -44,6 +44,7 @@ Each server has a **Settings** modal (from the row's kebab menu or the detail he
 - **Runtime** - memory, Java version, Aikar/JVM flags, and extra itzg env vars (applied on the next restart).
 - **Version** - change the Minecraft version. The container is recreated in place and the world is kept.
 - **Wake & sleep** - start on join and auto-sleep when idle, per server. See [Wake & sleep](./wake).
+- **Network** - whether the server is reached through the router by hostname, on its own published host port, or both. See [direct access](./routing#direct-access-without-the-router).
 - **Icon** - upload a PNG; it's cropped to the 64×64 server-icon and shown in the UI and in-game.
 
 ::: tip Back up before changing version

@@ -43,6 +43,7 @@ model/serverStatsDto.ts
 model/serverTrafficDto.ts
 model/toggleBackupScheduleDto.ts
 model/trafficBucketDto.ts
+model/updateNetworkDto.ts
 model/updateServerPropertiesDto.ts
 model/updateServerRuntimeDto.ts
 model/updateWakeDto.ts

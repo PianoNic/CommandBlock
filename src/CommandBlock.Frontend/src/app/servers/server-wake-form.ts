@@ -21,7 +21,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
     </p>
 
     <label class="flex items-center gap-2 text-sm">
-      <hlm-checkbox [checked]="wakeOnConnect()" (checkedChange)="setWake($event)" />
+      <hlm-checkbox aria-label="Wake on join" [checked]="wakeOnConnect()" (checkedChange)="setWake($event)" />
       <span class="text-foreground">Wake on join</span>
     </label>
 
@@ -56,7 +56,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
     <div class="border-border border-t"></div>
 
     <label class="flex items-center gap-2 text-sm">
-      <hlm-checkbox [checked]="autoSleep()" (checkedChange)="setAutoSleep($event)" />
+      <hlm-checkbox aria-label="Auto-sleep when idle" [checked]="autoSleep()" (checkedChange)="setAutoSleep($event)" />
       <span class="text-foreground">Auto-sleep when idle</span>
     </label>
 
@@ -110,7 +110,7 @@ export class ServerWakeForm implements OnInit {
   }
 
   protected setQueue(value: string): void {
-    this.wakeQueue.set(Math.max(1, Math.min(25, Math.floor(+value || 1))));
+    this.wakeQueue.set(Math.max(1, Math.min(600, Math.floor(+value || 1))));
     this.save();
   }
 

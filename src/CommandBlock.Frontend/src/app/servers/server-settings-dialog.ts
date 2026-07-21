@@ -7,6 +7,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerPropertiesForm } from './server-properties-form';
 import { ServerRuntimeForm } from './server-runtime-form';
 import { ServerWakeForm } from './server-wake-form';
+import { ServerNetworkForm } from './server-network-form';
 import { ServerIconForm } from './server-icon-form';
 
 type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
@@ -26,6 +27,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
     ServerPropertiesForm,
     ServerRuntimeForm,
     ServerWakeForm,
+    ServerNetworkForm,
     ServerIconForm,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +42,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
         <button hlmTabsTrigger="general">General / MOTD</button>
         <button hlmTabsTrigger="runtime">Runtime</button>
         <button hlmTabsTrigger="wake">Wake &amp; sleep</button>
+        <button hlmTabsTrigger="network">Network</button>
         <button hlmTabsTrigger="icon">Icon</button>
       </hlm-tabs-list>
 
@@ -51,6 +54,9 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
       </div>
       <div hlmTabsContent="wake" class="max-h-[58svh] overflow-y-auto pr-1">
         <app-server-wake-form [server]="ctx.server" />
+      </div>
+      <div hlmTabsContent="network" class="max-h-[58svh] overflow-y-auto pr-1">
+        <app-server-network-form [server]="ctx.server" (saved)="onSaved()" />
       </div>
       <div hlmTabsContent="icon" class="max-h-[58svh] overflow-y-auto pr-1">
         <app-server-icon-form [server]="ctx.server" (changed)="onSaved()" />
@@ -68,7 +74,7 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
         </button>
         @if (!appliesInstantly()) {
           <button hlmBtn size="sm" type="button" (click)="save()">
-            {{ activeTab() === 'runtime' ? 'Save & restart' : 'Save' }}
+            {{ needsRestart() ? 'Save & restart' : 'Save' }}
           </button>
         }
       </div>
@@ -83,12 +89,18 @@ export class ServerSettingsDialog {
 
   private readonly propertiesForm = viewChild(ServerPropertiesForm);
   private readonly runtimeForm = viewChild(ServerRuntimeForm);
+  private readonly networkForm = viewChild(ServerNetworkForm);
 
   /// Wake and Icon persist on change, so those tabs have nothing to commit.
   protected readonly appliesInstantly = computed(() => this.activeTab() === 'wake' || this.activeTab() === 'icon');
 
+  /// Runtime env and published ports are both fixed at container-create time, so saving either one
+  /// recreates the container - say so on the button rather than surprising the operator with downtime.
+  protected readonly needsRestart = computed(() => this.activeTab() === 'runtime' || this.activeTab() === 'network');
+
   protected save(): void {
     if (this.activeTab() === 'runtime') this.runtimeForm()?.save();
+    else if (this.activeTab() === 'network') this.networkForm()?.save();
     else this.propertiesForm()?.save();
   }
 

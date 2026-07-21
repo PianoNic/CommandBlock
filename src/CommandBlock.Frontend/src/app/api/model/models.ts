@@ -25,6 +25,7 @@ export * from './serverStatsDto';
 export * from './serverTrafficDto';
 export * from './toggleBackupScheduleDto';
 export * from './trafficBucketDto';
+export * from './updateNetworkDto';
 export * from './updateServerPropertiesDto';
 export * from './updateServerRuntimeDto';
 export * from './updateWakeDto';
