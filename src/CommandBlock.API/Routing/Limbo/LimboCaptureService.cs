@@ -36,26 +36,41 @@ namespace CommandBlock.API.Routing.Limbo
                 // The probe fires RCON titles and a /transfer; never run it while anyone is on the server.
                 if (ver.Value.online > 0) { logger.LogDebug("Limbo capture: {Name} has {N} player(s) online, deferring", containerName, ver.Value.online); return false; }
 
-                return await ProbeAndStoreAsync(containerId, containerName, port, ver.Value.protocol, ver.Value.name, ct);
+                var (isOnlineMode, password) = await ReadModeAndPasswordAsync(containerId, ct);
+
+                // The probe logs in offline, so an online-mode server would demand encryption we can't satisfy.
+                // The snapshot is per-protocol, not per-server, so capture the same version from a throwaway instead.
+                if (isOnlineMode)
+                {
+                    var v = ExtractVersion(ver.Value.name);
+                    if (v is null) { logger.LogDebug("Limbo capture: {Name} is online-mode and its version '{V}' is unparseable", containerName, ver.Value.name); return false; }
+                    logger.LogInformation("{Name} is online-mode; capturing protocol {P} from a throwaway {V} server instead", containerName, ver.Value.protocol, v);
+                    return await CaptureViaThrowawayAsync(v, ct);
+                }
+
+                if (password is null) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", containerName); return false; }
+                return await ProbeAndStoreAsync(containerName, port, password, ver.Value.protocol, ver.Value.name, ct);
             }
             catch (Exception ex) { logger.LogDebug(ex, "Limbo capture errored for {Name}", containerName); return false; }
         }
 
-        /// <summary>Reads the backend's RCON password, runs the probe, and stores the resulting snapshot.
-        /// Shared by the direct path (an offline-mode server we can probe in place) and the throwaway path.</summary>
-        private async Task<bool> ProbeAndStoreAsync(string containerId, string host, int port, int protocol, string versionName, CancellationToken ct)
+        /// <summary>Reads a backend's <c>online-mode</c> and <c>rcon.password</c> out of its server.properties.</summary>
+        private async Task<(bool isOnlineMode, string? password)> ReadModeAndPasswordAsync(string containerId, CancellationToken ct)
         {
             var props = await ReadServerPropertiesAsync(containerId, ct);
-            if (props is null) { logger.LogDebug("Limbo capture: could not read server.properties for {Name}", host); return false; }
-            // The probe logs in offline; an online-mode server would demand encryption and we have no session.
+            if (props is null) return (false, null);
             var om = OnlineMode().Match(props);
-            if (om.Success && om.Groups[1].Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase))
-            { logger.LogDebug("Limbo capture: {Name} is online-mode, cannot offline-probe it", host); return false; }
             var pw = RconPassword().Match(props);
-            if (!pw.Success || pw.Groups[1].Value.Trim().Length == 0) { logger.LogWarning("Limbo capture: no rcon.password for {Name}", host); return false; }
+            return (om.Success && om.Groups[1].Value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase),
+                    pw.Success && pw.Groups[1].Value.Trim().Length > 0 ? pw.Groups[1].Value.Trim() : null);
+        }
 
+        /// <summary>Runs the probe against a backend we can offline-login to, and stores the resulting snapshot.
+        /// Shared by the direct path (an offline-mode server probed in place) and the throwaway path.</summary>
+        private async Task<bool> ProbeAndStoreAsync(string host, int port, string password, int protocol, string versionName, CancellationToken ct)
+        {
             logger.LogInformation("Capturing limbo snapshot for {Name} (protocol {P} / {V})", host, protocol, versionName);
-            var snap = await ProbeAsync(host, port, pw.Groups[1].Value.Trim(), protocol, versionName, ct);
+            var snap = await ProbeAsync(host, port, password, protocol, versionName, ct);
             if (snap is null) { logger.LogWarning("Limbo capture failed for {Name} (protocol {P})", host, protocol); return false; }
 
             using var scope = scopeFactory.CreateScope();
@@ -108,7 +123,9 @@ namespace CommandBlock.API.Routing.Limbo
                 if (ver is null) { logger.LogWarning("Throwaway capture server for {V} never came up", version); return false; }
                 if (await HasSnapshotAsync(ver.Value.protocol, ct)) return false;   // captured meanwhile
 
-                return await ProbeAndStoreAsync(id, cname, ServerContainerSpec.McPort, ver.Value.protocol, ver.Value.name, ct);
+                var (_, password) = await ReadModeAndPasswordAsync(id, ct);
+                if (password is null) { logger.LogWarning("Throwaway capture server for {V} has no rcon.password", version); return false; }
+                return await ProbeAndStoreAsync(cname, ServerContainerSpec.McPort, password, ver.Value.protocol, ver.Value.name, ct);
             }
             catch (Exception ex) { logger.LogWarning(ex, "Throwaway limbo capture for {V} failed", version); return false; }
             finally

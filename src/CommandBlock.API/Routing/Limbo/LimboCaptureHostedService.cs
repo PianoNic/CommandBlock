@@ -19,6 +19,9 @@ namespace CommandBlock.API.Routing.Limbo
         {
             logger.LogInformation("Limbo snapshot capture sweeper running.");
 
+            // A crash mid-capture can strand a throwaway container; clear those before doing anything else.
+            await capture.CleanupOrphansAsync(stoppingToken);
+
             // Let the app and any already-running servers settle, then sweep; after that, every 5 minutes.
             try { await Task.Delay(TimeSpan.FromSeconds(45), stoppingToken); }
             catch (OperationCanceledException) { return; }
