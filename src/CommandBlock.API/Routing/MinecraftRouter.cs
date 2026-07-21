@@ -13,6 +13,11 @@ namespace CommandBlock.API.Routing
         /// <summary>The single public port every routed server is reached through (Java default 25565).</summary>
         public int ListenPort { get; set; } = 25565;
 
+        /// <summary>How long a joining player may be held in the login phase while their server boots, before
+        /// giving up and asking them to reconnect. Kept generous because modded servers can take minutes; the
+        /// client is pinged throughout so it won't time out on its own.</summary>
+        public int MaxHoldSeconds { get; set; } = 180;
+
         /// <summary>How long a client has to send its handshake before it's dropped - keeps port
         /// scanners and half-open connections from tying up sockets.</summary>
         public int HandshakeTimeoutSeconds { get; set; } = 5;
@@ -147,22 +152,23 @@ namespace CommandBlock.API.Routing
                             return;
                         }
 
-                        // Queue: hold the joining player and pipe them straight in once the server is
-                        // up, as long as it boots inside the window (kept under the client login timeout).
-                        var hold = Math.Min(target.WakeQueueSeconds, 25);
-                        if (hold > 0)
+                        // Hold: stall the client in the login phase until the backend is up, then replay its login
+                        // and pipe it straight in. We never interpret the game protocol here, so this covers every
+                        // version and every mod loader - including Forge/NeoForge, which the limbo can never serve
+                        // because it would have to impersonate their mod negotiation.
+                        var (ready, loginStart) = await HoldForBackendAsync(clientStream, target, _options.MaxHoldSeconds, stoppingToken);
+                        if (ready is not null)
                         {
-                            backend = await WaitForBackendAsync(target, hold, stoppingToken);
-                            if (backend is not null)
-                            {
-                                var readyStream = backend.GetStream();
-                                await readyStream.WriteAsync(lengthResult.Raw, stoppingToken);
-                                await readyStream.WriteAsync(body.AsMemory(0, length), stoppingToken);
-                                await readyStream.FlushAsync(stoppingToken);
-                                using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
-                                await PumpBothAsync(clientStream, readyStream, stoppingToken);
-                                return;
-                            }
+                            backend = ready;
+                            var readyStream = backend.GetStream();
+                            await readyStream.WriteAsync(lengthResult.Raw, stoppingToken);
+                            await readyStream.WriteAsync(body.AsMemory(0, length), stoppingToken);
+                            if (loginStart is not null) await readyStream.WriteAsync(loginStart, stoppingToken);
+                            await readyStream.FlushAsync(stoppingToken);
+                            logger.LogInformation("Held '{Host}' through wake and spliced into {Target}.", hostname, target.DisplayName);
+                            using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                            await PumpBothAsync(clientStream, readyStream, stoppingToken);
+                            return;
                         }
 
                         await SendLoginDisconnectAsync(clientStream,
@@ -210,6 +216,64 @@ namespace CommandBlock.API.Routing
         {
             try { return (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "unknown"; }
             catch { return "unknown"; }
+        }
+
+        /// <summary>Holds a joining client in the login phase until the backend accepts connections, returning it
+        /// along with the client's captured Login Start so the caller can replay it and splice the connection
+        /// through. The client is kept alive with periodic Login Plugin Requests - its login read-timeout is on
+        /// inactivity rather than total duration - and its answers to those are consumed here so the backend never
+        /// sees replies to requests it never sent. No game-protocol state is interpreted, which is exactly why this
+        /// works for every version and every mod loader, including Forge/NeoForge.</summary>
+        private async Task<(TcpClient? backend, byte[]? loginStart)> HoldForBackendAsync(
+            NetworkStream clientStream, RouteTarget target, int maxSeconds, CancellationToken ct)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            byte[]? loginStart = null;
+
+            var reader = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!linked.Token.IsCancellationRequested)
+                    {
+                        var len = await MinecraftProtocol.ReadVarIntAsync(clientStream, linked.Token);
+                        if (len is null || len.Value <= 0 || len.Value > 2_000_000) return;
+                        var buf = new byte[len.Value];
+                        await clientStream.ReadExactlyAsync(buf, linked.Token);
+                        var pos = 0;
+                        // Keep the raw Login Start frame to replay verbatim; drop plugin responses (0x02).
+                        if (MinecraftProtocol.TryReadVarInt(buf, ref pos, out var id) && id == 0x00 && loginStart is null)
+                            loginStart = [.. len.Raw, .. buf];
+                    }
+                }
+                catch { /* client gone, or we cancelled */ }
+            }, linked.Token);
+
+            var deadline = Environment.TickCount64 + Math.Max(1, maxSeconds) * 1000L;
+            var messageId = 1;
+            var nextPing = Environment.TickCount64 + 3000;
+            try
+            {
+                while (Environment.TickCount64 < deadline && !ct.IsCancellationRequested)
+                {
+                    var probe = await TryConnectBackendAsync(target, ct);
+                    if (probe is not null) return (probe, loginStart);
+
+                    if (Environment.TickCount64 >= nextPing)
+                    {
+                        try
+                        {
+                            await clientStream.WriteAsync(MinecraftProtocol.LoginPluginRequestPacket(messageId++, "commandblock:please_wait"), ct);
+                            await clientStream.FlushAsync(ct);
+                        }
+                        catch { return (null, loginStart); }   // client hung up
+                        nextPing = Environment.TickCount64 + 8000;
+                    }
+                    await Task.Delay(500, ct);
+                }
+                return (null, loginStart);
+            }
+            finally { linked.Cancel(); try { await reader; } catch { } }
         }
 
         private async Task<TcpClient?> TryConnectBackendAsync(RouteTarget target, CancellationToken stoppingToken)
