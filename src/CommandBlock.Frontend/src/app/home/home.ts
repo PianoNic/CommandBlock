@@ -106,11 +106,12 @@ export class Home {
     return Math.min(100, Math.round((used / limit) * 100));
   }
 
-  /// Always "used / cap" in matching units - "0 GB / 2 GB" when idle rather than collapsing to the cap.
+  /// Always "used/cap" in matching units - "0/2 GB" when idle rather than collapsing to the cap.
+  /// Kept compact because it shares the card row with the CPU meter.
   protected memoryLabel(s: ServerInstanceDto): string {
     const used = Number(this.store.statuses()[s.id]?.memoryBytes ?? s.memoryBytes ?? 0);
     const cap = parseMemoryBytes(s.memory);
-    return `${gb(used)} GB / ${cap > 0 ? gb(cap) : '?'} GB`;
+    return `${gb(used)}/${cap > 0 ? gb(cap) : '?'} GB`;
   }
 
   /// Percent of one host core * cores, so a busy server on a multi-core box can exceed 100.
