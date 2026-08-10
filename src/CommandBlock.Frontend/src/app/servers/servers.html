@@ -15,7 +15,7 @@
     @if (error(); as err) {
       <p class="text-destructive py-4 text-sm">{{ err }}</p>
     } @else if (servers().length === 0 && !loading()) {
-      <div class="text-muted-foreground flex flex-col items-center gap-3 py-16 text-center text-sm">
+      <div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 text-center text-sm">
         <ng-icon name="lucideServer" size="32" class="opacity-50" />
         <p>No servers yet. Create your first Minecraft server to get started.</p>
         <button hlmBtn size="sm" type="button" (click)="createServer()">
