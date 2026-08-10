@@ -37,7 +37,7 @@ type Row = BackupEntryDto & { serverName: string };
 
       <div class="min-h-0 flex-1 overflow-auto px-4">
         @if (rows().length === 0 && !loading()) {
-          <div class="text-muted-foreground flex flex-col items-center gap-3 py-16 text-center text-sm">
+          <div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 text-center text-sm">
             <ng-icon name="lucideArchive" size="32" class="opacity-50" />
             <p>No backups yet. Create one from a server's Backups button.</p>
           </div>
