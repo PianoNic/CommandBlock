@@ -59,9 +59,11 @@ const editorTheme = EditorView.theme({
 
 const editorHighlight = HighlightStyle.define([
   { tag: tags.comment, color: 'var(--code-comment)', fontStyle: 'italic' },
-  { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.keyword, tags.tagName, tags.attributeName], color: 'var(--code-key)' },
+  // .properties and TOML come from legacy stream modes, which tag keys as definition(name) rather
+  // than propertyName - cover both or those files render as one flat colour.
+  { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.definition(tags.name), tags.keyword, tags.tagName, tags.attributeName], color: 'var(--code-key)' },
   { tag: [tags.string, tags.special(tags.string), tags.attributeValue], color: 'var(--code-string)' },
-  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--code-value)' },
+  { tag: [tags.number, tags.bool, tags.null, tags.atom, tags.literal], color: 'var(--code-value)' },
   { tag: [tags.operator, tags.punctuation, tags.separator], color: 'var(--muted-foreground)' },
   { tag: tags.invalid, color: 'var(--destructive)' },
 ]);
