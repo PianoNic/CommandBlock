@@ -13,13 +13,11 @@ namespace CommandBlock.Infrastructure.Interfaces
 
         Task<ContainerInspectResponse> InspectContainerAsync(string id, CancellationToken cancellationToken = default);
 
-        /// <summary>Current memory usage in bytes of a running container, from a one-shot stats
-        /// sample (cache excluded, like `docker stats`). Null when stopped or stats can't be read.</summary>
-        Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default);
-
-        /// <summary>Container CPU use as a percentage of one host core * cores. Costs ~1s (the daemon has to
-        /// sample twice to produce a delta), so keep it off list/stream paths.</summary>
-        Task<double?> GetContainerCpuPercentAsync(string id, CancellationToken cancellationToken = default);
+        /// <summary>Live CPU and memory of a running container from one stats read: CPU as a percentage of
+        /// one host core * cores, memory in bytes with the cache excluded (like `docker stats`). Either is
+        /// null when it can't be read. Costs ~1s, because CPU is a delta the daemon has to sample twice for
+        /// - callers sample every container concurrently so that second doesn't scale with server count.</summary>
+        Task<(double? CpuPercent, long? MemoryBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default);
 
         /// <summary>When the container was last started, for uptime. Null if it isn't running.</summary>
         Task<DateTime?> GetContainerStartedAtAsync(string id, CancellationToken cancellationToken = default);

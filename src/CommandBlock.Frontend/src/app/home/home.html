@@ -110,13 +110,24 @@
                 <span class="text-muted-foreground inline-flex shrink-0 items-center gap-1">
                   <ng-icon name="lucideUsers" size="12" /> <span class="text-foreground font-mono">{{ playersOf(s) }}</span>
                 </span>
-                <div class="min-w-0 flex-1">
-                  <div class="mb-1 flex justify-between">
-                    <span class="text-muted-foreground">Memory</span>
-                    <span class="font-mono">{{ memoryLabel(s) }}</span>
+                <div class="min-w-0 flex-1 space-y-1.5">
+                  <div>
+                    <div class="mb-1 flex justify-between">
+                      <span class="text-muted-foreground">Memory</span>
+                      <span class="font-mono">{{ memoryLabel(s) }}</span>
+                    </div>
+                    <div class="bg-muted h-1 w-full overflow-hidden rounded-full">
+                      <div class="h-full rounded-full transition-all" [class]="memoryBarClass(s)" [style.width.%]="memoryPercent(s)"></div>
+                    </div>
                   </div>
-                  <div class="bg-muted h-1 w-full overflow-hidden rounded-full">
-                    <div class="h-full rounded-full transition-all" [class]="memoryBarClass(s)" [style.width.%]="memoryPercent(s)"></div>
+                  <div>
+                    <div class="mb-1 flex justify-between">
+                      <span class="text-muted-foreground">CPU</span>
+                      <span class="font-mono">{{ cpuLabel(s) }}</span>
+                    </div>
+                    <div class="bg-muted h-1 w-full overflow-hidden rounded-full">
+                      <div class="bg-primary h-full rounded-full transition-all" [style.width.%]="cpuPercent(s)"></div>
+                    </div>
                   </div>
                 </div>
               </div>

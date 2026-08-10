@@ -10,6 +10,7 @@ export interface ServerStatus {
   playersOnline?: number | null;
   playersMax?: number | null;
   memoryBytes?: number | null;
+  cpuPercent?: number | null;
 }
 
 /// Shared live-status stream. Connects once to /hubs/status and keeps a map of serverId -> status
@@ -65,6 +66,7 @@ function mergeWithLastKnown(next: ServerStatus, previous: ServerStatus | undefin
   return {
     ...next,
     memoryBytes: next.memoryBytes ?? previous.memoryBytes ?? null,
+    cpuPercent: next.cpuPercent ?? previous.cpuPercent ?? null,
     playersOnline: next.playersOnline ?? previous.playersOnline ?? null,
     playersMax: next.playersMax ?? previous.playersMax ?? null,
   };

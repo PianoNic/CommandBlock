@@ -45,50 +45,47 @@ namespace CommandBlock.Infrastructure.Services
             catch { return 0; }
         }
 
-        public async Task<long?> GetContainerMemoryBytesAsync(string id, CancellationToken cancellationToken = default)
+        public async Task<(double? CpuPercent, long? MemoryBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default)
         {
             try
             {
-                // OneShot + Stream=false returns a single snapshot immediately. Without OneShot the
-                // daemon samples over a ~1s window (to compute CPU deltas) - we only need memory, so
-                // OneShot avoids that per-container second of latency.
-                ContainerStatsResponse? snap = null;
-                var progress = new Progress<ContainerStatsResponse>(r => snap ??= r);
-                await client.Containers.GetContainerStatsAsync(id, new ContainerStatsParameters { Stream = false, OneShot = true }, progress, cancellationToken);
-                if (snap?.MemoryStats is null) return null;
-
-                // `docker stats` reports usage minus the reclaimable page cache; mirror that so the
-                // number matches what users see elsewhere.
-                var usage = (long)snap.MemoryStats.Usage;
-                if (snap.MemoryStats.Stats is { } st && st.TryGetValue("inactive_file", out var inactive))
-                    usage -= (long)inactive;
-                return usage < 0 ? 0 : usage;
-            }
-            catch { return null; }
-        }
-
-        public async Task<double?> GetContainerCpuPercentAsync(string id, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                // CPU percent is a delta between two samples, so this deliberately does NOT use OneShot:
-                // the daemon samples over ~1s and fills precpu_stats. That second of latency is why this
-                // is kept off the list/stream path and only used where one server is being inspected.
+                // Deliberately not OneShot: CPU percent is a delta between two samples, and only a
+                // non-OneShot read makes the daemon sample over ~1s and fill precpu_stats. Memory comes
+                // out of the same snapshot, so both numbers cost one call instead of two.
                 ContainerStatsResponse? snap = null;
                 var progress = new Progress<ContainerStatsResponse>(r => snap ??= r);
                 await client.Containers.GetContainerStatsAsync(id, new ContainerStatsParameters { Stream = false }, progress, cancellationToken);
-                if (snap?.CPUStats is null || snap.PreCPUStats is null) return null;
+                if (snap is null) return (null, null);
 
-                var cpuDelta = (double)snap.CPUStats.CPUUsage.TotalUsage - snap.PreCPUStats.CPUUsage.TotalUsage;
-                var systemDelta = (double)snap.CPUStats.SystemUsage - snap.PreCPUStats.SystemUsage;
-                if (cpuDelta <= 0 || systemDelta <= 0) return 0;
-
-                var cpus = snap.CPUStats.OnlineCPUs > 0
-                    ? snap.CPUStats.OnlineCPUs
-                    : (uint)(snap.CPUStats.CPUUsage.PercpuUsage?.Count ?? 1);
-                return Math.Round(cpuDelta / systemDelta * cpus * 100.0, 1);
+                return (ReadCpuPercent(snap), ReadMemoryBytes(snap));
             }
-            catch { return null; }
+            catch { return (null, null); }
+        }
+
+        private static double? ReadCpuPercent(ContainerStatsResponse snap)
+        {
+            if (snap.CPUStats is null || snap.PreCPUStats is null) return null;
+
+            var cpuDelta = (double)snap.CPUStats.CPUUsage.TotalUsage - snap.PreCPUStats.CPUUsage.TotalUsage;
+            var systemDelta = (double)snap.CPUStats.SystemUsage - snap.PreCPUStats.SystemUsage;
+            if (cpuDelta <= 0 || systemDelta <= 0) return 0;
+
+            var cpus = snap.CPUStats.OnlineCPUs > 0
+                ? snap.CPUStats.OnlineCPUs
+                : (uint)(snap.CPUStats.CPUUsage.PercpuUsage?.Count ?? 1);
+            return Math.Round(cpuDelta / systemDelta * cpus * 100.0, 1);
+        }
+
+        private static long? ReadMemoryBytes(ContainerStatsResponse snap)
+        {
+            if (snap.MemoryStats is null) return null;
+
+            // `docker stats` reports usage minus the reclaimable page cache; mirror that so the
+            // number matches what users see elsewhere.
+            var usage = (long)snap.MemoryStats.Usage;
+            if (snap.MemoryStats.Stats is { } st && st.TryGetValue("inactive_file", out var inactive))
+                usage -= (long)inactive;
+            return usage < 0 ? 0 : usage;
         }
 
         public async Task<DateTime?> GetContainerStartedAtAsync(string id, CancellationToken cancellationToken = default)
