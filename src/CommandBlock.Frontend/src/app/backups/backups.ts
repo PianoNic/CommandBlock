@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { forkJoin, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -12,12 +11,13 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
 import { BackupCreateDialog } from './backup-create-dialog';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 
 type Row = BackupEntryDto & { serverName: string };
 
 @Component({
   selector: 'app-backups',
-  imports: [DatePipe, NgIcon, HlmButtonImports, HlmTableImports, ContentHeader],
+  imports: [LocalDatePipe, NgIcon, HlmButtonImports, HlmTableImports, ContentHeader],
   providers: [provideIcons({ lucideArchive, lucideDownload, lucideTrash2, lucidePlus })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -55,7 +55,7 @@ type Row = BackupEntryDto & { serverName: string };
                   <td hlmTd class="font-medium">{{ b.serverName }}</td>
                   <td hlmTd class="font-mono text-xs">{{ b.fileName }}</td>
                   <td hlmTd class="font-mono text-xs">{{ size(b) }}</td>
-                  <td hlmTd class="text-muted-foreground text-xs">{{ b.createdAt | date: 'medium' }}</td>
+                  <td hlmTd class="text-muted-foreground text-xs">{{ b.createdAt | localDate: 'medium' }}</td>
                   <td hlmTd>
                     <div class="flex items-center justify-end gap-1">
                       <button hlmBtn size="sm" variant="outline" (click)="restore(b)" [disabled]="busy()" title="Restore">

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { DatePipe, DOCUMENT } from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BrnDialogRef, injectBrnDialogContext } from '@spartan-ng/brain/dialog';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -13,13 +13,14 @@ import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
 import { BackupScheduleDto } from '../api/model/backupScheduleDto';
 import { environment } from '../shared/environments/environment';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 
 type DialogContext = { serverId: string; serverName: string };
 
 @Component({
   selector: 'app-server-backups-dialog',
   imports: [
-    DatePipe,
+    LocalDatePipe,
     NgIcon,
     HlmButtonImports,
     HlmInputImports,
@@ -77,7 +78,7 @@ type DialogContext = { serverId: string; serverName: string };
                 <span class="truncate font-mono text-sm">{{ b.fileName }}</span>
               </span>
               <span class="text-muted-foreground text-xs">
-                {{ b.createdAt | date: 'medium' }} · {{ humanSize(b) }}
+                {{ b.createdAt | localDate: 'medium' }} · {{ humanSize(b) }}
               </span>
             </div>
             <div class="flex items-center gap-1.5">
@@ -131,7 +132,7 @@ type DialogContext = { serverId: string; serverName: string };
                 <span class="font-mono text-xs">{{ s.cronExpression }}</span>
                 <span class="text-muted-foreground text-xs"> · {{ describeCron(s.cronExpression) }}</span>
                 <div class="text-muted-foreground text-[11px]">
-                  @if (s.enabled && s.nextRunAt) { next {{ s.nextRunAt | date: 'short' }} } @else { paused }
+                  @if (s.enabled && s.nextRunAt) { next {{ s.nextRunAt | localDate }} } @else { paused }
                   @if (s.lastStatus === 'error') { · <span class="text-destructive">last run failed</span> }
                 </div>
               </div>
