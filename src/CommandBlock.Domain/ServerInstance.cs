@@ -56,7 +56,7 @@ namespace CommandBlock.Domain
         /// endpoint. Required - the UI always has a name to render.</summary>
         public required string DisplayName { get; set; }
 
-        /// <summary>The hostname players connect to, e.g. "smp.gaggao.com". The router keys its routing
+        /// <summary>The hostname players connect to, e.g. "smp.pianonic.ch". The router keys its routing
         /// table on this value; it must be unique across managed servers. Null for a server reached only on
         /// its own <see cref="LanPort"/> - such a server never goes through the router, so a hostname would
         /// be a fiction the UI has to explain. Mutable via the rename endpoint; the router resolves it live
