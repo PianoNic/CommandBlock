@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -15,6 +14,7 @@ import { ContentHeader } from '../shared/components/content-header/content-heade
 import { ConnectionsService } from '../api/api/connections.service';
 import { ConnectionDto } from '../api/model/connectionDto';
 import { ConnectionStatsDto } from '../api/model/connectionStatsDto';
+import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 
 /// Why the router turned a join away, in the operator's words rather than the wire's.
 const REJECTION_LABELS: Record<string, string> = {
@@ -26,7 +26,7 @@ const REJECTION_LABELS: Record<string, string> = {
 
 @Component({
   selector: 'app-connections',
-  imports: [ContentHeader, NgIcon, DatePipe],
+  imports: [ContentHeader, NgIcon, LocalDatePipe],
   providers: [
     provideIcons({ lucideNetwork, lucideGlobe, lucideZap, lucideActivity, lucideHistory, lucideShieldAlert }),
   ],
@@ -41,7 +41,7 @@ const REJECTION_LABELS: Record<string, string> = {
           <p class="text-muted-foreground text-xs">Everything routed through the proxy, live.</p>
         </div>
         @if (stats(); as s) {
-          <span class="text-muted-foreground shrink-0 text-xs">Since {{ s.sinceUtc | date: 'short' }}</span>
+          <span class="text-muted-foreground shrink-0 text-xs">Since {{ s.sinceUtc | localDate }}</span>
         }
       </header>
 
@@ -95,7 +95,7 @@ const REJECTION_LABELS: Record<string, string> = {
                   <span class="truncate font-mono">{{ r.remoteAddress }}</span>
                   <div class="flex-1"></div>
                   <span class="shrink-0 tabular-nums">{{ duration(r.durationSeconds) }}</span>
-                  <span class="w-24 shrink-0 text-right tabular-nums">{{ r.openedAt | date: 'shortTime' }}</span>
+                  <span class="w-24 shrink-0 text-right tabular-nums">{{ r.openedAt | localDate: 'time' }}</span>
                 </li>
               }
             </ul>
@@ -112,7 +112,7 @@ const REJECTION_LABELS: Record<string, string> = {
                   class="min-h-px flex-1 rounded-sm transition-colors"
                   [class]="b.connections > 0 ? 'bg-primary/70 hover:bg-primary' : 'bg-muted'"
                   [style.height.%]="barHeight(b.connections)"
-                  [title]="b.connections + ' joins at ' + (b.hourUtc | date: 'shortTime')"
+                  [title]="b.connections + ' joins at ' + (b.hourUtc | localDate: 'time')"
                 ></div>
               }
             </div>
