@@ -44,6 +44,13 @@ color-scheme: light;
 --sidebar-accent-foreground: oklch(0.205 0 0);
 --sidebar-border: oklch(0.922 0 0);
 --sidebar-ring: oklch(0.708 0 0);
+
+/* Syntax colours for the file editor. Kept as tokens so the editor follows the app theme instead
+   of carrying a light-only palette of its own. */
+--code-comment: oklch(0.55 0.02 250);
+--code-key: oklch(0.45 0.13 265);
+--code-string: oklch(0.46 0.11 150);
+--code-value: oklch(0.5 0.13 55);
 }
 
 :root.dark {
@@ -75,6 +82,11 @@ color-scheme: dark;
 --sidebar-accent-foreground: oklch(0.985 0 0);
 --sidebar-border: oklch(1 0 0 / 10%);
 --sidebar-ring: oklch(0.556 0 0);
+
+--code-comment: oklch(0.62 0.02 250);
+--code-key: oklch(0.78 0.1 250);
+--code-string: oklch(0.79 0.12 150);
+--code-value: oklch(0.83 0.1 70);
 }
 
 @layer base {
