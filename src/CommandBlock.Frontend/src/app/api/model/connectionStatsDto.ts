@@ -19,7 +19,7 @@ export interface ConnectionStatsDto {
     activeNow: number;
     peakConcurrent: number;
     totalConnections: number;
-    uniqueAddresses: number;
+    uniquePlayers: number;
     longestActiveSeconds: number | null;
     medianSessionSeconds: number | null;
     byServer: Array<ServerTrafficDto>;

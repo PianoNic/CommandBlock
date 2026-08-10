@@ -1,7 +1,7 @@
 namespace CommandBlock.API.Routing
 {
     /// <summary>A connection that has finished, kept for the Connections view's history and stats.</summary>
-    public sealed record ConnectionRecord(Guid ServerId, string RemoteAddress, DateTime OpenedAt, DateTime ClosedAt)
+    public sealed record ConnectionRecord(Guid ServerId, string? PlayerName, DateTime OpenedAt, DateTime ClosedAt)
     {
         public double DurationSeconds => (ClosedAt - OpenedAt).TotalSeconds;
     }
@@ -23,7 +23,7 @@ namespace CommandBlock.API.Routing
     /// bounded no matter how long the process runs.</summary>
     public interface IRouterTelemetry
     {
-        void RecordConnection(Guid serverId, string remoteAddress, DateTime openedAt, DateTime closedAt);
+        void RecordConnection(Guid serverId, string? playerName, DateTime openedAt, DateTime closedAt);
 
         /// <summary>Reports the current total across all servers so the peak can be tracked.</summary>
         void RecordConcurrent(int active);
@@ -49,11 +49,11 @@ namespace CommandBlock.API.Routing
         private readonly Dictionary<string, int> _rejections = [];
         private int _peakConcurrent;
 
-        public void RecordConnection(Guid serverId, string remoteAddress, DateTime openedAt, DateTime closedAt)
+        public void RecordConnection(Guid serverId, string? playerName, DateTime openedAt, DateTime closedAt)
         {
             lock (_gate)
             {
-                _connections.Enqueue(new ConnectionRecord(serverId, remoteAddress, openedAt, closedAt));
+                _connections.Enqueue(new ConnectionRecord(serverId, playerName, openedAt, closedAt));
                 while (_connections.Count > MaxConnections) _connections.Dequeue();
             }
         }

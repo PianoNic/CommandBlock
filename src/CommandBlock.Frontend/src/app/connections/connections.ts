@@ -66,7 +66,7 @@ const REJECTION_LABELS: Record<string, string> = {
             </p>
           } @else {
             <ul class="divide-border divide-y border-y">
-              @for (c of connections(); track c.serverId + '|' + c.remoteAddress + '|' + c.openedAt) {
+              @for (c of connections(); track c.serverId + '|' + c.playerName + '|' + c.openedAt) {
                 <li class="flex items-center gap-3 px-4 py-2 text-sm">
                   <span class="size-1.5 shrink-0 rounded-full bg-emerald-500"></span>
                   <span class="truncate font-medium">{{ c.serverName }}</span>
@@ -75,7 +75,7 @@ const REJECTION_LABELS: Record<string, string> = {
                     <span class="truncate">{{ c.hostname }}</span>
                   </span>
                   <div class="flex-1"></div>
-                  <span class="shrink-0 font-mono text-xs">{{ c.remoteAddress }}</span>
+                  <span class="shrink-0 text-xs font-medium">{{ c.playerName || 'signing in…' }}</span>
                   <span class="text-muted-foreground shrink-0 text-xs tabular-nums">{{ since(c.openedAt) }}</span>
                 </li>
               }
@@ -89,10 +89,10 @@ const REJECTION_LABELS: Record<string, string> = {
             <p class="text-muted-foreground px-4 pb-4 text-xs">No finished sessions yet.</p>
           } @else {
             <ul class="divide-border divide-y border-t">
-              @for (r of recent(); track r.openedAt + r.remoteAddress) {
+              @for (r of recent(); track r.openedAt + r.playerName) {
                 <li class="text-muted-foreground flex items-center gap-3 px-4 py-1.5 text-xs">
                   <span class="text-foreground truncate">{{ r.serverName }}</span>
-                  <span class="truncate font-mono">{{ r.remoteAddress }}</span>
+                  <span class="text-foreground/80 truncate">{{ r.playerName || '—' }}</span>
                   <div class="flex-1"></div>
                   <span class="shrink-0 tabular-nums">{{ duration(r.durationSeconds) }}</span>
                   <span class="w-24 shrink-0 text-right tabular-nums">{{ r.openedAt | localDate: 'time' }}</span>
@@ -232,7 +232,7 @@ export class Connections {
     return [
       { label: 'Connected now', value: String(s?.activeNow ?? this.connections().length) },
       { label: 'Peak at once', value: String(s?.peakConcurrent ?? 0) },
-      { label: 'Unique players', value: String(s?.uniqueAddresses ?? 0) },
+      { label: 'Unique players', value: String(s?.uniquePlayers ?? 0) },
       { label: 'Typical session', value: this.duration(s?.medianSessionSeconds ?? null) },
     ];
   });

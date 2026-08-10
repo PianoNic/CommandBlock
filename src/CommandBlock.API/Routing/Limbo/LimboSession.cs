@@ -13,7 +13,8 @@ namespace CommandBlock.API.Routing.Limbo
         /// can accept players; the client is then transferred back to <paramref name="reconnectHost"/>:<paramref name="reconnectPort"/>
         /// (the address it originally dialled), which the router routes into the now-live server.</summary>
         public async Task RunAsync(NetworkStream client, LimboData data, string reconnectHost, ushort reconnectPort,
-            Func<CancellationToken, Task> waitForBackendReady, CancellationToken stoppingToken)
+            Func<CancellationToken, Task> waitForBackendReady, CancellationToken stoppingToken,
+            Action<string>? onIdentified = null)
         {
             var ids = data.Ids;
             var t0 = Environment.TickCount64;
@@ -21,6 +22,7 @@ namespace CommandBlock.API.Routing.Limbo
             var start = await ReadPacketAsync(client, stoppingToken);           // Login Start (0x00): name + uuid
             if (start is null || start.Value.id != 0x00) { logger.LogInformation("Limbo: client sent no Login Start"); return; }
             var name = ReadString(start.Value.payload);
+            onIdentified?.Invoke(name);
             logger.LogInformation("Limbo '{Name}' connected; replaying {C} config + {P} play packets", name, data.ConfigFrames.Count, data.PlayFrames.Count);
 
             // Login Success (0x02): uuid + name + varint(0 properties), then whatever the captured server

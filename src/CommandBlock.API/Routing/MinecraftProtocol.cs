@@ -81,6 +81,21 @@ namespace CommandBlock.API.Routing
             return new Handshake(protocol, address, port, nextState);
         }
 
+        /// <summary>Reads the username from a Login Start packet body (id 0x00, whose first field is the
+        /// name). It travels in plaintext before encryption begins, so the router can read it without
+        /// interpreting - or weakening - the rest of the login. Note the client asserts this name; the
+        /// backend is what authenticates it a moment later. Null if the bytes aren't a Login Start.</summary>
+        public static string? ParseLoginStartUsername(ReadOnlySpan<byte> body)
+        {
+            var pos = 0;
+            if (!TryReadVarInt(body, ref pos, out var packetId) || packetId != 0x00) return null;
+            // Names cap at 16 characters; the byte bound just keeps a malformed frame from allocating.
+            if (!TryReadVarInt(body, ref pos, out var nameLen) || nameLen is < 1 or > 48 || pos + nameLen > body.Length) return null;
+
+            var name = Encoding.UTF8.GetString(body.Slice(pos, nameLen)).Trim();
+            return name.Length == 0 ? null : name;
+        }
+
         /// <summary>Normalises the address from the handshake into a routing key: strips the extra
         /// data Forge/BungeeCord append after a NUL, drops a trailing dot (FQDN form), and lowercases.</summary>
         public static string SanitizeAddress(string rawAddress)
