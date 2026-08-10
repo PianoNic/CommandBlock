@@ -65,7 +65,7 @@ namespace CommandBlock.Infrastructure.Services
                     else state = "starting";
 
                     var legacyUsage = await usageTask;
-                    return new ServerStatus(r.Id, state, online, max, legacyUsage.MemoryBytes, version, motd, legacyUsage.CpuPercent);
+                    return new ServerStatus(r.Id, state, online, max, legacyUsage.MemoryBytes, version, motd, legacyUsage.CpuPercent, legacyUsage.MemoryLimitBytes);
                 }
 
                 // mc-monitor (bundled in the itzg image) reads player counts via the silent server-list
@@ -87,7 +87,7 @@ namespace CommandBlock.Infrastructure.Services
                     if (mm.Success) motd = mm.Groups[1].Value.Trim();
                 }
 
-                return new ServerStatus(r.Id, state, online, max, usage.MemoryBytes, version, motd, usage.CpuPercent);
+                return new ServerStatus(r.Id, state, online, max, usage.MemoryBytes, version, motd, usage.CpuPercent, usage.MemoryLimitBytes);
             });
 
             return await Task.WhenAll(tasks);

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Docker.DotNet.Models;
 using CommandBlock.Application.Containers;
 using CommandBlock.Domain;
@@ -7,10 +8,40 @@ namespace CommandBlock.Application.Command.Server
     /// <summary>Builds the Docker create-spec for a Minecraft server container from a
     /// <see cref="ServerInstance"/>. Shared by create and recreate so both stay in lock-step: the
     /// itzg image is configured entirely by its tag (java runtime) and environment (everything else).</summary>
-    public static class ServerContainerSpec
+    public static partial class ServerContainerSpec
     {
         public const string Image = "itzg/minecraft-server";
         public const int McPort = 25565;
+
+        /// <summary>Parses an itzg MEMORY value ("4G", "512M", "2048") into bytes. Unknown -> 0.</summary>
+        public static long ParseMemoryBytes(string? mem)
+        {
+            var m = MemoryRegex().Match(mem ?? "");
+            if (!m.Success) return 0;
+            var n = double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            return m.Groups[2].Value.ToUpperInvariant() switch
+            {
+                "G" => (long)(n * 1024 * 1024 * 1024),
+                "K" => (long)(n * 1024),
+                "M" => (long)(n * 1024 * 1024),
+                _ => (long)(n * 1024 * 1024), // bare number = MB (itzg default unit)
+            };
+        }
+
+        /// <summary>The container's memory ceiling. MEMORY only sets the Java heap (-Xmx); a JVM also needs
+        /// metaspace, GC structures, thread stacks and native memory on top, so a server sized to its heap
+        /// alone would be killed the moment it warmed up. Half the heap again (and never less than 512 MB
+        /// of headroom) covers that, gives the UI a limit the usage can honestly be measured against, and
+        /// stops one runaway server from eating the whole host. Zero when MEMORY can't be parsed, which
+        /// leaves the container unlimited rather than capping it at something arbitrary.</summary>
+        public static long ContainerMemoryLimitBytes(string? memory)
+        {
+            var heap = ParseMemoryBytes(memory);
+            return heap <= 0 ? 0 : Math.Max((long)(heap * 1.5), heap + 512L * 1024 * 1024);
+        }
+
+        [GeneratedRegex(@"^\s*(\d+(?:\.\d+)?)\s*([gmkGMK]?)")]
+        private static partial Regex MemoryRegex();
 
         /// <summary>The itzg image tag = the Java runtime. An explicit <see cref="ServerInstance.JavaVersion"/>
         /// wins; otherwise it's derived from the Minecraft version so beginners never think about Java.</summary>
@@ -147,6 +178,7 @@ namespace CommandBlock.Application.Command.Server
             {
                 Binds = new List<string> { bindSpec },
                 RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
+                Memory = ContainerMemoryLimitBytes(s.Memory),
             };
 
             // Publishing is opt-in per server. An empty HostIP lets Docker bind every interface; a private

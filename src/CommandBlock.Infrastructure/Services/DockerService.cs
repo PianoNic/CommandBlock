@@ -45,7 +45,7 @@ namespace CommandBlock.Infrastructure.Services
             catch { return 0; }
         }
 
-        public async Task<(double? CpuPercent, long? MemoryBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default)
+        public async Task<(double? CpuPercent, long? MemoryBytes, long? MemoryLimitBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -55,11 +55,11 @@ namespace CommandBlock.Infrastructure.Services
                 ContainerStatsResponse? snap = null;
                 var progress = new Progress<ContainerStatsResponse>(r => snap ??= r);
                 await client.Containers.GetContainerStatsAsync(id, new ContainerStatsParameters { Stream = false }, progress, cancellationToken);
-                if (snap is null) return (null, null);
+                if (snap is null) return (null, null, null);
 
-                return (ReadCpuPercent(snap), ReadMemoryBytes(snap));
+                return (ReadCpuPercent(snap), ReadMemoryBytes(snap), ReadMemoryLimitBytes(snap));
             }
-            catch { return (null, null); }
+            catch { return (null, null, null); }
         }
 
         private static double? ReadCpuPercent(ContainerStatsResponse snap)
@@ -74,6 +74,16 @@ namespace CommandBlock.Infrastructure.Services
                 ? snap.CPUStats.OnlineCPUs
                 : (uint)(snap.CPUStats.CPUUsage.PercpuUsage?.Count ?? 1);
             return Math.Round(cpuDelta / systemDelta * cpus * 100.0, 1);
+        }
+
+        /// <summary>The cgroup limit the container actually runs under. Docker reports the host's total
+        /// when a container was created without one, which is exactly what an unlimited container is bounded
+        /// by - so it stays an honest denominator either way.</summary>
+        private static long? ReadMemoryLimitBytes(ContainerStatsResponse snap)
+        {
+            if (snap.MemoryStats is null) return null;
+            var limit = (long)snap.MemoryStats.Limit;
+            return limit > 0 ? limit : null;
         }
 
         private static long? ReadMemoryBytes(ContainerStatsResponse snap)

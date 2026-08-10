@@ -289,7 +289,9 @@ export class ServerDetail {
     const live = this.statuses()[s.id];
     const raw = live ? live.memoryBytes : (s.memoryBytes as unknown as number | null | undefined);
     const used = raw == null ? 0 : Number(raw);
-    const cap = parseMemoryBytes(s.memory);
+    // The container's enforced limit, not the configured MEMORY - that only sets the Java heap, which
+    // a JVM's resident memory always exceeds.
+    const cap = Number(live?.memoryLimitBytes ?? s.memoryLimitBytes ?? 0);
     return `${formatGb(used)} GB / ${cap > 0 ? formatGb(cap) : '?'} GB`;
   }
 
@@ -396,15 +398,3 @@ function formatGb(bytes: number): string {
   return String(Math.round((bytes / 1024 ** 3) * 10) / 10);
 }
 
-/// "4G" / "2048M" -> bytes, so usage can be shown against the configured cap in the same unit.
-function parseMemoryBytes(memory: string | null | undefined): number {
-  if (!memory) return 0;
-  const text = memory.trim();
-  const unit = text.slice(-1).toUpperCase();
-  const value = Number(unit === 'G' || unit === 'M' || unit === 'K' ? text.slice(0, -1) : text);
-  if (!Number.isFinite(value)) return 0;
-  if (unit === 'G') return value * 1024 ** 3;
-  if (unit === 'M') return value * 1024 ** 2;
-  if (unit === 'K') return value * 1024;
-  return value;
-}

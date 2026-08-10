@@ -34,6 +34,7 @@ export interface ServerInstanceDto {
     playersOnline?: number | null;
     playersMax?: number | null;
     memoryBytes?: number | null;
+    memoryLimitBytes?: number | null;
     cpuPercent?: number | null;
     hasIcon: boolean;
     wakeOnConnect: boolean;
