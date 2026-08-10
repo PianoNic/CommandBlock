@@ -78,7 +78,12 @@ Full documentation: **[docs.commandblock.pianonic.ch](https://docs.commandblock.
 
 ## License
 
-TBD.
+[PolyForm Noncommercial 1.0.0](LICENSE.md). Copyright PianoNic.
+
+The whole repository: the API, the dashboard and the Minecraft router. Read it, change it, and run
+it for any noncommercial purpose - your own server, your friends', a school or a charity. Commercial
+use is not licensed, so selling it or hosting it as a paid service needs a separate agreement.
+Source-available, not open source.
 
 ---
 
