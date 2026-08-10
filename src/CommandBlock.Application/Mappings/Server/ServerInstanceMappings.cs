@@ -4,7 +4,7 @@ namespace CommandBlock.Application.Mappings.Server
 {
     public static class ServerInstanceMappings
     {
-        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null, int? playersOnline = null, int? playersMax = null, long? memoryBytes = null) => new()
+        public static ServerInstanceDto ToDto(this CommandBlock.Domain.ServerInstance s, string? state = null, int? playersOnline = null, int? playersMax = null, long? memoryBytes = null, double? cpuPercent = null) => new()
         {
             Id = s.Id,
             ServerType = s.ServerType,
@@ -30,6 +30,7 @@ namespace CommandBlock.Application.Mappings.Server
             PlayersOnline = playersOnline,
             PlayersMax = playersMax,
             MemoryBytes = memoryBytes,
+            CpuPercent = cpuPercent,
             HasIcon = s.IconPng != null && s.IconPng.Length > 0,
             WakeOnConnect = s.WakeOnConnect,
             WakeQueueSeconds = s.WakeQueueSeconds,

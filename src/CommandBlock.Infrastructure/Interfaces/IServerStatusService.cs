@@ -8,7 +8,7 @@ namespace CommandBlock.Infrastructure.Interfaces
     /// cost nothing extra.</summary>
     public sealed record ServerStatus(
         Guid Id, string? State, int? PlayersOnline, int? PlayersMax, long? MemoryBytes,
-        string? RunningVersion = null, string? Motd = null);
+        string? RunningVersion = null, string? Motd = null, double? CpuPercent = null);
 
     /// <summary>Computes live statuses for all servers from Docker + RCON. Shared by the servers list
     /// query and the status SignalR stream so both agree.</summary>

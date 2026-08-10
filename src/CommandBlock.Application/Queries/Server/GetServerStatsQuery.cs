@@ -8,7 +8,7 @@ using CommandBlock.Infrastructure.Interfaces;
 namespace CommandBlock.Application.Queries.Server
 {
     /// <summary>Vitals for one server's detail page: CPU, memory, uptime, running build and MOTD.
-    /// Kept out of the list/stream because the CPU sample costs about a second.</summary>
+    /// All but uptime come from the shared status service, so the page can't disagree with the list.</summary>
     public record GetServerStatsQuery(Guid Id) : IQuery<ServerStatsDto>;
 
     public class GetServerStatsQueryHandler(
@@ -21,26 +21,20 @@ namespace CommandBlock.Application.Queries.Server
             var server = await db.ServerInstances.AsNoTracking().FirstOrDefaultAsync(s => s.Id == query.Id, cancellationToken)
                 ?? throw new ServerNotFoundException(query.Id);
 
-            // The shared status service already pings the server (player counts, build, MOTD); reuse it so
-            // the detail page can't disagree with the list.
+            // The shared status service already pings the server (player counts, build, MOTD) and samples
+            // CPU/memory; reuse it so the detail page can't disagree with the list.
             var live = (await status.GetAllAsync(cancellationToken)).FirstOrDefault(s => s.Id == query.Id);
 
-            double? cpu = null;
             DateTime? startedAt = null;
-            // "starting" still means the container is up - uptime and CPU are meaningful (and most
-            // interesting) while a server is booting, so don't wait for it to answer pings.
+            // "starting" still means the container is up - uptime is meaningful (and most interesting)
+            // while a server is booting, so don't wait for it to answer pings.
             if (server.ContainerId is not null && live?.State is "running" or "starting")
-            {
-                var cpuTask = docker.GetContainerCpuPercentAsync(server.ContainerId, cancellationToken);
-                var startedTask = docker.GetContainerStartedAtAsync(server.ContainerId, cancellationToken);
-                cpu = await cpuTask;
-                startedAt = await startedTask;
-            }
+                startedAt = await docker.GetContainerStartedAtAsync(server.ContainerId, cancellationToken);
 
             return new ServerStatsDto
             {
                 State = live?.State,
-                CpuPercent = cpu,
+                CpuPercent = live?.CpuPercent,
                 MemoryBytes = live?.MemoryBytes,
                 MemoryLimitBytes = ParseMemoryBytes(server.Memory),
                 StartedAt = startedAt,

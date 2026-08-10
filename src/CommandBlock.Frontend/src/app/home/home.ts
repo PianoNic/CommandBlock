@@ -113,6 +113,19 @@ export class Home {
     return `${gb(used)} GB / ${cap > 0 ? gb(cap) : '?'} GB`;
   }
 
+  /// Percent of one host core * cores, so a busy server on a multi-core box can exceed 100.
+  /// ponytail: the bar clamps at 100 rather than scaling to the host's core count - the API doesn't
+  /// report cores yet; add that to HostResourcesDto if the bar needs to mean "share of the host".
+  protected cpuPercent(s: ServerInstanceDto): number {
+    const cpu = this.store.statuses()[s.id]?.cpuPercent ?? s.cpuPercent;
+    return cpu === null || cpu === undefined ? 0 : Math.min(100, Math.round(cpu));
+  }
+
+  protected cpuLabel(s: ServerInstanceDto): string {
+    const cpu = this.store.statuses()[s.id]?.cpuPercent ?? s.cpuPercent;
+    return cpu === null || cpu === undefined ? '-' : `${Math.round(cpu)}%`;
+  }
+
   /// Warn before the wall, not at it - a server degrades well below 100% of its heap.
   protected memoryBarClass(s: ServerInstanceDto): string {
     const p = this.memoryPercent(s);

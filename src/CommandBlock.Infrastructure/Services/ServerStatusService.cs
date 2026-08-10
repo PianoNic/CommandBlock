@@ -49,9 +49,9 @@ namespace CommandBlock.Infrastructure.Services
                 string state = "running";
                 int? online = null, max = null;
 
-                // The ping and the stats read are independent, so start the memory read first and let it
+                // The ping and the stats read are independent, so start the usage read first and let it
                 // run alongside whichever ping this server needs.
-                var memTask = svc.GetContainerMemoryBytesAsync(r.ContainerId, cancellationToken);
+                var usageTask = svc.GetContainerUsageAsync(r.ContainerId, cancellationToken);
                 string? version = null, motd = null;
 
                 if (UsesLegacyPing(r.Version) && r.ContainerName is not null)
@@ -64,14 +64,15 @@ namespace CommandBlock.Infrastructure.Services
                     if (legacy is not null) { online = legacy.Online; max = legacy.Max; motd = legacy.Motd; version = r.Version; }
                     else state = "starting";
 
-                    return new ServerStatus(r.Id, state, online, max, await memTask, version, motd);
+                    var legacyUsage = await usageTask;
+                    return new ServerStatus(r.Id, state, online, max, legacyUsage.MemoryBytes, version, motd, legacyUsage.CpuPercent);
                 }
 
                 // mc-monitor (bundled in the itzg image) reads player counts via the silent server-list
                 // ping - unlike `rcon-cli list` it opens no RCON connection, so it doesn't flood the
                 // console. Output: "host:port : version=... online=0 max=20 motd='...'".
                 var raw = await SafeExecMonitorAsync(svc, r.ContainerId, cancellationToken);
-                var memoryBytes = await memTask;
+                var usage = await usageTask;
 
                 var m = raw is null ? Match.Empty : PlayerCountRegex().Match(raw);
                 if (m.Success) { online = int.Parse(m.Groups[1].Value); max = int.Parse(m.Groups[2].Value); }
@@ -86,7 +87,7 @@ namespace CommandBlock.Infrastructure.Services
                     if (mm.Success) motd = mm.Groups[1].Value.Trim();
                 }
 
-                return new ServerStatus(r.Id, state, online, max, memoryBytes, version, motd);
+                return new ServerStatus(r.Id, state, online, max, usage.MemoryBytes, version, motd, usage.CpuPercent);
             });
 
             return await Task.WhenAll(tasks);
