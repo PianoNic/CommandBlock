@@ -133,7 +133,10 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
     // duplicates the line above the response.
     try {
       const output = await this.connection.invoke<string>('SendCommand', this.serverId(), cmd);
-      if (output?.trim()) this.term?.writeln(output.replace(/\n/g, '\r\n'));
+      // rcon-cli terminates its reply with a newline; writeln adds one of its own, so trim the
+      // trailing whitespace first or every command leaves a blank line behind it.
+      const reply = output?.replace(/\s+$/, '');
+      if (reply) this.term?.writeln(reply.replace(/\n/g, '\r\n'));
     } catch (err) {
       this.term?.writeln(`\x1b[31m${String(err)}\x1b[0m`);
     }
