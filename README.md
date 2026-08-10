@@ -3,7 +3,7 @@
 </p>
 <p align="center">
   <strong>CommandBlock</strong><br/>
-  One click. Every server. Routed and ready.
+  Every server. One port. One click.
 </p>
 <p align="center">
   <a href="https://github.com/PianoNic/CommandBlock"><img src="https://badgetrack.pianonic.ch/badge?tag=commandblock&label=visits&color=0d1117&style=flat" alt="visits" /></a>
