@@ -24,7 +24,8 @@ import {
   lucideRefreshCw,
 } from '@ng-icons/lucide';
 import { EditorView, basicSetup } from 'codemirror';
-import { StreamLanguage } from '@codemirror/language';
+import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
 import { json } from '@codemirror/lang-json';
 import { yaml } from '@codemirror/lang-yaml';
 import { properties } from '@codemirror/legacy-modes/mode/properties';
@@ -35,6 +36,35 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { FilesService } from '../api/api/files.service';
 import { ServerService } from '../api/api/server.service';
 import { FileEntry } from '../api/model/fileEntry';
+
+/// basicSetup ships a light-only look: dark-on-dark syntax colours and a white gutter once the app
+/// is in dark mode. Driving the editor off the same CSS tokens as everything else means one theme
+/// that follows both, and it re-resolves on a theme switch without rebuilding the editor.
+const editorTheme = EditorView.theme({
+  '&': { backgroundColor: 'transparent', color: 'var(--foreground)' },
+  '.cm-content': { caretColor: 'var(--primary)' },
+  '.cm-gutters': {
+    backgroundColor: 'transparent',
+    color: 'var(--muted-foreground)',
+    borderRight: '1px solid var(--border)',
+  },
+  '.cm-activeLine': { backgroundColor: 'color-mix(in oklab, var(--muted) 45%, transparent)' },
+  '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--foreground)' },
+  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--primary)' },
+  '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection': {
+    backgroundColor: 'color-mix(in oklab, var(--primary) 30%, transparent)',
+  },
+  '.cm-selectionMatch': { backgroundColor: 'color-mix(in oklab, var(--primary) 20%, transparent)' },
+});
+
+const editorHighlight = HighlightStyle.define([
+  { tag: tags.comment, color: 'var(--code-comment)', fontStyle: 'italic' },
+  { tag: [tags.propertyName, tags.definition(tags.propertyName), tags.keyword, tags.tagName, tags.attributeName], color: 'var(--code-key)' },
+  { tag: [tags.string, tags.special(tags.string), tags.attributeValue], color: 'var(--code-string)' },
+  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--code-value)' },
+  { tag: [tags.operator, tags.punctuation, tags.separator], color: 'var(--muted-foreground)' },
+  { tag: tags.invalid, color: 'var(--destructive)' },
+]);
 
 @Component({
   selector: 'app-files',
@@ -191,6 +221,9 @@ export class Files implements OnDestroy {
       doc: content,
       extensions: [
         basicSetup,
+        editorTheme,
+        // defaultHighlightStyle inside basicSetup registers itself as a fallback, so this wins.
+        syntaxHighlighting(editorHighlight),
         this.languageFor(path),
         EditorView.updateListener.of((u) => { if (u.docChanged) this.dirty.set(true); }),
       ],
