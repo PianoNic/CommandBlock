@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: CommandBlock
-  text: Every server. Routed and ready.
-  tagline: One click. A self-hosted Minecraft server manager with hostname routing, wake-on-join and backups - all through a single port.
+  text: Every server. One port. One click.
+  tagline: A self-hosted Minecraft server manager with hostname routing, wake-on-join and backups - all through a single port.
   image:
     src: /logo.svg
     alt: CommandBlock

@@ -7,7 +7,7 @@ const { I18nProvider, useI18n } = i18nBuilder
     .withCustomTranslations({
         en: {
             welcomeMessage:
-                "CommandBlock. One click. One key. Your database is ready.",
+                "CommandBlock. Every server. One port. One click.",
             loginAccountTitle: "Login to your account",
             registerTitle: "Register a new account",
             email: "Email",
