@@ -6,7 +6,7 @@ namespace CommandBlock.Application.Dtos.Server
         /// <summary>The itzg TYPE / loader, e.g. "PAPER", "FABRIC", "FORGE", "VANILLA", "MODRINTH".</summary>
         public required string ServerType { get; init; }
         public required string DisplayName { get; init; }
-        /// <summary>Hostname players connect with, e.g. "smp.gaggao.com". Must be unique. Required when
+        /// <summary>Hostname players connect with, e.g. "smp.pianonic.ch". Must be unique. Required when
         /// <see cref="RoutedThroughProxy"/> is true, ignored otherwise.</summary>
         public string? Hostname { get; init; }
 

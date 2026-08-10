@@ -16,7 +16,7 @@ namespace CommandBlock.Application.Command.Domains
         {
             var name = Normalize(command.Name);
             if (!DomainRegex().IsMatch(name))
-                throw new ArgumentException($"'{command.Name}' is not a valid domain (e.g. \"gaggao.com\").");
+                throw new ArgumentException($"'{command.Name}' is not a valid domain (e.g. \"pianonic.ch\").");
 
             if (await db.Domains.AnyAsync(d => d.Name == name, cancellationToken))
                 throw new InvalidOperationException($"Domain '{name}' already exists.");
@@ -31,7 +31,7 @@ namespace CommandBlock.Application.Command.Domains
         }
 
         /// <summary>Lower-cases and strips scheme, a leading "*." wildcard, whitespace, and any
-        /// trailing dot/slash so "https://*.Gaggao.com/" and "gaggao.com" normalise to the same value.</summary>
+        /// trailing dot/slash so "https://*.Pianonic.ch/" and "pianonic.ch" normalise to the same value.</summary>
         internal static string Normalize(string raw)
         {
             var s = (raw ?? string.Empty).Trim().ToLowerInvariant();

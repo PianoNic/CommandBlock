@@ -61,7 +61,7 @@ type DialogContext = { onAdded: () => void };
       <input
         hlmInput
         id="dom-name"
-        placeholder="gaggao.com"
+        placeholder="pianonic.ch"
         [value]="name()"
         (input)="name.set($any($event.target).value)"
         (keydown.enter)="submit()"
