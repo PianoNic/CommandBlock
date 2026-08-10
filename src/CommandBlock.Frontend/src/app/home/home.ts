@@ -99,9 +99,15 @@ export class Home {
     return online === null || online === undefined ? '-' : `${online}/${max ?? '?'}`;
   }
 
+  /// The ceiling is the container's enforced limit, not the configured MEMORY: that value is only the
+  /// Java heap, and a JVM's resident memory sits well above it, which used to peg every bar at over 100%.
+  private memoryCap(s: ServerInstanceDto): number {
+    return Number(this.store.statuses()[s.id]?.memoryLimitBytes ?? s.memoryLimitBytes ?? 0);
+  }
+
   protected memoryPercent(s: ServerInstanceDto): number {
     const used = Number(this.store.statuses()[s.id]?.memoryBytes ?? s.memoryBytes ?? 0);
-    const limit = parseMemoryBytes(s.memory);
+    const limit = this.memoryCap(s);
     if (!used || !limit) return 0;
     return Math.min(100, Math.round((used / limit) * 100));
   }
@@ -110,7 +116,7 @@ export class Home {
   /// Kept compact because it shares the card row with the CPU meter.
   protected memoryLabel(s: ServerInstanceDto): string {
     const used = Number(this.store.statuses()[s.id]?.memoryBytes ?? s.memoryBytes ?? 0);
-    const cap = parseMemoryBytes(s.memory);
+    const cap = this.memoryCap(s);
     return `${gb(used)}/${cap > 0 ? gb(cap) : '?'} GB`;
   }
 
@@ -216,17 +222,4 @@ export class Home {
 /// At most one decimal, dropping a trailing ".0" so caps read "2 GB" rather than "2.0 GB".
 function gb(bytes: number): string {
   return String(Math.round((bytes / 1024 ** 3) * 10) / 10);
-}
-
-/// "4G" / "2048M" -> bytes, so usage can be shown against the configured ceiling.
-function parseMemoryBytes(memory: string | null | undefined): number {
-  if (!memory) return 0;
-  const text = memory.trim();
-  const unit = text.slice(-1).toUpperCase();
-  const value = Number(unit === 'G' || unit === 'M' || unit === 'K' ? text.slice(0, -1) : text);
-  if (!Number.isFinite(value)) return 0;
-  if (unit === 'G') return value * 1024 ** 3;
-  if (unit === 'M') return value * 1024 ** 2;
-  if (unit === 'K') return value * 1024;
-  return value;
 }

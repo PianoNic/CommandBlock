@@ -36,7 +36,9 @@ namespace CommandBlock.Application.Queries.Server
                 State = live?.State,
                 CpuPercent = live?.CpuPercent,
                 MemoryBytes = live?.MemoryBytes,
-                MemoryLimitBytes = ParseMemoryBytes(server.Memory),
+                // What the container is actually held to; the configured value is only the heap, so fall
+                // back to the ceiling we would enforce rather than to -Xmx itself.
+                MemoryLimitBytes = live?.MemoryLimitBytes ?? Nullable(ServerContainerSpec.ContainerMemoryLimitBytes(server.Memory)),
                 StartedAt = startedAt,
                 RunningVersion = live?.RunningVersion,
                 Motd = live?.Motd,
@@ -45,22 +47,7 @@ namespace CommandBlock.Application.Queries.Server
             };
         }
 
-        /// <summary>Turns the configured heap string ("4G", "2048M") into bytes so usage can be shown
-        /// against its ceiling. Null when it can't be parsed.</summary>
-        private static long? ParseMemoryBytes(string? memory)
-        {
-            if (string.IsNullOrWhiteSpace(memory)) return null;
-            var text = memory.Trim();
-            var unit = char.ToUpperInvariant(text[^1]);
-            var digits = unit is 'G' or 'M' or 'K' ? text[..^1] : text;
-            if (!double.TryParse(digits, System.Globalization.CultureInfo.InvariantCulture, out var value)) return null;
-            return unit switch
-            {
-                'G' => (long)(value * 1024 * 1024 * 1024),
-                'M' => (long)(value * 1024 * 1024),
-                'K' => (long)(value * 1024),
-                _ => (long)value,
-            };
-        }
+        /// <summary>Zero means "couldn't parse the configured memory", which is no ceiling at all.</summary>
+        private static long? Nullable(long bytes) => bytes > 0 ? bytes : null;
     }
 }

@@ -54,6 +54,10 @@ namespace CommandBlock.Application.Dtos.Server
         /// <summary>Current container memory usage in bytes. Null when the server isn't running or
         /// stats couldn't be sampled. The configured cap is <see cref="Memory"/> (e.g. "4G").</summary>
         public long? MemoryBytes { get; init; }
+        /// <summary>The container's enforced memory ceiling in bytes - the Java heap plus the headroom a
+        /// JVM needs outside it. Usage is measured against this, not <see cref="Memory"/>, which is only
+        /// -Xmx. Null when the server isn't running.</summary>
+        public long? MemoryLimitBytes { get; init; }
         /// <summary>Current container CPU use as a percentage of one host core * cores, so it can exceed
         /// 100 on multi-core work. Null when the server isn't running or stats couldn't be sampled.</summary>
         public double? CpuPercent { get; init; }

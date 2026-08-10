@@ -1,4 +1,4 @@
-using CommandBlock.Application.Queries.Host;
+using CommandBlock.Application.Command.Server;
 
 namespace CommandBlock.Tests;
 
@@ -15,6 +15,18 @@ public class MemoryParsingTests
     [Arguments(null, 0L)]
     public async Task ParseMemoryBytes_Parses(string? input, long expected)
     {
-        await Assert.That(GetHostResourcesQueryHandler.ParseMemoryBytes(input)).IsEqualTo(expected);
+        await Assert.That(ServerContainerSpec.ParseMemoryBytes(input)).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("4G", 6442450944L)]   // 1.5x the heap
+    [Arguments("2G", 3221225472L)]
+    [Arguments("1G", 1610612736L)]
+    [Arguments("512M", 1073741824L)] // 1.5x would be under the 512 MB minimum headroom
+    [Arguments("nonsense", 0L)]      // unparseable -> no limit rather than an arbitrary one
+    [Arguments(null, 0L)]
+    public async Task ContainerMemoryLimitBytes_LeavesHeadroomAboveTheHeap(string? memory, long expected)
+    {
+        await Assert.That(ServerContainerSpec.ContainerMemoryLimitBytes(memory)).IsEqualTo(expected);
     }
 }

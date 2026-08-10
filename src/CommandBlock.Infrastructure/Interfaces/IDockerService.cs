@@ -17,7 +17,7 @@ namespace CommandBlock.Infrastructure.Interfaces
         /// one host core * cores, memory in bytes with the cache excluded (like `docker stats`). Either is
         /// null when it can't be read. Costs ~1s, because CPU is a delta the daemon has to sample twice for
         /// - callers sample every container concurrently so that second doesn't scale with server count.</summary>
-        Task<(double? CpuPercent, long? MemoryBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default);
+        Task<(double? CpuPercent, long? MemoryBytes, long? MemoryLimitBytes)> GetContainerUsageAsync(string id, CancellationToken cancellationToken = default);
 
         /// <summary>When the container was last started, for uptime. Null if it isn't running.</summary>
         Task<DateTime?> GetContainerStartedAtAsync(string id, CancellationToken cancellationToken = default);
