@@ -1,21 +1,21 @@
-/* CommandBlock brand color: emerald green (#34D399, matching the logo). Light mode uses a deeper
-   emerald for contrast on white; dark mode uses the brighter logo green on text/links. */
+/* CommandBlock brand color: the amber of the command block icon (#E0A167 top face, #C97C3F sides).
+   Light mode uses the deeper copper for contrast on white; dark mode uses the brighter logo amber. */
 :root {
-  --vp-c-brand-1: #059669;
-  --vp-c-brand-2: #10b981;
-  --vp-c-brand-3: #059669;
-  --vp-c-brand-soft: rgba(16, 185, 129, 0.14);
+  --vp-c-brand-1: #96592b;
+  --vp-c-brand-2: #c97c3f;
+  --vp-c-brand-3: #96592b;
+  --vp-c-brand-soft: rgba(201, 124, 63, 0.14);
 }
 
 .dark {
-  --vp-c-brand-1: #34d399;
-  --vp-c-brand-2: #10b981;
-  --vp-c-brand-3: #059669;
-  --vp-c-brand-soft: rgba(52, 211, 153, 0.24);
+  --vp-c-brand-1: #e0a167;
+  --vp-c-brand-2: #c97c3f;
+  --vp-c-brand-3: #96592b;
+  --vp-c-brand-soft: rgba(224, 161, 103, 0.24);
 }
 
-/* Hero title in the brand green. */
+/* Hero title in the brand amber. */
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #34d399, #10b981);
+  --vp-home-hero-name-background: linear-gradient(120deg, #e0a167, #c97c3f);
 }

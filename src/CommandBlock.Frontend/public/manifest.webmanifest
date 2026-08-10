@@ -4,8 +4,8 @@
   "description": "One click. Every server. Routed and ready.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0B140F",
-  "theme_color": "#0B140F",
+  "background_color": "#1B1719",
+  "theme_color": "#1B1719",
   "icons": [
     { "src": "/icon.svg", "type": "image/svg+xml", "sizes": "any" },
     { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192" },
