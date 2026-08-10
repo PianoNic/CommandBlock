@@ -3,7 +3,19 @@ using System.Collections.Concurrent;
 namespace CommandBlock.API.Routing
 {
     /// <summary>One live play connection routed through the proxy.</summary>
-    public sealed record ActiveConnection(Guid Id, Guid ServerId, string RemoteAddress, DateTime OpenedAt);
+    public sealed record ActiveConnection(Guid Id, Guid ServerId, DateTime OpenedAt)
+    {
+        /// <summary>The name the client sent in its Login Start, or null while the session hasn't
+        /// identified itself yet (a client parked in the limbo names itself part-way through).</summary>
+        public string? PlayerName { get; set; }
+    }
+
+    /// <summary>An open connection's registration. Dispose closes it; <see cref="Identify"/> attaches the
+    /// player's name once the login packet has been read.</summary>
+    public interface IConnectionHandle : IDisposable
+    {
+        void Identify(string playerName);
+    }
 
     /// <summary>Tracks live player (login/play) connections routed through the proxy. It powers the
     /// idle monitor (per-server active count + last activity) and the Connections view (a snapshot of
@@ -11,7 +23,7 @@ namespace CommandBlock.API.Routing
     public interface IServerConnectionTracker
     {
         /// <summary>Registers a new connection; dispose the returned handle to close it.</summary>
-        IDisposable Open(Guid serverId, string remoteAddress);
+        IConnectionHandle Open(Guid serverId, string? playerName = null);
 
         /// <summary>Current active play-connection count for a server.</summary>
         int ActiveCount(Guid serverId);
@@ -33,13 +45,13 @@ namespace CommandBlock.API.Routing
         private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
         private readonly ConcurrentDictionary<Guid, ActiveConnection> _connections = new();
 
-        public IDisposable Open(Guid serverId, string remoteAddress)
+        public IConnectionHandle Open(Guid serverId, string? playerName = null)
         {
             var now = time.GetUtcNow().UtcDateTime;
             var e = _entries.GetOrAdd(serverId, _ => new Entry());
             lock (e) { e.Active++; e.LastActivity = now; }
 
-            var conn = new ActiveConnection(Guid.NewGuid(), serverId, remoteAddress, now);
+            var conn = new ActiveConnection(Guid.NewGuid(), serverId, now) { PlayerName = playerName };
             _connections[conn.Id] = conn;
             telemetry.RecordConcurrent(_connections.Count);
             return new Handle(this, conn);
@@ -48,7 +60,7 @@ namespace CommandBlock.API.Routing
         private void Close(ActiveConnection conn)
         {
             _connections.TryRemove(conn.Id, out _);
-            telemetry.RecordConnection(conn.ServerId, conn.RemoteAddress, conn.OpenedAt, time.GetUtcNow().UtcDateTime);
+            telemetry.RecordConnection(conn.ServerId, conn.PlayerName, conn.OpenedAt, time.GetUtcNow().UtcDateTime);
             if (_entries.TryGetValue(conn.ServerId, out var e))
                 lock (e) { if (e.Active > 0) e.Active--; e.LastActivity = time.GetUtcNow().UtcDateTime; }
         }
@@ -65,9 +77,10 @@ namespace CommandBlock.API.Routing
 
         public IReadOnlyList<ActiveConnection> Snapshot() => _connections.Values.ToList();
 
-        private sealed class Handle(ServerConnectionTracker owner, ActiveConnection conn) : IDisposable
+        private sealed class Handle(ServerConnectionTracker owner, ActiveConnection conn) : IConnectionHandle
         {
             private int _disposed;
+            public void Identify(string playerName) => conn.PlayerName = playerName;
             public void Dispose()
             {
                 if (Interlocked.Exchange(ref _disposed, 1) == 0) owner.Close(conn);

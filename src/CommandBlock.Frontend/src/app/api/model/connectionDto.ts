@@ -13,7 +13,7 @@ export interface ConnectionDto {
     serverId: string;
     serverName: string;
     hostname: string;
-    remoteAddress: string;
+    playerName?: string | null;
     openedAt: string;
 }
 

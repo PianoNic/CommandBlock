@@ -6,7 +6,7 @@ using CommandBlock.Infrastructure;
 namespace CommandBlock.API.Controllers
 {
     /// <summary>A live player connection through the router.</summary>
-    public sealed record ConnectionDto(Guid ServerId, string ServerName, string Hostname, string RemoteAddress, DateTime OpenedAt);
+    public sealed record ConnectionDto(Guid ServerId, string ServerName, string Hostname, string? PlayerName, DateTime OpenedAt);
 
     /// <summary>Connections routed to one server over the reporting window.</summary>
     public sealed record ServerTrafficDto(Guid ServerId, string ServerName, int Connections, int ActiveNow);
@@ -18,7 +18,7 @@ namespace CommandBlock.API.Controllers
     public sealed record WakeStatsDto(int Total, int Failed, double? MedianSeconds, double? P95Seconds, double? SlowestSeconds);
 
     /// <summary>A finished session, for the history list.</summary>
-    public sealed record RecentConnectionDto(string ServerName, string RemoteAddress, DateTime OpenedAt, double DurationSeconds);
+    public sealed record RecentConnectionDto(string ServerName, string? PlayerName, DateTime OpenedAt, double DurationSeconds);
 
     /// <summary>A join the router turned away, and why.</summary>
     public sealed record RejectionDto(string Reason, int Count);
@@ -28,7 +28,7 @@ namespace CommandBlock.API.Controllers
         int ActiveNow,
         int PeakConcurrent,
         int TotalConnections,
-        int UniqueAddresses,
+        int UniquePlayers,
         double? LongestActiveSeconds,
         double? MedianSessionSeconds,
         IReadOnlyList<ServerTrafficDto> ByServer,
@@ -59,7 +59,7 @@ namespace CommandBlock.API.Controllers
                 .Select(c =>
                 {
                     names.TryGetValue(c.ServerId, out var s);
-                    return new ConnectionDto(c.ServerId, s.Name ?? "(unknown)", s.Hostname ?? "", c.RemoteAddress, c.OpenedAt);
+                    return new ConnectionDto(c.ServerId, s.Name ?? "(unknown)", s.Hostname ?? "", c.PlayerName, c.OpenedAt);
                 })
                 .OrderByDescending(c => c.OpenedAt)
                 .ToList();
@@ -105,8 +105,12 @@ namespace CommandBlock.API.Controllers
                 ActiveNow: live.Count,
                 PeakConcurrent: telem.PeakConcurrent,
                 TotalConnections: telem.Connections.Count + live.Count,
-                UniqueAddresses: telem.Connections.Select(c => c.RemoteAddress)
-                    .Concat(live.Select(c => c.RemoteAddress)).Distinct().Count(),
+                // Named sessions only: a login the router never saw a name for can't be told apart from
+                // any other, so counting them would inflate this.
+                UniquePlayers: telem.Connections.Select(c => c.PlayerName)
+                    .Concat(live.Select(c => c.PlayerName))
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                 LongestActiveSeconds: live.Count == 0 ? null : live.Max(c => (now - c.OpenedAt).TotalSeconds),
                 MedianSessionSeconds: Percentile(durations, 0.5),
                 ByServer: byServer,
@@ -120,7 +124,7 @@ namespace CommandBlock.API.Controllers
                 Recent: telem.Connections
                     .OrderByDescending(c => c.ClosedAt)
                     .Take(25)
-                    .Select(c => new RecentConnectionDto(NameOf(c.ServerId), c.RemoteAddress, c.OpenedAt, c.DurationSeconds))
+                    .Select(c => new RecentConnectionDto(NameOf(c.ServerId), c.PlayerName, c.OpenedAt, c.DurationSeconds))
                     .ToList(),
                 Rejections: telem.Rejections
                     .Select(r => new RejectionDto(r.Key, r.Value))

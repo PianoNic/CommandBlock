@@ -11,7 +11,7 @@
 
 export interface RecentConnectionDto { 
     serverName: string;
-    remoteAddress: string;
+    playerName?: string | null;
     openedAt: string;
     durationSeconds: number;
 }

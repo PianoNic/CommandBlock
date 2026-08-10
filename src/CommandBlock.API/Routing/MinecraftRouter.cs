@@ -165,10 +165,12 @@ namespace CommandBlock.API.Routing
                         var limbo = target.IsModded ? null : limboRegistry.Get(handshake.ProtocolVersion);
                         if (limbo is not null)
                         {
-                            using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                            // Opened before the session runs so a player waiting on a cold server already shows
+                            // up; the limbo reads their Login Start moments later and names the row.
+                            using var conn = tracker.Open(target.ServerId);
                             await limboSession.RunAsync(clientStream, limbo, handshake.ServerAddress, handshake.ServerPort,
                                 async ct => { while (true) { var probe = await TryConnectBackendAsync(target, ct); if (probe is not null) { probe.Dispose(); return; } await Task.Delay(1000, ct); } },
-                                stoppingToken);
+                                stoppingToken, conn.Identify);
                             return;
                         }
 
@@ -186,7 +188,8 @@ namespace CommandBlock.API.Routing
                             if (loginStart is not null) await readyStream.WriteAsync(loginStart, stoppingToken);
                             await readyStream.FlushAsync(stoppingToken);
                             logger.LogInformation("Held '{Host}' through wake and spliced into {Target}.", hostname, target.DisplayName);
-                            using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                            using var conn = tracker.Open(target.ServerId,
+                                loginStart is null ? null : MinecraftProtocol.ParseLoginStartUsername(loginStart.AsSpan(VarIntLength(loginStart))));
                             await PumpBothAsync(clientStream, readyStream, stoppingToken);
                             return;
                         }
@@ -220,7 +223,19 @@ namespace CommandBlock.API.Routing
                 // up in the Connections view. The handle closes the connection on dispose.
                 if (handshake.NextState == 2)
                 {
-                    using var conn = tracker.Open(target.ServerId, RemoteAddress(client));
+                    // Read the client's Login Start before handing the streams to the pump: its first field is
+                    // the username, which is what names the session in the Connections view. The frame is then
+                    // forwarded byte-for-byte, so the backend still sees an ordinary login.
+                    var login = await ReadFrameAsync(clientStream, stoppingToken);
+                    string? playerName = null;
+                    if (login is not null)
+                    {
+                        playerName = MinecraftProtocol.ParseLoginStartUsername(login.Value.Body);
+                        await backendStream.WriteAsync(login.Value.Raw, stoppingToken);
+                        await backendStream.FlushAsync(stoppingToken);
+                    }
+
+                    using var conn = tracker.Open(target.ServerId, playerName);
                     await PumpBothAsync(clientStream, backendStream, stoppingToken);
                 }
                 else
@@ -233,10 +248,29 @@ namespace CommandBlock.API.Routing
             finally { backend?.Dispose(); }
         }
 
-        private static string RemoteAddress(TcpClient client)
+        /// <summary>Reads one length-prefixed packet, returning the whole frame (for forwarding verbatim)
+        /// alongside its body (for parsing). Null if the peer hung up or the length is implausible.</summary>
+        private static async Task<(byte[] Raw, byte[] Body)?> ReadFrameAsync(NetworkStream stream, CancellationToken ct)
         {
-            try { return (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "unknown"; }
-            catch { return "unknown"; }
+            try
+            {
+                var len = await MinecraftProtocol.ReadVarIntAsync(stream, ct);
+                if (len is null || len.Value <= 0 || len.Value > 2_000_000) return null;
+
+                var body = new byte[len.Value];
+                await stream.ReadExactlyAsync(body, ct);
+                return ([.. len.Raw, .. body], body);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Length of the VarInt the frame starts with, so a captured frame can be sliced back
+        /// down to the body the parser wants.</summary>
+        private static int VarIntLength(byte[] frame)
+        {
+            var i = 0;
+            while (i < frame.Length && i < 5 && (frame[i] & 0x80) != 0) i++;
+            return Math.Min(i + 1, frame.Length);
         }
 
         /// <summary>Holds a joining client in the login phase until the backend accepts connections, returning it

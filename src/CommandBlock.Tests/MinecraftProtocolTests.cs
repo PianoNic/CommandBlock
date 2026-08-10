@@ -68,6 +68,46 @@ public class MinecraftProtocolTests
         await Assert.That(MinecraftProtocol.SanitizeAddress(raw)).IsEqualTo(expected);
     }
 
+    [Test]
+    public async Task ParseLoginStartUsername_ReadsTheName()
+    {
+        var body = BuildLoginStartBody("Redstone_Rae");
+
+        await Assert.That(MinecraftProtocol.ParseLoginStartUsername(body)).IsEqualTo("Redstone_Rae");
+    }
+
+    [Test]
+    public async Task ParseLoginStartUsername_RejectsAnotherPacket()
+    {
+        // A handshake, not a Login Start - the router must not mistake its address field for a name.
+        var body = BuildHandshakeBody(protocol: 765, address: "smp.example.com", port: 25565, nextState: 2);
+
+        await Assert.That(MinecraftProtocol.ParseLoginStartUsername(body)).IsNull();
+    }
+
+    [Test]
+    public async Task ParseLoginStartUsername_RejectsTruncatedName()
+    {
+        // Length says 12 bytes, only 4 follow: a short read must not walk off the end.
+        var body = new List<byte>();
+        body.AddRange(MinecraftProtocol.EncodeVarInt(0x00));
+        body.AddRange(MinecraftProtocol.EncodeVarInt(12));
+        body.AddRange(Encoding.UTF8.GetBytes("Alex"));
+
+        await Assert.That(MinecraftProtocol.ParseLoginStartUsername(body.ToArray())).IsNull();
+    }
+
+    private static byte[] BuildLoginStartBody(string username)
+    {
+        var body = new List<byte>();
+        body.AddRange(MinecraftProtocol.EncodeVarInt(0x00)); // packet id
+        var name = Encoding.UTF8.GetBytes(username);
+        body.AddRange(MinecraftProtocol.EncodeVarInt(name.Length));
+        body.AddRange(name);
+        body.AddRange(new byte[16]);                          // player uuid
+        return body.ToArray();
+    }
+
     private static byte[] BuildHandshakeBody(int protocol, string address, ushort port, int nextState)
     {
         var body = new List<byte>();
