@@ -46,8 +46,9 @@ namespace CommandBlock.Application.Dtos.Server
         public string? State { get; init; }
         /// <summary>True if owned by servers.yaml. The UI hides/disables mutation controls.</summary>
         public required bool IsConfigManaged { get; init; }
-        /// <summary>Players currently online (via RCON <c>list</c>). Null when the server isn't
-        /// running or RCON isn't reachable yet.</summary>
+        /// <summary>Players currently online, from the silent server-list ping the status service runs
+        /// (mc-monitor, or the pre-1.4 ping for servers too old for it) - not RCON, which would log a
+        /// connection on every poll. Null when the server isn't running or isn't answering pings yet.</summary>
         public int? PlayersOnline { get; init; }
         /// <summary>Configured max players. Null when unknown.</summary>
         public int? PlayersMax { get; init; }
