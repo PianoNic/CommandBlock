@@ -64,21 +64,14 @@ namespace CommandBlock.Infrastructure.Services
         public async Task<FileContent> ReadTextAsync(Guid serverId, string path, CancellationToken ct = default)
         {
             var (docker, id) = await ResolveAsync(serverId, ct);
-            await using var raw = await FirstTarEntryAsync(docker, id, Full(path), ct);
+            var full = Full(path);
+            await RequireRegularFileAsync(docker, id, full, ct);
+            await using var raw = await FirstTarEntryAsync(docker, id, full, ct);
 
-            using var buffer = new MemoryStream();
-            var chunk = new byte[81920];
-            int n;
-            var truncated = false;
-            while ((n = await raw.ReadAsync(chunk, ct)) > 0)
-            {
-                if (buffer.Length + n > MaxTextBytes) { await buffer.WriteAsync(chunk.AsMemory(0, (int)(MaxTextBytes - buffer.Length)), ct); truncated = true; break; }
-                await buffer.WriteAsync(chunk.AsMemory(0, n), ct);
-            }
-
-            var data = buffer.ToArray();
+            var data = new byte[Math.Min(raw.Length, MaxTextBytes)];
+            await raw.ReadExactlyAsync(data, ct);
             var binary = Array.IndexOf(data, (byte)0) >= 0;
-            return new FileContent(binary ? "" : Encoding.UTF8.GetString(data), truncated, binary);
+            return new FileContent(binary ? "" : Encoding.UTF8.GetString(data), raw.Length > MaxTextBytes, binary);
         }
 
         public async Task WriteTextAsync(Guid serverId, string path, string content, CancellationToken ct = default)
@@ -90,7 +83,9 @@ namespace CommandBlock.Infrastructure.Services
         public async Task<Stream> OpenReadAsync(Guid serverId, string path, CancellationToken ct = default)
         {
             var (docker, id) = await ResolveAsync(serverId, ct);
-            return await FirstTarEntryAsync(docker, id, Full(path), ct);
+            var full = Full(path);
+            await RequireRegularFileAsync(docker, id, full, ct);
+            return await FirstTarEntryAsync(docker, id, full, ct);
         }
 
         public async Task UploadAsync(Guid serverId, string path, Stream content, CancellationToken ct = default)
@@ -139,23 +134,31 @@ namespace CommandBlock.Infrastructure.Services
             await docker.ExecCaptureAsync(id, new[] { "mv", Full(fromPath), Full(toPath) }, ct);
         }
 
-        /// <summary>Copies a single file out of the container and returns its bytes as a seekable
-        /// stream. Docker's archive comes over a chunked HTTP stream that TarReader can't read
-        /// incrementally, so buffer it whole first, then hand back a self-contained copy of the entry.</summary>
+        /// <summary>Refuses folders, links and missing paths up front - before Docker tars up a whole world.</summary>
+        private static async Task RequireRegularFileAsync(IDockerService docker, string containerId, string full, CancellationToken ct)
+        {
+            var stat = await docker.StatPathAsync(containerId, full, ct) ?? throw new InvalidOperationException("File not found.");
+            if (!stat.IsRegularFile) throw new InvalidOperationException("Not a regular file.");
+        }
+
+        /// <summary>Copies a single file out of the container and returns it as a seekable stream.
+        /// Docker's archive comes over a chunked HTTP stream that TarReader can't read incrementally, so
+        /// it's spooled to a temp file first (not memory - server files can be gigabytes), and the entry
+        /// is handed back as a self-deleting temp file.</summary>
         private static async Task<Stream> FirstTarEntryAsync(IDockerService docker, string containerId, string full, CancellationToken ct)
         {
-            using var buffer = new MemoryStream();
+            await using var buffer = TempFile();
             await using (var archive = await docker.GetArchiveAsync(containerId, full, ct))
                 await archive.CopyToAsync(buffer, ct);
             buffer.Position = 0;
 
-            using var reader = new TarReader(buffer, leaveOpen: true);
+            await using var reader = new TarReader(buffer, leaveOpen: true);
             while (await reader.GetNextEntryAsync(cancellationToken: ct) is { } entry)
             {
                 if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile)
                 {
                     // A 0-byte file has a null DataStream - that's an empty file, not an error.
-                    var data = new MemoryStream();
+                    var data = TempFile();
                     if (entry.DataStream is not null) await entry.DataStream.CopyToAsync(data, ct);
                     data.Position = 0;
                     return data;
@@ -163,5 +166,8 @@ namespace CommandBlock.Infrastructure.Services
             }
             throw new InvalidOperationException("Not a regular file.");
         }
+
+        private static FileStream TempFile() => new(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite,
+            FileShare.None, 81920, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
     }
 }

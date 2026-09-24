@@ -179,6 +179,8 @@ namespace CommandBlock.Application.Command.Server
                 Binds = new List<string> { bindSpec },
                 RestartPolicy = new RestartPolicy { Name = RestartPolicyKind.UnlessStopped },
                 Memory = ContainerMemoryLimitBytes(s.Memory),
+                // A runaway plugin/mod mustn't be able to fork-bomb the host (and CommandBlock with it).
+                PidsLimit = 4096,
             };
 
             // Publishing is opt-in per server. An empty HostIP lets Docker bind every interface; a private

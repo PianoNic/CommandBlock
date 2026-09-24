@@ -270,6 +270,19 @@ namespace CommandBlock.Infrastructure.Services
             return response.Stream;
         }
 
+        public async Task<(bool IsRegularFile, long Size)?> StatPathAsync(string containerId, string path, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await client.Containers.GetArchiveFromContainerAsync(
+                    containerId, new GetArchiveFromContainerParameters { Path = path }, statOnly: true, cancellationToken);
+                // Go's os.ModeType (dir|symlink|pipe|socket|device|char-device|irregular): any set means not a plain file.
+                var isRegular = ((uint)response.Stat.Mode & 0x8F280000u) == 0;
+                return (isRegular, response.Stat.Size);
+            }
+            catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound) { return null; }
+        }
+
         public Task ExtractArchiveAsync(string containerId, string path, Stream tar, CancellationToken cancellationToken = default)
         {
             return client.Containers.ExtractArchiveToContainerAsync(

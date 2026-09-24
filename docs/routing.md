@@ -73,6 +73,8 @@ Open only **25565/tcp**. Provisioned servers publish no port of their own unless
 | `Router__HandshakeTimeoutSeconds` | `5` | How long a client has to send its handshake before it's dropped. |
 | `Router__MaxHoldSeconds` | `180` | Ceiling on how long a joining player is held while their server boots. Caps the per-server window. |
 | `Router__BackendConnectTimeoutSeconds` | `2` | How long to wait when dialling a server before treating it as asleep. |
+| `Router__MaxConnections` | `2048` | Concurrent router connections across all clients; extra ones are refused. |
+| `Router__MaxConnectionsPerAddress` | `32` | Concurrent router connections from one IP address. |
 
 ::: warning Java Edition only
 Hostname routing relies on the Java handshake. Bedrock (UDP) is not routed.

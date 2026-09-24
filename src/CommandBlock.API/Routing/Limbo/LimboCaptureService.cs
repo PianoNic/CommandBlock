@@ -364,7 +364,7 @@ namespace CommandBlock.API.Routing.Limbo
             if (threshold >= 0)
             {
                 var pos = 0;
-                MinecraftProtocol.TryReadVarInt(frame, ref pos, out var dataLen);
+                if (!MinecraftProtocol.TryReadVarInt(frame, ref pos, out var dataLen) || dataLen < 0 || dataLen > 8_000_000) return null;
                 if (dataLen == 0) body = frame[pos..];
                 else
                 {

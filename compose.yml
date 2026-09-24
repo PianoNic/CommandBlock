@@ -1,3 +1,6 @@
+# Local development stack: a mock OIDC server that signs anyone in as admin, plus Postgres and SeaweedFS
+# with fixed credentials. Do NOT expose this on a public host - see docs/self-host.md for production.
+# Helper ports are bound to 127.0.0.1 so they stay off the network.
 services:
   db:
     image: postgres:18.3
@@ -7,7 +10,7 @@ services:
       POSTGRES_PASSWORD: d4vpas8w0rd13!!!
       POSTGRES_DB: commandblock
     ports:
-      - "57460:5432"
+      - "127.0.0.1:57460:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql
     healthcheck:
@@ -25,7 +28,7 @@ services:
     volumes:
       - ./e2e/mock-oauth2-config.json:/app/config.json:ro
     ports:
-      - "57538:8080"
+      - "127.0.0.1:57538:8080"
 
   seaweedfs:
     image: chrislusf/seaweedfs:latest
@@ -38,7 +41,7 @@ services:
     volumes:
       - ./data/seaweedfs:/data
     ports:
-      - "58333:8333"
+      - "127.0.0.1:58333:8333"
 
   commandblock:
     image: ghcr.io/pianonic/commandblock:latest
@@ -57,6 +60,7 @@ services:
       Oidc__InternalAuthority: "http://mock-oauth2:8080/default"
       Oidc__RequireHttpsMetadata: "false"
       Oidc__ClientId: commandblock
+      Oidc__RequiredRole: admin
       Oidc__RedirectUri: "http://localhost:56722/"
       Oidc__PostLogoutRedirectUri: "http://localhost:56722/"
       Oidc__Scope: "openid profile email roles"

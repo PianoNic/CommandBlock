@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,13 @@ namespace CommandBlock.API.Routing
 
         /// <summary>How long to wait when dialing a backend before treating it as down/asleep.</summary>
         public int BackendConnectTimeoutSeconds { get; set; } = 2;
+
+        /// <summary>Ceiling on concurrent router connections across all clients. Connections past it are
+        /// closed on accept, so a flood can't exhaust the control plane's memory or sockets.</summary>
+        public int MaxConnections { get; set; } = 2048;
+
+        /// <summary>Ceiling on concurrent router connections from a single IP address.</summary>
+        public int MaxConnectionsPerAddress { get; set; } = 32;
     }
 
     /// <summary>
@@ -42,6 +50,12 @@ namespace CommandBlock.API.Routing
         ILogger<MinecraftRouter> logger) : BackgroundService
     {
         private readonly RouterOptions _options = options.Value;
+        private readonly ConcurrentDictionary<IPAddress, int> _perAddress = new();
+        private int _open;
+
+        /// <summary>Largest client packet accepted before the backend takes over. Login-phase packets (Login
+        /// Start, plugin responses) are tiny; anything bigger is garbage or an attempt to pin memory.</summary>
+        internal const int MaxLoginPacketBytes = 32 * 1024;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -64,7 +78,8 @@ namespace CommandBlock.API.Routing
                     catch (OperationCanceledException) { break; }
                     catch (Exception ex) { logger.LogDebug(ex, "Accept failed; continuing."); continue; }
 
-                    _ = HandleClientAsync(client, stoppingToken);
+                    if (!TryAdmit(client, out var address)) { client.Dispose(); continue; }
+                    _ = HandleAdmittedAsync(client, address, stoppingToken);
                 }
             }
             finally { listener.Stop(); }
@@ -79,6 +94,40 @@ namespace CommandBlock.API.Routing
                 return listener;
             }
             catch { return new TcpListener(IPAddress.Any, port); }
+        }
+
+        private bool TryAdmit(TcpClient client, out IPAddress address)
+        {
+            address = (client.Client.RemoteEndPoint as IPEndPoint)?.Address ?? IPAddress.None;
+            if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+
+            if (Interlocked.Increment(ref _open) > _options.MaxConnections)
+            {
+                Interlocked.Decrement(ref _open);
+                telemetry.RecordRejection("too-many-connections");
+                return false;
+            }
+            if (_perAddress.AddOrUpdate(address, 1, (_, n) => n + 1) > _options.MaxConnectionsPerAddress)
+            {
+                Release(address);
+                telemetry.RecordRejection("too-many-connections");
+                return false;
+            }
+            return true;
+        }
+
+        private void Release(IPAddress address)
+        {
+            Interlocked.Decrement(ref _open);
+            // Drop the entry once it hits zero so the map doesn't grow with every address ever seen.
+            if (_perAddress.AddOrUpdate(address, 0, (_, n) => n - 1) <= 0)
+                _perAddress.TryRemove(new KeyValuePair<IPAddress, int>(address, 0));
+        }
+
+        private async Task HandleAdmittedAsync(TcpClient client, IPAddress address, CancellationToken stoppingToken)
+        {
+            try { await HandleClientAsync(client, stoppingToken); }
+            finally { Release(address); }
         }
 
         private async Task HandleClientAsync(TcpClient client, CancellationToken stoppingToken)
@@ -169,7 +218,13 @@ namespace CommandBlock.API.Routing
                             // up; the limbo reads their Login Start moments later and names the row.
                             using var conn = tracker.Open(target.ServerId);
                             await limboSession.RunAsync(clientStream, limbo, handshake.ServerAddress, handshake.ServerPort,
-                                async ct => { while (true) { var probe = await TryConnectBackendAsync(target, ct); if (probe is not null) { probe.Dispose(); return; } await Task.Delay(1000, ct); } },
+                                async ct =>
+                                {
+                                    // Same budget as the hold below: a server that never comes up mustn't park the player forever.
+                                    var probe = await WaitForBackendAsync(target, holdSeconds, ct)
+                                        ?? throw new TimeoutException($"{target.DisplayName} didn't come up within {holdSeconds}s.");
+                                    probe.Dispose();
+                                },
                                 stoppingToken, conn.Identify);
                             return;
                         }
@@ -298,7 +353,7 @@ namespace CommandBlock.API.Routing
                     while (!linked.Token.IsCancellationRequested)
                     {
                         var len = await MinecraftProtocol.ReadVarIntAsync(clientStream, linked.Token);
-                        if (len is null || len.Value <= 0 || len.Value > 2_000_000) return;
+                        if (len is null || len.Value <= 0 || len.Value > MaxLoginPacketBytes) return;
                         var buf = new byte[len.Value];
                         await clientStream.ReadExactlyAsync(buf, linked.Token);
                         var pos = 0;
