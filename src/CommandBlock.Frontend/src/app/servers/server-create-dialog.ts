@@ -235,7 +235,6 @@ export class ServerCreateDialog {
   private readonly domainsApi = inject(DomainsService);
   private readonly hostApi = inject(HostService);
 
-  protected readonly searching = signal(false);
 
 
 

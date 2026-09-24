@@ -14,6 +14,7 @@ import { BackupEntryDto } from '../api/model/backupEntryDto';
 import { BackupScheduleDto } from '../api/model/backupScheduleDto';
 import { environment } from '../shared/environments/environment';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
+import { formatBytes } from '../shared/utils/format';
 
 type DialogContext = { serverId: string; serverName: string };
 
@@ -332,16 +333,7 @@ export class ServerBackupsDialog {
     });
   }
 
-  protected humanSize(b: BackupEntryDto): string {
-    let n = Number(b.sizeBytes as unknown as number) || 0;
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let u = 0;
-    while (n >= 1024 && u < units.length - 1) {
-      n /= 1024;
-      u++;
-    }
-    return `${n.toFixed(u === 0 ? 0 : 1)} ${units[u]}`;
-  }
+  protected humanSize(b: BackupEntryDto): string { return formatBytes(b.sizeBytes); }
 }
 
 function messageOf(err: unknown): string {

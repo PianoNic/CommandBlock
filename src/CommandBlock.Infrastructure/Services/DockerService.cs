@@ -6,25 +6,6 @@ namespace CommandBlock.Infrastructure.Services
 {
     public class DockerService(IDockerClient client) : IDockerService
     {
-        public async Task<bool> PingAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await client.System.PingAsync(cancellationToken);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<string> GetVersionAsync(CancellationToken cancellationToken = default)
-        {
-            var version = await client.System.GetVersionAsync(cancellationToken);
-            return version.Version;
-        }
-
         public Task<IList<ContainerListResponse>> ListContainersAsync(bool all = true, CancellationToken cancellationToken = default)
         {
             return client.Containers.ListContainersAsync(new ContainersListParameters { All = all }, cancellationToken);
@@ -190,7 +171,7 @@ namespace CommandBlock.Infrastructure.Services
 
         public async Task<byte[]> ExecCaptureAsync(string containerId, IList<string> command, CancellationToken cancellationToken = default)
         {
-            // Cap any single exec at 2 minutes. Without this a stuck pg_dump/mysqldump call would
+            // Cap any single exec at 2 minutes. Without this a stuck command would
             // hang the request forever because MultiplexedStream.ReadOutputToEndAsync only returns
             // when the server closes the stream.
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));

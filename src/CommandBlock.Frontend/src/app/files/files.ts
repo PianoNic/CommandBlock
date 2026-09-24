@@ -36,6 +36,7 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { FilesService } from '../api/api/files.service';
 import { ServerService } from '../api/api/server.service';
 import { FileEntry } from '../api/model/fileEntry';
+import { formatBytes } from '../shared/utils/format';
 
 /// basicSetup ships a light-only look: dark-on-dark syntax colours and a white gutter once the app
 /// is in dark mode. Driving the editor off the same CSS tokens as everything else means one theme
@@ -318,12 +319,7 @@ export class Files implements OnDestroy {
     });
   }
 
-  protected size(en: FileEntry): string {
-    let n = Number(en.size as unknown as number) || 0;
-    const u = ['B', 'KB', 'MB', 'GB']; let i = 0;
-    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-    return `${n.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
-  }
+  protected size(en: FileEntry): string { return formatBytes(en.size); }
 
   private join(name: string): string { const c = this.cwd(); return c ? `${c}/${name}` : name; }
 

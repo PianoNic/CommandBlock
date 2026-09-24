@@ -73,8 +73,8 @@ builder.Services.AddHostedService<IdleServerMonitor>();
 builder.Services.AddHostedService<CommandBlock.API.Routing.Limbo.LimboCaptureHostedService>();
 builder.Services.AddHostedService<CommandBlock.API.BackupSchedulerHostedService>();
 
-// Defaults to no cross-origin allowlist when unset. The desktop build serves the SPA
-// same-origin from the sidecar, so it needs none; server deployments set it explicitly.
+// Defaults to no cross-origin allowlist when unset: the container serves the SPA same-origin, so only
+// a separately hosted frontend (e.g. `ng serve` in dev) needs one.
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 // AllowCredentials is required for cross-origin SignalR (the JS client sends withCredentials); it's
 // harmless when the SPA is same-origin (the container). Needs explicit origins, which we have.
@@ -129,7 +129,6 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 app.ApplyMigrations();
-await app.ApplySeedsAsync();
 
 if (app.Environment.IsDevelopment())
 {

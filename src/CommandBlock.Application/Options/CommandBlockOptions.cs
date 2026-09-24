@@ -9,13 +9,6 @@ public sealed class CommandBlockOptions
     /// to use a per-server Docker named volume instead.
     /// </summary>
     public StorageOptions Storage { get; set; } = new();
-
-    /// <summary>
-    /// Public URL this control plane is served on (e.g. https://commandblock.example.com). Used to
-    /// derive the OIDC redirect when Oidc:RedirectUri isn't set. Usually set via the env file
-    /// (CommandBlock__PublicUrl); this is the commandblock.yaml fallback.
-    /// </summary>
-    public string? PublicUrl { get; set; }
 }
 
 public enum StorageMode
@@ -47,11 +40,6 @@ public sealed class StorageOptions
             StorageMode.Volume => $"{containerName}-data:{dataPath}",
             _ => $"{ResolveHostPath()}/{containerName}:{dataPath}",
         };
-    }
-
-    public string? ResolveHostFolderForContainer(string containerName)
-    {
-        return Mode == StorageMode.HostFolder ? $"{ResolveHostPath()}/{containerName}" : null;
     }
 
     /// <summary>

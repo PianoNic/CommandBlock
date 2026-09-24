@@ -17,6 +17,8 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerCreateDialog } from '../servers/server-create-dialog';
 import { ServersStore } from '../servers/servers.store';
 import { environment } from '../shared/environments/environment';
+import { formatGb } from '../shared/utils/format';
+import { serverIconUrl } from '../shared/utils/server-icon';
 
 /// The dashboard is a control surface, not a report: every server is actionable from here, and only
 /// things that need a decision are promoted to the top. Purely descriptive numbers (server count,
@@ -71,7 +73,7 @@ export class Home {
     return Math.min(100, Math.round(((total - this.hostAvailable()) / total) * 100));
   });
   protected readonly hostUsedLabel = computed(() =>
-    this.hostTotal() > 0 ? `${gb(this.hostTotal() - this.hostAvailable())} / ${gb(this.hostTotal())} GB used` : '-',
+    this.hostTotal() > 0 ? `${formatGb(this.hostTotal() - this.hostAvailable())} / ${formatGb(this.hostTotal())} GB used` : '-',
   );
   protected readonly hostBarClass = computed(() => {
     const p = this.hostUsedPercent();
@@ -117,7 +119,7 @@ export class Home {
   protected memoryLabel(s: ServerInstanceDto): string {
     const used = Number(this.store.statuses()[s.id]?.memoryBytes ?? s.memoryBytes ?? 0);
     const cap = this.memoryCap(s);
-    return `${gb(used)}/${cap > 0 ? gb(cap) : '?'} GB`;
+    return `${formatGb(used)}/${cap > 0 ? formatGb(cap) : '?'} GB`;
   }
 
   /// Percent of one host core * cores, so a busy server on a multi-core box can exceed 100.
@@ -172,7 +174,6 @@ export class Home {
   }
 
   protected isRunning(s: ServerInstanceDto): boolean { return this.stateOf(s) === 'running'; }
-  protected isSleeping(s: ServerInstanceDto): boolean { return this.stateOf(s) === 'sleeping'; }
   protected isBusy(s: ServerInstanceDto): boolean {
     return this.store.isBusy(s.id) || this.stateOf(s) === 'starting';
   }
@@ -194,7 +195,7 @@ export class Home {
   protected label(serverType: string): string { return platformLabel(serverType); }
 
   protected iconUrl(s: ServerInstanceDto): string {
-    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon`;
+    return serverIconUrl(s.id!);
   }
 
   protected createServer(): void {
@@ -219,7 +220,3 @@ export class Home {
   }
 }
 
-/// At most one decimal, dropping a trailing ".0" so caps read "2 GB" rather than "2.0 GB".
-function gb(bytes: number): string {
-  return String(Math.round((bytes / 1024 ** 3) * 10) / 10);
-}

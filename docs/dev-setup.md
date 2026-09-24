@@ -76,8 +76,7 @@ The API binds to `http://localhost:5165`. In Development:
 
 On startup the API:
 1. Applies any pending EF migrations to the dev DB (`ApplyMigrations()`).
-2. Runs seeders (`ApplySeedsAsync()`: currently a no-op placeholder).
-3. Talks to the local **Docker socket** via `DockerService` (Windows named pipe / Unix socket auto-detected by Docker.DotNet).
+2. Talks to the local **Docker socket** via `DockerService` (Windows named pipe / Unix socket auto-detected by Docker.DotNet).
 
 ## 5. Frontend: first run
 
@@ -104,34 +103,20 @@ Frontend on `http://localhost:4200`.
 
 ## 6. Tests
 
-There is no test project right now - the database-era unit and E2E suites were removed in the
-Minecraft rewrite. Add one (TUnit works well here) as features grow; server create/route/backup are
-good first candidates.
+Unit tests live in `src/CommandBlock.Tests` (TUnit). Run them with:
+
+```powershell
+dotnet run --project src/CommandBlock.Tests
+```
 
 ## 7. EF migrations
 
-CommandBlock can store its own data in **SQLite** (default) or **PostgreSQL**, selected with
-`Database__Provider` (`Sqlite` or `Postgres`). The connection string is
-`ConnectionStrings__CommandBlockDatabase`; for SQLite it defaults to `Data Source=commandblock.db`.
-
-Because EF Core can't keep two providers' migrations in one assembly, there are **two**
-migration sets, both auto-applied at API startup via `ApplyMigrations()` for whichever
-provider is active:
-
-- **Postgres** → `src/CommandBlock.Infrastructure/Migrations/`
-- **SQLite** → `src/CommandBlock.Infrastructure.Migrations.Sqlite/Migrations/`
-
-After changing entities, add the migration to **both** sets (the EF tooling reads the
-target provider from `Database__Provider`):
+CommandBlock stores its own data in **PostgreSQL** (`ConnectionStrings__CommandBlockDatabase`).
+Migrations live in `src/CommandBlock.Infrastructure/Migrations/` and are applied at API startup
+via `ApplyMigrations()`. After changing entities, add one:
 
 ```powershell
-# Postgres
-$env:Database__Provider="Postgres"
 dotnet ef migrations add <Name> -p src/CommandBlock.Infrastructure -s src/CommandBlock.API
-
-# SQLite
-$env:Database__Provider="Sqlite"
-dotnet ef migrations add <Name> -p src/CommandBlock.Infrastructure.Migrations.Sqlite -s src/CommandBlock.API
 ```
 
 `dotnet ef database update` is **not** needed for local dev. `dotnet run` does it on startup. Run it manually only if you want to apply migrations without booting the API.

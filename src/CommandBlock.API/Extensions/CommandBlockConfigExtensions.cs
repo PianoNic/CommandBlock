@@ -18,9 +18,8 @@ public static class CommandBlockConfigExtensions
 
         if (path is null || !File.Exists(path))
         {
-            // No config file present: start with defaults rather than crashing. Provisioning
-            // needs port ranges (commandblock.yaml -> commandblock.port_ranges), so those operations surface a
-            // clear error until configured, but the app boots - important for the desktop build.
+            // No config file present: start with defaults rather than crashing. Creating a server needs
+            // storage.host_path, so that surfaces a clear error until configured, but the app boots.
             Console.Error.WriteLine($"[CommandBlock] No {FileName} found (set {EnvVar} or place {FileName} at the content root). Starting with defaults.");
             var defaults = new CommandBlockOptions();
             services.AddSingleton<IOptions<CommandBlockOptions>>(Options.Create(defaults));

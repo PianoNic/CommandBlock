@@ -13,7 +13,4 @@ src/CommandBlock.Frontend/.angular
 keycloak/keycloakify/node_modules
 keycloak/keycloakify/dist
 backups/
-**/*.db
-**/*.db-shm
-**/*.db-wal
 .env

@@ -32,6 +32,8 @@ import { PlayerListDto } from '../api/model/playerListDto';
 import { ServerBackupsDialog } from './server-backups-dialog';
 import { ServerSettingsDialog } from './server-settings-dialog';
 import { environment } from '../shared/environments/environment';
+import { formatGb } from '../shared/utils/format';
+import { serverIconUrl } from '../shared/utils/server-icon';
 
 @Component({
   selector: 'app-server-detail',
@@ -318,7 +320,7 @@ export class ServerDetail {
   }
 
   protected iconUrl(s: ServerInstanceDto): string {
-    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon?v=${this.iconV()}`;
+    return serverIconUrl(s.id!, this.iconV());
   }
 
   protected start(s: ServerInstanceDto): void {
@@ -369,18 +371,6 @@ export class ServerDetail {
   }
 }
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
-}
-
 /// Compact human uptime, e.g. "3d 4h", "22h 12m", "45s".
 function formatUptime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -391,10 +381,5 @@ function formatUptime(ms: number): string {
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${totalSeconds}s`;
-}
-
-/// Gigabytes with at most one decimal, dropping a trailing ".0" so caps read "2 GB" not "2.0 GB".
-function formatGb(bytes: number): string {
-  return String(Math.round((bytes / 1024 ** 3) * 10) / 10);
 }
 

@@ -4,11 +4,6 @@ namespace CommandBlock.Infrastructure.Interfaces
 {
     public interface IDockerService
     {
-        Task<bool> PingAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>The Docker engine version string (e.g. "27.3.1") of the daemon this client talks to.</summary>
-        Task<string> GetVersionAsync(CancellationToken cancellationToken = default);
-
         Task<IList<ContainerListResponse>> ListContainersAsync(bool all = true, CancellationToken cancellationToken = default);
 
         Task<ContainerInspectResponse> InspectContainerAsync(string id, CancellationToken cancellationToken = default);

@@ -12,6 +12,7 @@ import { ServerService } from '../api/api/server.service';
 import { BackupEntryDto } from '../api/model/backupEntryDto';
 import { BackupCreateDialog } from './backup-create-dialog';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
+import { formatBytes } from '../shared/utils/format';
 
 type Row = BackupEntryDto & { serverName: string };
 
@@ -150,11 +151,5 @@ export class Backups {
     });
   }
 
-  protected size(b: Row): string {
-    let n = Number(b.sizeBytes as unknown as number) || 0;
-    const u = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let i = 0;
-    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-    return `${n.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
-  }
+  protected size(b: Row): string { return formatBytes(b.sizeBytes); }
 }
