@@ -13,7 +13,10 @@
 
   <div class="min-h-0 flex-1 overflow-auto px-4">
     @if (error(); as err) {
-      <p class="text-destructive py-4 text-sm">{{ err }}</p>
+      <div class="flex items-center gap-2 py-4 text-sm" role="alert">
+        <p class="text-destructive">{{ err }}</p>
+        <button hlmBtn size="sm" variant="outline" type="button" (click)="store.load()">Retry</button>
+      </div>
     } @else if (servers().length === 0 && !loading()) {
       <div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 text-center text-sm">
         <ng-icon name="lucideServer" size="32" class="opacity-50" />
@@ -28,11 +31,11 @@
         <thead hlmTHead>
           <tr hlmTr>
             <th hlmTh>Name</th>
-            <th hlmTh>Hostname</th>
-            <th hlmTh>Type</th>
-            <th hlmTh>Version</th>
+            <th hlmTh>Address</th>
+            <th hlmTh class="max-md:hidden">Type</th>
+            <th hlmTh class="max-lg:hidden">Version</th>
             <th hlmTh>Players</th>
-            <th hlmTh>Memory</th>
+            <th hlmTh class="max-lg:hidden">Memory</th>
             <th hlmTh>State</th>
             <th hlmTh class="text-right">Actions</th>
           </tr>
@@ -43,7 +46,8 @@
               <td hlmTd class="font-medium">
                 <span class="flex items-center gap-2">
                   <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-5 w-5 shrink-0 rounded-sm" style="image-rendering:pixelated" />
-                  {{ s.displayName }}
+                  <!-- A real link so the row opens from the keyboard too; the row click covers the mouse. -->
+                  <a [routerLink]="['/servers', s.id]" class="hover:underline focus-visible:underline" (click)="$event.stopPropagation()">{{ s.displayName }}</a>
                 </span>
               </td>
               <td hlmTd>
@@ -52,46 +56,46 @@
                   {{ address(s) }}
                 </span>
               </td>
-              <td hlmTd>
+              <td hlmTd class="max-md:hidden">
                 <span hlmBadge variant="outline" class="inline-flex items-center gap-1.5">
                   <ng-icon [name]="icon(s.serverType)" size="13" />
                   {{ label(s.serverType) }}
                 </span>
               </td>
-              <td hlmTd class="text-muted-foreground font-mono text-xs">{{ sourceLabel(s) }}</td>
+              <td hlmTd class="text-muted-foreground font-mono text-xs max-lg:hidden">{{ sourceLabel(s) }}</td>
               <td hlmTd>
                 <span class="inline-flex items-center gap-1.5 font-mono text-xs">
                   <ng-icon name="lucideUsers" size="13" class="opacity-60" />{{ players(s) }}
                 </span>
               </td>
-              <td hlmTd class="font-mono text-xs">{{ s.memory }}</td>
+              <td hlmTd class="font-mono text-xs max-lg:hidden">{{ s.memory }}</td>
               <td hlmTd>
-                <span hlmBadge [variant]="stateVariant(stateOf(s))" class="inline-flex items-center gap-1 text-[10px] uppercase">
+                <span hlmBadge [variant]="stateVariant(stateOf(s))" class="inline-flex items-center gap-1 text-[10px]">
                   @if (stateOf(s) === 'starting') {
                     <ng-icon name="lucideLoaderCircle" size="10" class="animate-spin" />
                   }
-                  {{ stateOf(s) ?? 'unknown' }}
+                  {{ stateLabel(stateOf(s)) }}
                 </span>
               </td>
               <td hlmTd (click)="$event.stopPropagation()">
                 <div class="flex items-center justify-end gap-1">
                   @if (transitioning(s)) {
-                    <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working…">
+                    <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working…" aria-label="Working…">
                       <ng-icon name="lucideHourglass" size="14" />
                     </button>
                   } @else if (isRunning(s)) {
-                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">
+                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop" [attr.aria-label]="'Stop ' + s.displayName">
                       <ng-icon name="lucideSquare" size="14" />
                     </button>
-                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="restart(s)" title="Restart">
+                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="restart(s)" title="Restart" [attr.aria-label]="'Restart ' + s.displayName">
                       <ng-icon name="lucideRotateCcw" size="14" />
                     </button>
                   } @else {
-                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start">
+                    <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start" [attr.aria-label]="'Start ' + s.displayName">
                       <ng-icon name="lucidePlay" size="14" />
                     </button>
                   }
-                  <button hlmBtn size="sm" variant="ghost" type="button" [hlmDropdownMenuTrigger]="rowMenu" align="end" title="More actions">
+                  <button hlmBtn size="sm" variant="ghost" type="button" [hlmDropdownMenuTrigger]="rowMenu" align="end" title="More actions" [attr.aria-label]="'More actions for ' + s.displayName">
                     <ng-icon name="lucideEllipsisVertical" size="14" />
                   </button>
                 </div>

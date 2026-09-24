@@ -9,6 +9,7 @@ import { HlmTableImports } from '@spartan-ng/helm/table';
 import { ContentHeader } from '../shared/components/content-header/content-header';
 import { ActivityService } from '../api/api/activity.service';
 import { ActivityEntryDto } from '../api/model/activityEntryDto';
+import { activityLabel } from '../shared/utils/activity-label';
 
 @Component({
   selector: 'app-activity',
@@ -77,7 +78,7 @@ import { ActivityEntryDto } from '../api/model/activityEntryDto';
                     }
                   </td>
                   <td hlmTableCell>
-                    <span hlmBadge variant="secondary" class="font-mono text-xs">{{ e.action }}</span>
+                    <span hlmBadge variant="secondary" class="text-xs" [title]="e.action">{{ activityLabel(e.action) }}</span>
                   </td>
                   <td hlmTableCell class="font-mono text-xs">{{ e.target }}</td>
                   <td hlmTableCell class="text-muted-foreground text-xs">{{ e.details ?? '' }}</td>
@@ -95,6 +96,7 @@ import { ActivityEntryDto } from '../api/model/activityEntryDto';
   `,
 })
 export class Activity {
+  protected readonly activityLabel = activityLabel;
   private readonly api = inject(ActivityService);
 
   protected readonly entries = signal<ReadonlyArray<ActivityEntryDto>>([]);
@@ -108,7 +110,7 @@ export class Activity {
     const q = this.filter().trim().toLowerCase();
     if (q === '') return this.entries();
     return this.entries().filter((e) =>
-      [e.action, e.engine, e.target, e.details, e.actorName]
+      [e.action, activityLabel(e.action), e.engine, e.target, e.details, e.actorName]
         .some((v) => typeof v === 'string' && v.toLowerCase().includes(q)),
     );
   });

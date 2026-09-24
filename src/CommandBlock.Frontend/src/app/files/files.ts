@@ -5,6 +5,7 @@ import {
   Injector,
   OnDestroy,
   afterNextRender,
+  computed,
   inject,
   signal,
   viewChild,
@@ -23,6 +24,7 @@ import {
   lucideSave,
   lucideRefreshCw,
 } from '@ng-icons/lucide';
+import { firstValueFrom } from 'rxjs';
 import { EditorView, basicSetup } from 'codemirror';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -37,6 +39,9 @@ import { FilesService } from '../api/api/files.service';
 import { ServerService } from '../api/api/server.service';
 import { FileEntry } from '../api/model/fileEntry';
 import { formatBytes } from '../shared/utils/format';
+import { messageOf, toastError } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
+import { Title } from '@angular/platform-browser';
 
 /// basicSetup ships a light-only look: dark-on-dark syntax colours and a white gutter once the app
 /// is in dark mode. Driving the editor off the same CSS tokens as everything else means one theme
@@ -79,28 +84,42 @@ const editorHighlight = HighlightStyle.define([
     }),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown)': 'onKeydown($event)',
+    '(window:beforeunload)': 'onBeforeUnload($event)',
+  },
   template: `
     <app-content-header />
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <div class="flex min-w-0 items-center gap-2">
-          <a hlmBtn size="sm" variant="ghost" routerLink="/servers"><ng-icon name="lucideArrowLeft" size="16" /></a>
-          <span class="truncate font-mono text-sm">
-            <button class="hover:underline" (click)="goto('')">{{ name() || 'server' }}</button>{{ cwd() ? '/' + cwd() : '' }}
-          </span>
+          <a hlmBtn size="sm" variant="ghost" [routerLink]="['/servers', serverId]" aria-label="Back to server" title="Back to server"><ng-icon name="lucideArrowLeft" size="16" /></a>
+          <nav aria-label="Folder path" class="truncate font-mono text-sm">
+            <button class="hover:underline" (click)="goto('')">{{ name() || 'server' }}</button>
+            @for (c of crumbs(); track c.path) {
+              /<button class="hover:underline" (click)="goto(c.path)">{{ c.name }}</button>
+            }
+          </nav>
         </div>
         <div class="flex items-center gap-1.5">
           <button hlmBtn size="sm" variant="outline" (click)="newFolder()"><ng-icon name="lucideFolderPlus" size="14" /> New folder</button>
-          <button hlmBtn size="sm" variant="outline" (click)="picker.click()"><ng-icon name="lucideUpload" size="14" /> Upload</button>
-          <button hlmBtn size="sm" variant="ghost" (click)="load()"><ng-icon name="lucideRefreshCw" size="14" [class.animate-spin]="loading()" /></button>
-          <input #picker type="file" class="hidden" (change)="upload($event)" />
+          <button hlmBtn size="sm" variant="outline" (click)="picker.click()" [disabled]="uploading()">
+            <ng-icon name="lucideUpload" size="14" /> {{ uploading() ? 'Uploading…' : 'Upload' }}
+          </button>
+          <button hlmBtn size="sm" variant="ghost" (click)="load()" aria-label="Refresh" title="Refresh"><ng-icon name="lucideRefreshCw" size="14" [class.animate-spin]="loading()" /></button>
+          <input #picker type="file" multiple class="hidden" (change)="upload($event)" />
         </div>
       </header>
 
-      <div class="flex min-h-0 flex-1">
+      <div class="flex min-h-0 flex-1 flex-col md:flex-row">
         <!-- File list -->
-        <div class="w-1/2 min-h-0 overflow-auto border-r">
-          @if (error(); as e) { <p class="text-destructive p-3 text-sm">{{ e }}</p> }
+        <div class="min-h-0 w-full overflow-auto border-b max-md:max-h-[40%] md:w-1/2 md:border-r md:border-b-0">
+          @if (error(); as e) {
+            <div class="flex items-center gap-2 p-3 text-sm">
+              <p class="text-destructive">{{ e }}</p>
+              <button hlmBtn size="sm" variant="outline" (click)="load()">Retry</button>
+            </div>
+          }
           @if (cwd()) {
             <button class="hover:bg-accent flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm" (click)="up()">
               <ng-icon name="lucideFolder" size="15" class="opacity-60" /> ..
@@ -113,25 +132,26 @@ const editorHighlight = HighlightStyle.define([
                 <span class="truncate">{{ en.name }}</span>
                 @if (!en.isDirectory) { <span class="text-muted-foreground ml-auto shrink-0 text-xs">{{ size(en) }}</span> }
               </button>
-              <span class="ml-1 flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100">
+              <!-- Hover reveals them on desktop; keyboard focus and touch screens always see them. -->
+              <span class="ml-1 flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 max-md:opacity-100">
                 @if (!en.isDirectory) {
-                  <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="download(en)" title="Download"><ng-icon name="lucideDownload" size="12" /></button>
+                  <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="download(en)" title="Download" [attr.aria-label]="'Download ' + en.name"><ng-icon name="lucideDownload" size="12" /></button>
                 }
-                <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="rename(en)" title="Rename"><ng-icon name="lucidePencil" size="12" /></button>
-                <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="remove(en)" title="Delete"><ng-icon name="lucideTrash2" size="12" /></button>
+                <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="rename(en)" title="Rename" [attr.aria-label]="'Rename ' + en.name"><ng-icon name="lucidePencil" size="12" /></button>
+                <button hlmBtn size="sm" variant="ghost" class="h-6 w-6 p-0" (click)="remove(en)" title="Delete" [attr.aria-label]="'Delete ' + en.name"><ng-icon name="lucideTrash2" size="12" /></button>
               </span>
             </div>
           } @empty {
-            @if (!loading()) { <p class="text-muted-foreground p-3 text-sm">Empty folder.</p> }
+            @if (!loading() && !error()) { <p class="text-muted-foreground p-3 text-sm">Empty folder.</p> }
           }
         </div>
 
         <!-- Editor -->
-        <div class="flex w-1/2 min-w-0 flex-col">
+        <div class="flex min-h-0 w-full min-w-0 flex-1 flex-col md:w-1/2">
           @if (openPath(); as op) {
             <div class="flex items-center justify-between gap-2 border-b px-3 py-1.5">
-              <span class="truncate font-mono text-xs">{{ op }}{{ dirty() ? ' •' : '' }}</span>
-              <button hlmBtn size="sm" (click)="save()" [disabled]="!dirty() || saving()">
+              <span class="truncate font-mono text-xs">{{ op }}@if (dirty()) { <span class="text-amber-600"> • unsaved</span> }</span>
+              <button hlmBtn size="sm" (click)="save()" [disabled]="!dirty() || saving()" title="Save (Ctrl+S)">
                 <ng-icon name="lucideSave" size="13" /> {{ saving() ? 'Saving…' : 'Save' }}
               </button>
             </div>
@@ -155,10 +175,11 @@ export class Files implements OnDestroy {
   private readonly servers = inject(ServerService);
   private readonly confirm = inject(ConfirmService);
   private readonly injector = inject(Injector);
+  private readonly title = inject(Title);
 
   private readonly editorHost = viewChild<ElementRef<HTMLDivElement>>('editor');
 
-  private readonly serverId = this.route.snapshot.paramMap.get('id')!;
+  protected readonly serverId = this.route.snapshot.paramMap.get('id')!;
   protected readonly name = signal('');
   protected readonly cwd = signal('');
   protected readonly entries = signal<ReadonlyArray<FileEntry>>([]);
@@ -170,6 +191,13 @@ export class Files implements OnDestroy {
   protected readonly truncated = signal(false);
   protected readonly dirty = signal(false);
   protected readonly saving = signal(false);
+  protected readonly uploading = signal(false);
+
+  /// Each folder below the server root, clickable in the path breadcrumb.
+  protected readonly crumbs = computed(() => {
+    const parts = this.cwd().split('/').filter(Boolean);
+    return parts.map((name, i) => ({ name, path: parts.slice(0, i + 1).join('/') }));
+  });
 
   private editor?: EditorView;
 
@@ -177,7 +205,7 @@ export class Files implements OnDestroy {
     // Server name for the header (best-effort).
     this.servers.apiServerGet().subscribe((rows) => {
       const s = rows.find((r) => r.id === this.serverId);
-      if (s) this.name.set(s.displayName);
+      if (s) { this.name.set(s.displayName); this.title.setTitle(`Files - ${s.displayName} · CommandBlock`); }
     });
     this.load();
   }
@@ -187,7 +215,7 @@ export class Files implements OnDestroy {
     this.error.set(null);
     this.api.apiServerServerIdFilesGet(this.serverId, this.cwd()).subscribe({
       next: (rows) => { this.entries.set(rows); this.loading.set(false); },
-      error: (e) => { this.error.set(messageOf(e)); this.loading.set(false); },
+      error: (e) => { this.error.set(messageOf(e, "Couldn't load this folder.")); this.loading.set(false); },
     });
   }
 
@@ -200,9 +228,11 @@ export class Files implements OnDestroy {
     this.openFile(path);
   }
 
-  private openFile(path: string): void {
+  private async openFile(path: string): Promise<void> {
+    if (path === this.openPath() || !(await this.confirmDiscard())) return;
     this.api.apiServerServerIdFilesContentGet(this.serverId, path).subscribe({
       next: (c) => {
+        this.error.set(null);
         this.openPath.set(path);
         this.binary.set(c.binary);
         this.truncated.set(c.truncated);
@@ -211,8 +241,33 @@ export class Files implements OnDestroy {
         // viewChild is still null and the editor silently never appears (the old queueMicrotask race).
         if (!c.binary) afterNextRender(() => this.mountEditor(c.content, path), { injector: this.injector });
       },
-      error: (e) => this.error.set(messageOf(e)),
+      error: (e) => toastError(e, "Couldn't open that file."),
     });
+  }
+
+  /// True when there's nothing unsaved, or the user agreed to throw it away.
+  private async confirmDiscard(): Promise<boolean> {
+    if (!this.dirty()) return true;
+    return this.confirm.open({
+      title: 'Discard unsaved changes?',
+      message: `Your edits to ${this.openPath()} haven't been saved.`,
+      confirmLabel: 'Discard changes',
+      destructive: true,
+    });
+  }
+
+  /// Route guard hook: leaving the page with unsaved edits asks first.
+  canLeave(): Promise<boolean> { return this.confirmDiscard(); }
+
+  protected onBeforeUnload(e: BeforeUnloadEvent): void {
+    if (this.dirty()) e.preventDefault();
+  }
+
+  protected onKeydown(e: KeyboardEvent): void {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && this.openPath()) {
+      e.preventDefault();
+      if (this.dirty() && !this.saving()) this.save();
+    }
   }
 
   private mountEditor(content: string, path: string): void {
@@ -254,40 +309,86 @@ export class Files implements OnDestroy {
 
   protected save(): void {
     const path = this.openPath();
-    if (!path || !this.editor) return;
+    if (!path || !this.editor || this.saving()) return;
     this.saving.set(true);
     this.api.apiServerServerIdFilesContentPut(this.serverId, { path, content: this.editor.state.doc.toString() }).subscribe({
-      next: () => { this.saving.set(false); this.dirty.set(false); },
-      error: (e) => { this.saving.set(false); this.error.set(messageOf(e)); },
+      next: () => { this.saving.set(false); this.dirty.set(false); toast.success(`Saved ${path.split('/').pop()}.`); },
+      error: (e) => { this.saving.set(false); toastError(e, "Couldn't save the file."); },
     });
   }
 
-  protected newFolder(): void {
-    const nameInput = window.prompt('New folder name:');
-    if (!nameInput?.trim()) return;
-    this.api.apiServerServerIdFilesMkdirPost(this.serverId, { path: this.join(nameInput.trim()) }).subscribe({
-      next: () => this.load(), error: (e) => this.error.set(messageOf(e)),
+  protected async newFolder(): Promise<void> {
+    const name = await this.confirm.prompt({
+      title: 'New folder',
+      label: 'Folder name',
+      placeholder: 'e.g. plugins',
+      confirmLabel: 'Create folder',
+      validate: (v) => this.nameProblem(v),
+    });
+    if (!name) return;
+    this.api.apiServerServerIdFilesMkdirPost(this.serverId, { path: this.join(name) }).subscribe({
+      next: () => this.load(),
+      error: (e) => toastError(e, "Couldn't create the folder."),
     });
   }
 
   protected upload(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    this.api.apiServerServerIdFilesUploadPost(this.serverId, this.cwd(), file).subscribe({
-      next: () => { input.value = ''; this.load(); },
-      error: (e) => { input.value = ''; this.error.set(messageOf(e)); },
-    });
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length === 0) return;
+    const existing = new Set(this.entries().map((e) => e.name));
+    void this.uploadAll(files, files.filter((f) => existing.has(f.name)).map((f) => f.name));
+  }
+
+  private async uploadAll(files: File[], clashes: string[]): Promise<void> {
+    if (clashes.length > 0) {
+      const ok = await this.confirm.open({
+        title: clashes.length === 1 ? `Replace ${clashes[0]}?` : `Replace ${clashes.length} files?`,
+        message: `${clashes.length === 1 ? 'A file with that name already exists' : 'These already exist: ' + clashes.join(', ')}. Uploading overwrites ${clashes.length === 1 ? 'it' : 'them'}.`,
+        confirmLabel: 'Replace',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    this.uploading.set(true);
+    let done = 0;
+    for (const file of files) {
+      try {
+        await firstValueFrom(this.api.apiServerServerIdFilesUploadPost(this.serverId, this.cwd(), file));
+        done++;
+      } catch (e) {
+        toastError(e, `Couldn't upload ${file.name}.`);
+      }
+    }
+    this.uploading.set(false);
+    if (done > 0) toast.success(done === 1 ? `Uploaded ${files.length === 1 ? files[0].name : '1 file'}.` : `Uploaded ${done} files.`);
+    this.load();
   }
 
   protected async rename(en: FileEntry): Promise<void> {
-    const next = window.prompt('Rename to:', en.name);
-    if (!next?.trim() || next === en.name) return;
-    const parent = this.cwd();
-    const to = parent ? `${parent}/${next.trim()}` : next.trim();
-    this.api.apiServerServerIdFilesRenamePost(this.serverId, { from: this.join(en.name), to }).subscribe({
-      next: () => this.load(), error: (e) => this.error.set(messageOf(e)),
+    const next = await this.confirm.prompt({
+      title: `Rename ${en.name}`,
+      label: 'New name',
+      value: en.name,
+      confirmLabel: 'Rename',
+      validate: (v) => (v === en.name ? null : this.nameProblem(v)),
     });
+    if (!next || next === en.name) return;
+    this.api.apiServerServerIdFilesRenamePost(this.serverId, { from: this.join(en.name), to: this.join(next) }).subscribe({
+      next: () => {
+        if (this.openPath() === this.join(en.name)) this.openPath.set(this.join(next));
+        this.load();
+      },
+      error: (e) => toastError(e, `Couldn't rename ${en.name}.`),
+    });
+  }
+
+  private nameProblem(name: string): string | null {
+    if (name.includes('/') || name.includes('\\')) return "Names can't contain slashes.";
+    if (name === '.' || name === '..') return 'Pick a different name.';
+    if (this.entries().some((e) => e.name === name)) return 'Something with that name already exists here.';
+    return null;
   }
 
   protected async remove(en: FileEntry): Promise<void> {
@@ -298,8 +399,11 @@ export class Files implements OnDestroy {
     });
     if (!ok) return;
     this.api.apiServerServerIdFilesDelete(this.serverId, this.join(en.name)).subscribe({
-      next: () => { if (this.openPath() === this.join(en.name)) this.openPath.set(null); this.load(); },
-      error: (e) => this.error.set(messageOf(e)),
+      next: () => {
+        if (this.openPath() === this.join(en.name)) { this.openPath.set(null); this.dirty.set(false); }
+        this.load();
+      },
+      error: (e) => toastError(e, `Couldn't delete ${en.name}.`),
     });
   }
 
@@ -315,7 +419,7 @@ export class Files implements OnDestroy {
         a.href = url; a.download = en.name; a.click();
         URL.revokeObjectURL(url);
       },
-      error: (e) => this.error.set(messageOf(e)),
+      error: (e) => toastError(e, `Couldn't download ${en.name}.`),
     });
   }
 
@@ -324,12 +428,4 @@ export class Files implements OnDestroy {
   private join(name: string): string { const c = this.cwd(); return c ? `${c}/${name}` : name; }
 
   ngOnDestroy(): void { this.editor?.destroy(); }
-}
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-  }
-  return err instanceof Error ? err.message : 'Request failed';
 }

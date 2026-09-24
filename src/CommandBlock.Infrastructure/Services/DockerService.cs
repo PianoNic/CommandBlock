@@ -178,12 +178,21 @@ namespace CommandBlock.Infrastructure.Services
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
             var ct = linkedCts.Token;
 
-            var exec = await client.Exec.ExecCreateContainerAsync(containerId, new ContainerExecCreateParameters
+            ContainerExecCreateResponse exec;
+            try
             {
-                Cmd = command,
-                AttachStdout = true,
-                AttachStderr = true,
-            }, ct);
+                exec = await client.Exec.ExecCreateContainerAsync(containerId, new ContainerExecCreateParameters
+                {
+                    Cmd = command,
+                    AttachStdout = true,
+                    AttachStderr = true,
+                }, ct);
+            }
+            catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                // Docker refuses exec on a stopped container; say so in words the UI can show as-is.
+                throw new InvalidOperationException("The server isn't running. Start it first.", ex);
+            }
 
             using var stream = await client.Exec.StartAndAttachContainerExecAsync(exec.ID, tty: false, ct);
 

@@ -6,6 +6,8 @@ import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { environment } from '../shared/environments/environment';
 import { serverIconUrl } from '../shared/utils/server-icon';
+import { toastError } from '../shared/utils/errors';
+import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 
 /// The Icon section of the server-settings modal: upload/replace/remove the server image. Uploads are
 /// cropped to 64x64 server-side and also written into the container as server-icon.png.
@@ -37,7 +39,7 @@ import { serverIconUrl } from '../shared/utils/server-icon';
       <input #picker type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" (change)="upload($event)" />
     </div>
 
-    @if (busy()) { <span class="text-muted-foreground text-xs">working…</span> }
+    @if (busy()) { <span class="text-muted-foreground text-xs">Working…</span> }
   `,
 })
 export class ServerIconForm implements OnInit {
@@ -45,6 +47,7 @@ export class ServerIconForm implements OnInit {
   readonly changed = output<void>();
 
   private readonly api = inject(ServerService);
+  private readonly confirm = inject(ConfirmService);
   protected readonly hasIcon = signal(false);
   protected readonly busy = signal(false);
   private readonly v = signal(0);
@@ -65,15 +68,22 @@ export class ServerIconForm implements OnInit {
     this.busy.set(true);
     this.api.apiServerIdIconPost(this.server().id, file).subscribe({
       next: () => { input.value = ''; this.busy.set(false); this.hasIcon.set(true); this.v.update((x) => x + 1); this.changed.emit(); },
-      error: () => { input.value = ''; this.busy.set(false); },
+      error: (err: unknown) => { input.value = ''; this.busy.set(false); toastError(err, "Couldn't upload the icon."); },
     });
   }
 
-  protected remove(): void {
+  protected async remove(): Promise<void> {
+    const ok = await this.confirm.open({
+      title: 'Remove the server icon?',
+      message: 'The server goes back to the default icon in the server list and in-game.',
+      confirmLabel: 'Remove icon',
+      destructive: true,
+    });
+    if (!ok) return;
     this.busy.set(true);
     this.api.apiServerIdIconDelete(this.server().id).subscribe({
       next: () => { this.busy.set(false); this.hasIcon.set(false); this.v.update((x) => x + 1); this.changed.emit(); },
-      error: () => { this.busy.set(false); },
+      error: (err: unknown) => { this.busy.set(false); toastError(err, "Couldn't remove the icon."); },
     });
   }
 }

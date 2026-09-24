@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucidePlus,
@@ -26,7 +26,6 @@ import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmContextMenuImports } from '@spartan-ng/helm/context-menu';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
-import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerCreateDialog } from './server-create-dialog';
 import { ServerBackupsDialog } from './server-backups-dialog';
@@ -34,10 +33,12 @@ import { ServerSettingsDialog } from './server-settings-dialog';
 import { ServersStore } from './servers.store';
 import { environment } from '../shared/environments/environment';
 import { serverIconUrl } from '../shared/utils/server-icon';
+import { stateLabel } from '../shared/utils/server-state';
 
 @Component({
   selector: 'app-servers',
   imports: [
+    RouterLink,
     ContentHeader,
     NgIcon,
     HlmBadgeImports,
@@ -70,7 +71,6 @@ import { serverIconUrl } from '../shared/utils/server-icon';
 })
 export class Servers {
   private readonly dialog = inject(HlmDialogService);
-  private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
   protected readonly store = inject(ServersStore);
 
@@ -113,23 +113,9 @@ export class Servers {
     });
   }
 
-  protected start(s: ServerInstanceDto): void {
-    this.store.start(s.id);
-  }
-
-  protected async stop(s: ServerInstanceDto): Promise<void> {
-    const ok = await this.confirm.open({
-      title: `Stop ${s.displayName}?`,
-      message: 'The container stops and players are disconnected. The world is preserved.',
-      confirmLabel: 'Stop',
-      destructive: true,
-    });
-    if (ok) this.store.stop(s.id);
-  }
-
-  protected restart(s: ServerInstanceDto): void {
-    this.store.restart(s.id);
-  }
+  protected start(s: ServerInstanceDto): void { this.store.start(s); }
+  protected stop(s: ServerInstanceDto): void { void this.store.stop(s); }
+  protected restart(s: ServerInstanceDto): void { void this.store.restart(s); }
 
   /// True while the server is booting/transitioning or an action is in flight - the start/stop
   /// control shows an hourglass and is disabled. Covers the whole boot: created -> starting -> running.
@@ -138,20 +124,14 @@ export class Servers {
     return st === 'created' || st === 'starting' || st === 'restarting' || this.store.isBusy(s.id);
   }
 
-  protected async remove(s: ServerInstanceDto): Promise<void> {
-    const ok = await this.confirm.open({
-      title: `Delete ${s.displayName}?`,
-      message: 'This stops and removes the container and its world data. This cannot be undone (restore from a backup if you have one).',
-      confirmLabel: 'Delete server',
-      destructive: true,
-    });
-    if (ok) this.store.remove(s.id);
-  }
+  protected remove(s: ServerInstanceDto): void { void this.store.remove(s); }
 
   /// Live state from the status stream, falling back to the value from the initial list load.
   protected stateOf(s: ServerInstanceDto): string | null {
     return this.statuses()[s.id]?.state ?? s.state ?? null;
   }
+
+  protected readonly stateLabel = stateLabel;
 
   protected stateVariant(state: string | null | undefined): 'default' | 'secondary' | 'outline' {
     return state === 'running' ? 'default' : state ? 'secondary' : 'outline';

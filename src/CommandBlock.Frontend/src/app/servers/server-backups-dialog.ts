@@ -15,6 +15,9 @@ import { BackupScheduleDto } from '../api/model/backupScheduleDto';
 import { environment } from '../shared/environments/environment';
 import { LocalDatePipe } from '../shared/pipes/local-date.pipe';
 import { formatBytes } from '../shared/utils/format';
+import { messageOf, toastError } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
+import { Router } from '@angular/router';
 
 type DialogContext = { serverId: string; serverName: string };
 
@@ -54,13 +57,18 @@ type DialogContext = { serverId: string; serverName: string };
         </button>
       </div>
     </div>
-    @if (creating()) { <p class="text-muted-foreground text-xs">Creating backup…</p> }
+    @if (creating()) { <p class="text-muted-foreground text-xs" role="status">Creating backup… this can take a minute for big worlds.</p> }
 
     @if (error(); as err) {
       <p class="text-destructive text-sm">{{ err }}</p>
     }
 
-    @if (backups().length === 0 && !loading()) {
+    @if (loadFailed()) {
+      <div class="flex items-center gap-2 text-sm">
+        <p class="text-destructive">Couldn't load backups.</p>
+        <button hlmBtn size="sm" variant="outline" type="button" (click)="load()">Retry</button>
+      </div>
+    } @else if (backups().length === 0 && !loading()) {
       <div class="text-muted-foreground flex flex-col items-center gap-2 py-8 text-center text-sm">
         <ng-icon name="lucideArchive" size="28" class="opacity-50" />
         <p>No backups yet.</p>
@@ -93,10 +101,10 @@ type DialogContext = { serverId: string; serverName: string };
                 <ng-icon name="lucideHistory" size="13" />
                 Restore
               </button>
-              <button hlmBtn size="sm" variant="ghost" type="button" (click)="download(b)" [disabled]="busy()" title="Download this backup">
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="download(b)" [disabled]="busy()" title="Download this backup" [attr.aria-label]="'Download ' + b.fileName">
                 <ng-icon name="lucideDownload" size="13" />
               </button>
-              <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(b)" [disabled]="busy()" title="Delete this backup">
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="remove(b)" [disabled]="busy()" title="Delete this backup" [attr.aria-label]="'Delete ' + b.fileName">
                 <ng-icon name="lucideTrash2" size="13" />
               </button>
             </div>
@@ -118,7 +126,7 @@ type DialogContext = { serverId: string; serverName: string };
       </div>
       <!-- Custom cron expression -->
       <div class="flex items-center gap-1.5">
-        <input hlmInput class="h-8 flex-1 font-mono text-xs" placeholder="Custom cron - e.g. 30 4 * * 1-5 (min hour day month weekday, UTC)"
+        <input hlmInput class="h-8 flex-1 font-mono text-xs" aria-label="Custom schedule (cron, UTC)" placeholder="Custom cron - e.g. 30 4 * * 1-5 (min hour day month weekday, UTC)"
           [value]="customCron()" (input)="customCron.set($any($event.target).value)" (keydown.enter)="addCustom()" />
         <button hlmBtn size="sm" variant="outline" type="button" class="h-8 shrink-0" (click)="addCustom()" [disabled]="busy() || customCron().trim() === ''">
           <ng-icon name="lucidePlus" size="12" /> Add
@@ -128,16 +136,16 @@ type DialogContext = { serverId: string; serverName: string };
         <ul class="divide-border divide-y rounded-md border">
           @for (s of schedules(); track s.id) {
             <li class="flex items-center gap-3 p-2">
-              <hlm-checkbox [checked]="s.enabled" (checkedChange)="toggleSchedule(s, $event)" />
+              <hlm-checkbox [checked]="s.enabled" (checkedChange)="toggleSchedule(s, $event)" [attr.aria-label]="(s.enabled ? 'Pause' : 'Resume') + ' this schedule'" />
               <div class="min-w-0 flex-1">
                 <span class="font-mono text-xs">{{ s.cronExpression }}</span>
                 <span class="text-muted-foreground text-xs"> · {{ describeCron(s.cronExpression) }}</span>
                 <div class="text-muted-foreground text-[11px]">
-                  @if (s.enabled && s.nextRunAt) { next {{ s.nextRunAt | localDate }} } @else { paused }
+                  @if (s.enabled && s.nextRunAt) { next run {{ s.nextRunAt | localDate }} (your time) } @else { paused }
                   @if (s.lastStatus === 'error') { · <span class="text-destructive">last run failed</span> }
                 </div>
               </div>
-              <button hlmBtn size="sm" variant="ghost" type="button" (click)="removeSchedule(s)" title="Delete schedule">
+              <button hlmBtn size="sm" variant="ghost" type="button" (click)="removeSchedule(s)" title="Delete schedule" aria-label="Delete schedule">
                 <ng-icon name="lucideTrash2" size="13" />
               </button>
             </li>
@@ -156,6 +164,7 @@ export class ServerBackupsDialog {
   private readonly confirm = inject(ConfirmService);
   private readonly http = inject(HttpClient);
   private readonly doc = inject(DOCUMENT);
+  private readonly router = inject(Router);
 
   protected readonly backups = signal<ReadonlyArray<BackupEntryDto>>([]);
   protected readonly schedules = signal<ReadonlyArray<BackupScheduleDto>>([]);
@@ -164,13 +173,14 @@ export class ServerBackupsDialog {
   protected readonly creating = signal(false);
   protected readonly working = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly loadFailed = signal(false);
 
   // Common cron presets (UTC). describeCron() maps a stored cron back to its label.
   protected readonly presets = [
     { label: 'Hourly', cron: '0 * * * *' },
     { label: 'Every 6h', cron: '0 */6 * * *' },
-    { label: 'Daily 3am', cron: '0 3 * * *' },
-    { label: 'Weekly', cron: '0 4 * * 0' },
+    { label: 'Daily 03:00 UTC', cron: '0 3 * * *' },
+    { label: 'Sundays 04:00 UTC', cron: '0 4 * * 0' },
   ] as const;
 
   protected busy = () => this.creating() || this.working() || this.loading();
@@ -181,7 +191,10 @@ export class ServerBackupsDialog {
   }
 
   protected loadSchedules(): void {
-    this.api.apiServerIdBackupSchedulesGet(this.ctx.serverId).subscribe({ next: (rows) => this.schedules.set(rows) });
+    this.api.apiServerIdBackupSchedulesGet(this.ctx.serverId).subscribe({
+      next: (rows) => this.schedules.set(rows),
+      error: (err: unknown) => toastError(err, "Couldn't load backup schedules."),
+    });
   }
 
   protected addSchedule(cron: string, onSuccess?: () => void): void {
@@ -191,11 +204,12 @@ export class ServerBackupsDialog {
       next: () => {
         this.working.set(false);
         this.loadSchedules();
+        toast.success('Backup schedule added.');
         onSuccess?.();
       },
       error: (err: unknown) => {
         this.working.set(false);
-        this.error.set(messageOf(err));
+        this.error.set(messageOf(err, 'Something went wrong.'));
       },
     });
   }
@@ -208,18 +222,25 @@ export class ServerBackupsDialog {
   }
 
   protected toggleSchedule(s: BackupScheduleDto, enabled: boolean): void {
-    this.api.apiServerBackupSchedulesScheduleIdPatch(s.id, { enabled }).subscribe({ next: () => this.loadSchedules() });
+    this.api.apiServerBackupSchedulesScheduleIdPatch(s.id, { enabled }).subscribe({
+      next: () => this.loadSchedules(),
+      // Reload so the checkbox snaps back to what's actually stored.
+      error: (err: unknown) => { toastError(err, "Couldn't update the schedule."); this.loadSchedules(); },
+    });
   }
 
   protected async removeSchedule(s: BackupScheduleDto): Promise<void> {
     const ok = await this.confirm.open({
       title: 'Delete schedule?',
       message: `Stop the "${s.cronExpression}" scheduled backup. Existing backups are kept.`,
-      confirmLabel: 'Delete',
+      confirmLabel: 'Delete schedule',
       destructive: true,
     });
     if (!ok) return;
-    this.api.apiServerBackupSchedulesScheduleIdDelete(s.id).subscribe({ next: () => this.loadSchedules() });
+    this.api.apiServerBackupSchedulesScheduleIdDelete(s.id).subscribe({
+      next: () => this.loadSchedules(),
+      error: (err: unknown) => toastError(err, "Couldn't delete the schedule."),
+    });
   }
 
   protected describeCron(cron: string): string {
@@ -228,13 +249,14 @@ export class ServerBackupsDialog {
 
   protected load(): void {
     this.loading.set(true);
+    this.loadFailed.set(false);
     this.api.apiServerIdBackupsGet(this.ctx.serverId).subscribe({
       next: (rows) => {
         this.backups.set(rows);
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Failed to load backups.');
+        this.loadFailed.set(true);
         this.loading.set(false);
       },
     });
@@ -246,44 +268,65 @@ export class ServerBackupsDialog {
     this.api.apiServerIdBackupsPost(this.ctx.serverId, kind).subscribe({
       next: () => {
         this.creating.set(false);
+        toast.success(kind === 'world' ? 'World backup created.' : 'Server backup created.');
         this.load();
       },
       error: (err: unknown) => {
         this.creating.set(false);
-        this.error.set(messageOf(err));
+        this.error.set(messageOf(err, 'Something went wrong.'));
       },
     });
   }
 
-  /// Spins up a brand-new server from a full server backup. Prompts for the new name + hostname.
-  protected createServerFrom(b: BackupEntryDto): void {
-    const name = window.prompt('Name for the new server:', 'Restored ' + this.ctx.serverName);
-    if (!name?.trim()) return;
-    const hostname = window.prompt('Hostname for the new server (must be unique, e.g. restored.example.com):');
-    if (!hostname?.trim()) return;
+  /// Spins up a brand-new server from a full server backup, then opens it.
+  protected async createServerFrom(b: BackupEntryDto): Promise<void> {
+    const name = await this.confirm.prompt({
+      title: 'New server from backup',
+      message: `Creates a separate server with the same settings and files as ${b.fileName}. The original is untouched.`,
+      label: 'Name',
+      value: 'Restored ' + this.ctx.serverName,
+      confirmLabel: 'Next',
+    });
+    if (!name) return;
+    const hostname = await this.confirm.prompt({
+      title: 'Address for the new server',
+      message: 'The address players type to join. It must be unique and under one of your domains.',
+      label: 'Hostname',
+      placeholder: 'e.g. restored.example.com',
+      confirmLabel: 'Create server',
+      validate: (v) => (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(v) ? null : 'Enter a hostname like play.example.com.'),
+    });
+    if (!hostname) return;
     this.working.set(true);
     this.error.set(null);
-    this.api.apiServerBackupsBackupIdCreateServerPost(b.id, { displayName: name.trim(), hostname: hostname.trim() }).subscribe({
-      next: () => { this.working.set(false); this.ref.close(); },
-      error: (err: unknown) => { this.working.set(false); this.error.set(messageOf(err)); },
+    this.api.apiServerBackupsBackupIdCreateServerPost(b.id, { displayName: name, hostname }).subscribe({
+      next: (created) => {
+        this.working.set(false);
+        toast.success(`Created ${created.displayName}.`);
+        this.ref.close();
+        this.router.navigate(['/servers', created.id]);
+      },
+      error: (err: unknown) => { this.working.set(false); this.error.set(messageOf(err, "Couldn't create the server.")); },
     });
   }
 
   protected async restore(b: BackupEntryDto): Promise<void> {
     const ok = await this.confirm.open({
       title: `Restore ${b.fileName}?`,
-      message: 'The server will be stopped, its world replaced with this backup, and started again. Current world data is overwritten.',
-      confirmLabel: 'Restore',
+      message: b.kind === 'Server'
+        ? 'The server stops, all of its files are replaced with this backup, and it starts again. Anything changed since the backup is lost.'
+        : 'The server stops, its world is replaced with this backup, and it starts again. Progress since the backup is lost.',
+      confirmLabel: 'Restore backup',
       destructive: true,
     });
     if (!ok) return;
     this.working.set(true);
     this.error.set(null);
     this.api.apiServerBackupsBackupIdRestorePost(b.id).subscribe({
-      next: () => this.working.set(false),
+      next: () => { this.working.set(false); toast.success(`Restored ${b.fileName}. The server is starting again.`); },
       error: (err: unknown) => {
         this.working.set(false);
-        this.error.set(messageOf(err));
+        this.error.set(messageOf(err, 'Something went wrong.'));
       },
     });
   }
@@ -307,7 +350,7 @@ export class ServerBackupsDialog {
         },
         error: (err: unknown) => {
           this.working.set(false);
-          this.error.set(messageOf(err));
+          this.error.set(messageOf(err, 'Something went wrong.'));
         },
       });
   }
@@ -315,8 +358,8 @@ export class ServerBackupsDialog {
   protected async remove(b: BackupEntryDto): Promise<void> {
     const ok = await this.confirm.open({
       title: `Delete ${b.fileName}?`,
-      message: 'This permanently removes the backup from object storage.',
-      confirmLabel: 'Delete',
+      message: 'This backup is deleted permanently and cannot be restored afterwards.',
+      confirmLabel: 'Delete backup',
       destructive: true,
     });
     if (!ok) return;
@@ -324,24 +367,15 @@ export class ServerBackupsDialog {
     this.api.apiServerBackupsBackupIdDelete(b.id).subscribe({
       next: () => {
         this.working.set(false);
+        toast.success('Backup deleted.');
         this.load();
       },
       error: (err: unknown) => {
         this.working.set(false);
-        this.error.set(messageOf(err));
+        this.error.set(messageOf(err, "Couldn't delete the backup."));
       },
     });
   }
 
   protected humanSize(b: BackupEntryDto): string { return formatBytes(b.sizeBytes); }
-}
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-    if (typeof e === 'string' && e.trim() !== '') return e;
-  }
-  if (err instanceof Error) return err.message;
-  return 'Request failed';
 }

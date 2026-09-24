@@ -19,6 +19,8 @@ builder.Services.AddCommandBlockConfig(builder.Environment);
 builder.Services.AddSpaStaticFiles(options => { options.RootPath = "wwwroot"; });
 
 builder.Services.AddControllers();
+// Unhandled errors become a small ProblemDetails JSON body the UI can show, never an empty 500 or a stack trace.
+builder.Services.AddProblemDetails();
 builder.Services.AddSignalR();
 
 builder.Services.AddHttpContextAccessor();
@@ -129,6 +131,9 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+    app.UseExceptionHandler();
 
 app.ApplyMigrations();
 

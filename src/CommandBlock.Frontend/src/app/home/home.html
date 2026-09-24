@@ -60,7 +60,14 @@
     </div>
 
     <!-- Servers: state, load and power controls without leaving the page. -->
-    @if (servers().length === 0) {
+    @if (loadError(); as err) {
+      <div class="flex items-center justify-center gap-2 rounded-lg border p-8 text-sm" role="alert">
+        <p class="text-destructive">{{ err }}</p>
+        <button hlmBtn size="sm" variant="outline" type="button" (click)="reloadServers()">Retry</button>
+      </div>
+    } @else if (!loaded()) {
+      <div class="text-muted-foreground rounded-lg border p-8 text-center text-sm">Loading servers…</div>
+    } @else if (servers().length === 0) {
       <div class="text-muted-foreground rounded-lg border p-8 text-center text-sm">
         No servers yet. Create one to get started.
       </div>
@@ -87,18 +94,18 @@
 
               <div class="flex shrink-0 gap-1">
                 @if (isBusy(s)) {
-                  <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working">
+                  <button hlmBtn size="sm" variant="ghost" type="button" disabled title="Working…" aria-label="Working…">
                     <ng-icon name="lucideHourglass" size="14" />
                   </button>
                 } @else if (isRunning(s)) {
-                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop">
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="stop(s)" title="Stop" [attr.aria-label]="'Stop ' + s.displayName">
                     <ng-icon name="lucideSquare" size="14" />
                   </button>
-                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="restart(s)" title="Restart">
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="restart(s)" title="Restart" [attr.aria-label]="'Restart ' + s.displayName">
                     <ng-icon name="lucideRotateCcw" size="14" />
                   </button>
                 } @else {
-                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start">
+                  <button hlmBtn size="sm" variant="ghost" type="button" (click)="start(s)" title="Start" [attr.aria-label]="'Start ' + s.displayName">
                     <ng-icon name="lucidePlay" size="14" />
                   </button>
                 }
@@ -151,7 +158,7 @@
           @for (a of activity(); track a.id) {
             <li class="flex items-center justify-between gap-3 px-4 py-2 text-sm">
               <span class="inline-flex min-w-0 items-center gap-2">
-                <span class="font-mono text-xs">{{ a.action }}</span>
+                <span class="shrink-0 text-xs font-medium" [title]="a.action">{{ activityLabel(a.action) }}</span>
                 <span class="text-muted-foreground truncate">{{ a.target }}</span>
               </span>
               <span class="text-muted-foreground shrink-0 text-xs">{{ a.actorName || 'system' }}</span>

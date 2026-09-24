@@ -21,6 +21,7 @@ import {
   lucideNetwork,
   lucidePlus,
   lucideServer,
+  lucideLayoutDashboard,
   lucideSettings,
   lucideSun,
 } from '@ng-icons/lucide';
@@ -31,6 +32,7 @@ import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ThemeService, ThemeMode } from '../shared/services/theme.service';
 import { AppService } from '../api/api/app.service';
 import { ServerCreateDialog } from '../servers/server-create-dialog';
+import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 
 @Component({
   selector: 'app-sidenav',
@@ -46,6 +48,7 @@ import { ServerCreateDialog } from '../servers/server-create-dialog';
       lucideNetwork,
       lucidePlus,
       lucideServer,
+      lucideLayoutDashboard,
       lucideSettings,
       lucideSun,
     }),
@@ -63,7 +66,7 @@ export class Sidenav {
 
   protected openCreate(): void {
     this.dialog.open(ServerCreateDialog, {
-      context: { onCreated: () => this.router.navigate(['/servers']) },
+      context: { onCreated: (created: ServerInstanceDto) => this.router.navigate(['/servers', created.id]) },
       contentClass: 'sm:max-w-[560px]',
     });
   }
@@ -102,11 +105,14 @@ export class Sidenav {
   );
   protected isRouteActive(route: string): boolean {
     const url = this.currentUrl();
+    // '/' would otherwise prefix-match every page.
+    if (route === '/') return url === '/' || url.startsWith('/?');
     return url === route || url.startsWith(route + '/');
   }
 
   protected readonly themeMode = this.theme.mode;
   protected readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
+    { route: '/', label: 'Dashboard', icon: 'lucideLayoutDashboard' },
     { route: '/servers', label: 'Servers', icon: 'lucideServer' },
     { route: '/connections', label: 'Connections', icon: 'lucideNetwork' },
     { route: '/backups', label: 'Backups', icon: 'lucideArchive' },

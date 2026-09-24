@@ -22,6 +22,7 @@ const REJECTION_LABELS: Record<string, string> = {
   'server-offline': 'Server offline, wake disabled',
   'asked-to-reconnect': 'Asked to reconnect',
   'wake-timed-out': 'Gave up waiting for boot',
+  'too-many-connections': 'Too many connections at once',
 };
 
 @Component({
@@ -38,9 +39,11 @@ const REJECTION_LABELS: Record<string, string> = {
       <header class="mx-4 flex items-center justify-between gap-2 border-b py-2">
         <div>
           <h2 class="text-sm font-medium">Connections</h2>
-          <p class="text-muted-foreground text-xs">Everything routed through the proxy, live.</p>
+          <p class="text-muted-foreground text-xs">Every player connection through the router, live.</p>
         </div>
-        @if (stats(); as s) {
+        @if (stale()) {
+          <span class="text-destructive shrink-0 text-xs" role="status">Can't reach CommandBlock - showing the last known data.</span>
+        } @else if (stats(); as s) {
           <span class="text-muted-foreground shrink-0 text-xs">Since {{ s.sinceUtc | localDate }}</span>
         }
       </header>
@@ -227,6 +230,8 @@ export class Connections {
   protected readonly rejections = computed(() => this.stats()?.rejections ?? []);
   protected readonly peakHour = computed(() => Math.max(0, ...this.traffic().map((b) => b.connections)));
 
+  protected readonly stale = signal(false);
+
   protected readonly kpis = computed(() => {
     const s = this.stats();
     return [
@@ -248,8 +253,12 @@ export class Connections {
 
   protected load(): void {
     this.now.set(Date.now());
-    this.api.apiConnectionsGet().subscribe({ next: (rows) => this.connections.set(rows) });
-    this.api.apiConnectionsStatsGet().subscribe({ next: (s) => this.stats.set(s) });
+    // Polled, so a failure is shown as a quiet "stale" note instead of a toast every 4 seconds.
+    this.api.apiConnectionsGet().subscribe({
+      next: (rows) => { this.connections.set(rows); this.stale.set(false); },
+      error: () => this.stale.set(true),
+    });
+    this.api.apiConnectionsStatsGet().subscribe({ next: (s) => this.stats.set(s), error: () => this.stale.set(true) });
   }
 
   protected label(reason: string): string {
