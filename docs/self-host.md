@@ -37,7 +37,7 @@ services:
       Cors__AllowedOrigins__0: ${CommandBlock_PUBLIC_URL}
       Oidc__Authority: ${CommandBlock_OIDC_AUTHORITY}
       Oidc__ClientId: ${CommandBlock_OIDC_CLIENT_ID}
-      Oidc__RequiredRole: ${CommandBlock_OIDC_REQUIRED_ROLE}   # only users with this role/group get in
+      Oidc__AdminRole: ${CommandBlock_OIDC_ADMIN_ROLE}   # only users with this role/group get in
       Oidc__Scope: "openid profile email roles"
       Oidc__RequireHttpsMetadata: "true"
       # Backups -> SeaweedFS (S3)
@@ -91,9 +91,9 @@ CommandBlock_PUBLIC_URL=http://localhost:5000
 # Your OIDC provider:
 CommandBlock_OIDC_AUTHORITY=https://auth.example.com/realms/commandblock
 CommandBlock_OIDC_CLIENT_ID=commandblock
-# Role or group a user needs to sign in (from the token's `roles`/`groups` claim). Leave empty only if
+# Role or group a user needs to sign in (from the token's role claim, see Oidc__RoleClaim). Leave empty only if
 # every account on your IdP should be able to manage your servers.
-CommandBlock_OIDC_REQUIRED_ROLE=commandblock-admin
+CommandBlock_OIDC_ADMIN_ROLE=commandblock-admin
 ```
 
 **`commandblock.yaml`** - where server worlds live on disk:
@@ -133,8 +133,9 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | --- | --- |
 | `ConnectionStrings__CommandBlockDatabase` | CommandBlock's own metadata DB (PostgreSQL): `Host=db;Port=5432;Database=commandblock;Username=postgres;Password=…`. |
 | `Oidc__Authority` / `Oidc__ClientId` / `Oidc__Scope` / `Oidc__RequireHttpsMetadata` | OIDC login (public/PKCE client). `Authority` must match the IdP `issuer` byte-for-byte. |
-| `Oidc__RequiredRole` | **Recommended.** Only users whose token carries this value in its `roles` or `groups` claim can sign in. Unset, *anyone* who can log in at your IdP gets full control. |
-| `Oidc__Audience` | Optional. Reject tokens whose `aud` isn't this value (e.g. your client id, if your IdP puts it there). |
+| `Oidc__AdminRole` | **Recommended.** Only users whose token carries this role can use CommandBlock. Unset, *anyone* who can log in at your IdP gets full control. |
+| `Oidc__RoleClaim` | Which claim holds roles (default `roles`). Set to `groups` for Pocket ID, Authentik and Entra. |
+| `Oidc__ValidAudiences__0` | Optional. Reject tokens whose `aud` isn't this value (e.g. your client id, if your IdP puts it there). Unset, the audience isn't checked. |
 | `Oidc__RedirectUri` / `…PostLogoutRedirectUri` | Return URLs after login/logout (derived from `CommandBlock__PublicUrl` if unset). |
 | `Cors__AllowedOrigins__0` | Browser origin allowed to call the API - UI URL **without** trailing slash. |
 | `Router__ListenPort` / `Router__Enabled` / `Router__HandshakeTimeoutSeconds` | The Minecraft router (defaults: `25565`, `true`, `5`). |
@@ -142,6 +143,9 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | `Router__MaxConnections` / `Router__MaxConnectionsPerAddress` | Concurrent router connections in total and per IP; extra connections are refused (defaults: `2048`, `32`). |
 | `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | Backups to S3/SeaweedFS. See [Backups](./backups). |
 | `Docker__Endpoint` | Docker daemon URI. Optional - auto-detected when unset. |
+
+
+Sign-in is handled by [Toamaisutaa](https://docs.toamaisutaa.pianonic.ch), so every key in its [OIDC reference](https://docs.toamaisutaa.pianonic.ch/oidc) works here too.
 
 </details>
 
@@ -180,7 +184,7 @@ Migrations run on startup; the metadata DB, worlds, and running server container
 | Symptom | Fix |
 | --- | --- |
 | `401 invalid_token: issuer is invalid` | `Oidc__Authority` must match the IdP's `issuer` byte-for-byte. |
-| `403` on every request after signing in | `Oidc__RequiredRole` is set but your token has no matching `roles`/`groups` claim - add a mapper for it in your IdP. |
+| `403` on every request after signing in | `Oidc__AdminRole` is set but your token doesn't carry it. The API log says which claim it read and what the token had there - usually the fix is `Oidc__RoleClaim=groups` or a role mapper in your IdP. |
 | CORS error on `/api/*` | `Cors__AllowedOrigins__0` must match the UI origin (no trailing slash). |
 | `Cannot connect to the Docker daemon` | The `/var/run/docker.sock` bind is missing from the `commandblock` service. |
 | Player can't connect / "Can't resolve hostname" | DNS record missing or (Cloudflare) proxied - use a `DNS only` record. See [Routing](./routing). |

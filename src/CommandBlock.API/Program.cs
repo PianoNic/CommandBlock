@@ -6,7 +6,6 @@ using CommandBlock.API.Routing;
 using CommandBlock.Infrastructure.Extensions;
 using CommandBlock.Infrastructure.Interfaces;
 using CommandBlock.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Scalar.AspNetCore;
 
@@ -24,7 +23,6 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSignalR();
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserService, HttpCurrentUserService>();
 
 builder.Services.AddOpenApi(options =>
 {
@@ -82,52 +80,19 @@ var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get
 // harmless when the SPA is same-origin (the container). Needs explicit origins, which we have.
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var publicAuthority = builder.Configuration["Oidc:Authority"];
-        var internalAuthority = builder.Configuration["Oidc:InternalAuthority"] ?? publicAuthority;
-        options.MetadataAddress = $"{internalAuthority!.TrimEnd('/')}/.well-known/openid-configuration";
-        options.RequireHttpsMetadata = builder.Configuration.GetValue("Oidc:RequireHttpsMetadata", true);
-        options.TokenValidationParameters.ValidIssuer = publicAuthority;
-        // Behind a gul tunnel the token's `iss` is the dynamic public tunnel URL rather than the
-        // local authority configured here; the signature is still verified against the local JWKS
-        // above, so only the issuer-string check is relaxed (on by default; off in Development).
-        options.TokenValidationParameters.ValidateIssuer = builder.Configuration.GetValue("Oidc:ValidateIssuer", true);
-        options.TokenValidationParameters.NameClaimType = "name";
-        options.TokenValidationParameters.RoleClaimType = "roles";
-        // Opt-in: many IdPs put something other than the client id in `aud` (Keycloak says "account"),
-        // so audience checking is only enforced when the operator names the expected audience.
-        var audience = builder.Configuration["Oidc:Audience"];
-        options.TokenValidationParameters.ValidateAudience = !string.IsNullOrWhiteSpace(audience);
-        options.TokenValidationParameters.ValidAudience = audience;
-
-        // Browser WebSockets can't set the Authorization header, so SignalR passes the token as a
-        // query-string param on /hubs connections. Pull it in so hub auth works.
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                var accessToken = context.Request.Query["access_token"];
-                if (!string.IsNullOrEmpty(accessToken) && context.Request.Path.StartsWithSegments("/hubs"))
-                    context.Token = accessToken;
-                return Task.CompletedTask;
-            },
-        };
-    });
-
-// Signing in grants full control of every server. With a shared or self-registration IdP that's everyone
-// who has an account there, so Oidc:RequiredRole limits access to users carrying that role or group.
-var requiredRole = builder.Configuration["Oidc:RequiredRole"];
-var accessPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser();
-if (!string.IsNullOrWhiteSpace(requiredRole))
-    // JwtBearer maps the inbound `roles` claim to ClaimTypes.Role, so match both spellings (and `groups`).
-    accessPolicy.RequireAssertion(ctx => ctx.User.HasClaim(c =>
-        c.Type is "roles" or "role" or "groups" or System.Security.Claims.ClaimTypes.Role && c.Value == requiredRole));
-builder.Services.AddAuthorization(options =>
+// Authentication is Toamaisutaa (https://docs.toamaisutaa.pianonic.ch): OIDC bearer validation against
+// Oidc:Authority, the SignalR query-token carve-out, and an optional admin role that gates everything.
+// Its defaults differ from what CommandBlock always did in two places, so keep ours unless the
+// operator set the Toamaisutaa key themselves - an upgrade must not lock anyone out.
+builder.Configuration.AddInMemoryCollection(ToamaisutaaDefaults(builder.Configuration));
+builder.Services.AddToamaisutaaBearer(builder.Configuration);
+builder.Services.AddToamaisutaaAuthorization(builder.Configuration);
+builder.Services.AddToamaisutaaCurrentUser();
+// The admin role lands in the fallback policy (controllers); hubs use .RequireAuthorization(), which
+// reads the default policy, so point that at the same rule or the console would skip the role check.
+builder.Services.PostConfigure<AuthorizationOptions>(options =>
 {
-    options.DefaultPolicy = accessPolicy.Build();   // hubs (.RequireAuthorization())
-    options.FallbackPolicy = options.DefaultPolicy; // controllers
+    if (options.FallbackPolicy is { } fallback) options.DefaultPolicy = fallback;
 });
 
 var app = builder.Build();
@@ -182,3 +147,32 @@ if (app.Environment.IsProduction())
     app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();
+
+/// Only keys the operator left unset, so anything configured explicitly still wins.
+static Dictionary<string, string?> ToamaisutaaDefaults(IConfiguration config)
+{
+    var defaults = new Dictionary<string, string?>();
+    void Default(string key, string? value)
+    {
+        if (value is not null && config[key] is null) defaults[key] = value;
+    }
+
+    // Audience: Toamaisutaa checks it by default, but Keycloak and others put "account" rather than the
+    // client id in `aud`. CommandBlock only ever checked it when told which audience to expect.
+    if (config.GetSection("Oidc:ValidAudiences").GetChildren().Any())
+        Default("Oidc:ValidateAudience", "true");
+    else
+        Default("Oidc:ValidateAudience", "false");
+
+    // Browsers can't send an Authorization header on a WebSocket, so SignalR passes ?access_token=.
+    if (!config.GetSection("Oidc:QueryToken:IncludePaths").GetChildren().Any())
+        Default("Oidc:QueryToken:IncludePaths:0", "/hubs");
+
+    // Every CommandBlock endpoint is an admin action, so naming an admin role should gate all of them.
+    if (!string.IsNullOrWhiteSpace(config["Oidc:AdminRole"]))
+        Default("Oidc:RequireAdminRoleGlobally", "true");
+
+    // The login redirect has always been derivable from CommandBlock:PublicUrl.
+    Default("Oidc:PublicUrl", config["CommandBlock:PublicUrl"]);
+    return defaults;
+}
