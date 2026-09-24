@@ -6,6 +6,9 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { messageOf } from '../shared/utils/errors';
+import { serverAddress } from '../shared/utils/server-address';
+import { toast } from '@spartan-ng/brain/sonner';
 
 type DialogContext = { onCreated: () => void };
 
@@ -16,32 +19,44 @@ type DialogContext = { onCreated: () => void };
   host: { class: 'flex flex-col gap-4' },
   template: `
     <hlm-dialog-header>
-      <h3 hlmDialogTitle>Create world backup</h3>
+      <h3 hlmDialogTitle>Create backup</h3>
       <p hlmDialogDescription>
-        Archives the selected server's world (RCON-flushed for a clean snapshot) into the backup bucket.
+        Saves a copy to your backup storage. The server keeps running; it saves the world first so the copy is consistent.
       </p>
     </hlm-dialog-header>
 
+    <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); create()">
     <div class="flex flex-col gap-1.5">
-      <label hlmLabel class="text-muted-foreground text-xs uppercase tracking-wide">Server</label>
-      <hlm-select [value]="serverId()" (valueChange)="serverId.set($event)" [itemToString]="serverLabel">
+      <label hlmLabel id="backup-server-label" class="text-muted-foreground text-xs uppercase tracking-wide">Server</label>
+      <hlm-select aria-labelledby="backup-server-label" [value]="serverId()" (valueChange)="serverId.set($event)" [itemToString]="serverLabel">
         <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Pick a server…" /></hlm-select-trigger>
         <hlm-select-content *hlmSelectPortal>
           @for (s of servers(); track s.id) {
-            <hlm-select-item [value]="s.id">{{ s.displayName }} ({{ s.hostname }})</hlm-select-item>
+            <hlm-select-item [value]="s.id">{{ s.displayName }} ({{ address(s) }})</hlm-select-item>
           }
         </hlm-select-content>
       </hlm-select>
     </div>
 
+    <fieldset class="flex flex-col gap-1.5">
+      <legend class="text-muted-foreground mb-1.5 text-xs uppercase tracking-wide">What to back up</legend>
+      @for (k of kinds; track k.value) {
+        <label class="hover:bg-accent flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm" [class.border-primary]="kind() === k.value">
+          <input type="radio" name="backup-kind" class="mt-1" [value]="k.value" [checked]="kind() === k.value" (change)="kind.set(k.value)" />
+          <span><span class="font-medium">{{ k.label }}</span><br /><span class="text-muted-foreground text-xs">{{ k.hint }}</span></span>
+        </label>
+      }
+    </fieldset>
+
     @if (error(); as e) { <p class="text-destructive text-sm">{{ e }}</p> }
 
     <div class="flex justify-end gap-2">
       <button hlmBtn variant="outline" type="button" (click)="close()" [disabled]="creating()">Cancel</button>
-      <button hlmBtn type="button" (click)="create()" [disabled]="!canCreate()">
+      <button hlmBtn type="submit" [disabled]="!canCreate()">
         {{ creating() ? 'Creating…' : 'Create backup' }}
       </button>
     </div>
+    </form>
   `,
 })
 export class BackupCreateDialog {
@@ -59,8 +74,15 @@ export class BackupCreateDialog {
   // value->label mapping. Resolve the id back to the server's display name (+ hostname).
   protected readonly serverLabel = (id: string | null): string => {
     const s = this.servers().find((x) => x.id === id);
-    return s ? `${s.displayName} (${s.hostname})` : '';
+    return s ? `${s.displayName} (${serverAddress(s)})` : '';
   };
+
+  protected readonly address = serverAddress;
+  protected readonly kind = signal<'world' | 'server'>('world');
+  protected readonly kinds = [
+    { value: 'world', label: 'World only', hint: 'The map and player progress. Small and quick - good for regular snapshots.' },
+    { value: 'server', label: 'Full server', hint: 'Everything: world, plugins, mods and config. Can also create a copy of this server.' },
+  ] as const;
 
   constructor() {
     this.api.apiServerGet().subscribe((rows) => this.servers.set(rows.filter((s) => s.isManaged && s.containerName)));
@@ -68,22 +90,19 @@ export class BackupCreateDialog {
 
   protected create(): void {
     const id = this.serverId();
-    if (!id) return;
+    if (!id || this.creating()) return;
     this.creating.set(true);
     this.error.set(null);
-    this.api.apiServerIdBackupsPost(id).subscribe({
-      next: () => { this.creating.set(false); this.ctx.onCreated(); this.ref.close(); },
-      error: (err: unknown) => { this.creating.set(false); this.error.set(messageOf(err)); },
+    this.api.apiServerIdBackupsPost(id, this.kind()).subscribe({
+      next: () => {
+        this.creating.set(false);
+        toast.success(this.kind() === 'world' ? 'World backup created.' : 'Server backup created.');
+        this.ctx.onCreated();
+        this.ref.close();
+      },
+      error: (err: unknown) => { this.creating.set(false); this.error.set(messageOf(err, 'Backup failed.')); },
     });
   }
 
   protected close(): void { this.ref.close(); }
-}
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-  }
-  return err instanceof Error ? err.message : 'Backup failed';
 }

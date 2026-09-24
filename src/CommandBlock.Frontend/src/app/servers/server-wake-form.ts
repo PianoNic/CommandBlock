@@ -6,6 +6,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BrnSelectImports } from '@spartan-ng/brain/select';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { toastError } from '../shared/utils/errors';
 
 /// The Wake & sleep section of the server-settings modal. Per-server power management saved straight to
 /// the DB: wake-on-join is read live by the router, auto-sleep by the idle monitor (no restart/recreate).
@@ -71,7 +72,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
     }
 
     @if (saving()) {
-      <span class="text-muted-foreground text-xs">saving…</span>
+      <span class="text-muted-foreground text-xs">Saving…</span>
     } @else if (savedOk()) {
       <span class="text-primary text-xs">Saved</span>
     }
@@ -97,6 +98,17 @@ export class ServerWakeForm implements OnInit {
     this.wakeQueue.set(q > 0 ? q : 120); // default hold window when switching to the queue mode
     this.autoSleep.set(!!s.autoSleepEnabled);
     this.autoSleepMinutes.set(Number(s.autoSleepIdleMinutes ?? 10));
+    this.lastSaved = this.snapshot();
+  }
+
+  /// What the server last accepted, so a failed save can put the controls back instead of showing
+  /// a setting that isn't actually in effect.
+  private lastSaved?: ReturnType<ServerWakeForm['snapshot']>;
+  private snapshot() {
+    return {
+      wakeOnConnect: this.wakeOnConnect(), wakeMode: this.wakeMode(), wakeQueue: this.wakeQueue(),
+      autoSleep: this.autoSleep(), autoSleepMinutes: this.autoSleepMinutes(),
+    };
   }
 
   protected setWake(enabled: boolean): void {
@@ -133,8 +145,15 @@ export class ServerWakeForm implements OnInit {
       autoSleepEnabled: this.autoSleep(),
       autoSleepIdleMinutes: this.autoSleepMinutes(),
     }).subscribe({
-      next: () => { this.saving.set(false); this.savedOk.set(true); },
-      error: () => { this.saving.set(false); },
+      next: () => { this.saving.set(false); this.savedOk.set(true); this.lastSaved = this.snapshot(); },
+      error: (err: unknown) => {
+        this.saving.set(false);
+        toastError(err, "Couldn't save the wake settings.");
+        const prev = this.lastSaved;
+        if (!prev) return;
+        this.wakeOnConnect.set(prev.wakeOnConnect); this.wakeMode.set(prev.wakeMode); this.wakeQueue.set(prev.wakeQueue);
+        this.autoSleep.set(prev.autoSleep); this.autoSleepMinutes.set(prev.autoSleepMinutes);
+      },
     });
   }
 }

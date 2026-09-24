@@ -14,6 +14,7 @@ import { DomainsService } from '../api/api/domains.service';
 import { DomainDto } from '../api/model/domainDto';
 import { environment } from '../shared/environments/environment';
 import { serverIconUrl } from '../shared/utils/server-icon';
+import { messageOf } from '../shared/utils/errors';
 
 const SECTION = '§'; // Minecraft's section sign for colour/format codes
 
@@ -57,7 +58,7 @@ interface MotdToken {
     </div>
 
     <div class="flex items-center gap-2 text-xs">
-      @if (savingIdentity()) { <span class="text-muted-foreground">saving…</span> }
+      @if (savingIdentity()) { <span class="text-muted-foreground">Saving…</span> }
       @else if (identitySaved()) { <span class="text-primary">Saved</span> }
       @if (identityError(); as e) { <span class="text-destructive">{{ e }}</span> }
       <span class="text-muted-foreground">Players connect to <span class="text-foreground font-mono">{{ fullHostname() }}</span>; changing it reroutes on the next join.</span>
@@ -144,13 +145,19 @@ interface MotdToken {
       </div>
 
       <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="pvp()" (checkedChange)="pvp.set($event)" /> PVP</label>
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="whitelist()" (checkedChange)="whitelist.set($event)" /> Whitelist</label>
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="hardcore()" (checkedChange)="hardcore.set($event)" /> Hardcore</label>
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="allowFlight()" (checkedChange)="allowFlight.set($event)" /> Allow flight</label>
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="enableCommandBlock()" (checkedChange)="enableCommandBlock.set($event)" /> Command blocks</label>
-        <label class="flex items-center gap-2 text-sm"><hlm-checkbox [checked]="onlineMode()" (checkedChange)="onlineMode.set($event)" /> Online mode</label>
+        <label class="flex items-center gap-2 text-sm" title="Players can hurt each other"><hlm-checkbox [checked]="pvp()" (checkedChange)="pvp.set($event)" /> PVP</label>
+        <label class="flex items-center gap-2 text-sm" title="Only players you add with /whitelist add can join"><hlm-checkbox [checked]="whitelist()" (checkedChange)="whitelist.set($event)" /> Whitelist</label>
+        <label class="flex items-center gap-2 text-sm" title="One life: players who die become spectators"><hlm-checkbox [checked]="hardcore()" (checkedChange)="hardcore.set($event)" /> Hardcore</label>
+        <label class="flex items-center gap-2 text-sm" title="Don't kick players for flying (needed by some mods and plugins)"><hlm-checkbox [checked]="allowFlight()" (checkedChange)="allowFlight.set($event)" /> Allow flight</label>
+        <label class="flex items-center gap-2 text-sm" title="Let operators place working command blocks"><hlm-checkbox [checked]="enableCommandBlock()" (checkedChange)="enableCommandBlock.set($event)" /> Command blocks</label>
+        <label class="flex items-center gap-2 text-sm" title="Check every player's Minecraft account with Mojang"><hlm-checkbox [checked]="onlineMode()" (checkedChange)="onlineMode.set($event)" /> Online mode</label>
       </div>
+      @if (!onlineMode()) {
+        <p class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400" role="note">
+          With online mode off, accounts aren't verified: anyone can join under any name, including yours or an operator's.
+          Turn on the whitelist, or only use this behind a proxy that checks accounts.
+        </p>
+      }
 
       @if (error(); as e) { <p class="text-destructive text-sm">{{ e }}</p> }
 
@@ -171,7 +178,7 @@ export class ServerPropertiesForm implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly available = signal(false);
-  protected readonly saving = signal(false);
+  readonly saving = signal(false);
   protected readonly savedOk = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -306,6 +313,7 @@ export class ServerPropertiesForm implements OnInit {
 
   /// Public so the settings dialog's pinned action row can commit this tab.
   save(): void {
+    if (this.saving()) return;
     this.saving.set(true);
     this.savedOk.set(false);
     this.error.set(null);
@@ -324,7 +332,7 @@ export class ServerPropertiesForm implements OnInit {
       spawnProtection: this.spawnProtection(),
     }).subscribe({
       next: () => { this.saving.set(false); this.savedOk.set(true); this.saved.emit(); },
-      error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err)); },
+      error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err, 'Save failed.')); },
     });
   }
 
@@ -361,7 +369,7 @@ export class ServerPropertiesForm implements OnInit {
     this.identityError.set(null);
     this.api.apiServerIdNamePut(this.server().id, { displayName: name, hostname: host }).subscribe({
       next: () => { this.savingIdentity.set(false); this.identitySaved.set(true); this.saved.emit(); },
-      error: (err: unknown) => { this.savingIdentity.set(false); this.identityError.set(messageOf(err)); },
+      error: (err: unknown) => { this.savingIdentity.set(false); this.identityError.set(messageOf(err, 'Save failed.')); },
     });
   }
 }
@@ -381,12 +389,4 @@ function flattenMotd(node: unknown, inherited: Partial<MotdToken> = {}): MotdTok
   if (typeof n['text'] === 'string' && (n['text'] as string).length > 0) out.push({ text: n['text'] as string, ...props });
   for (const child of (n['extra'] as unknown[]) ?? []) out.push(...flattenMotd(child, props));
   return out;
-}
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-  }
-  return err instanceof Error ? err.message : 'Save failed';
 }

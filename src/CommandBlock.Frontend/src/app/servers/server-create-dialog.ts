@@ -20,12 +20,17 @@ import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
 import { DomainsService } from '../api/api/domains.service';
 import { HostService } from '../api/api/host.service';
 import { DomainDto } from '../api/model/domainDto';
+import { messageOf } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
+import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { RouterLink } from '@angular/router';
 
-type DialogContext = { onCreated: () => void };
+type DialogContext = { onCreated: (server: ServerInstanceDto) => void };
 
 @Component({
   selector: 'app-server-create-dialog',
   imports: [
+    RouterLink,
     NgIcon,
     HlmButtonImports,
     HlmDialogHeader,
@@ -163,7 +168,7 @@ type DialogContext = { onCreated: () => void };
           </span>
         } @else {
           <p class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-sm">
-            No domains yet - add one under <span class="text-foreground font-medium">Settings → Domains</span> first,
+            No domains yet - <a routerLink="/settings" class="text-foreground font-medium underline" (click)="close()">add one in Settings</a> first,
             then choose a subdomain here - or pick <span class="text-foreground font-medium">Direct on a host port</span> above.
           </p>
         }
@@ -219,7 +224,8 @@ type DialogContext = { onCreated: () => void };
       <p class="text-destructive text-sm">{{ err }}</p>
     }
 
-    <div class="flex justify-end gap-2">
+    <div class="flex items-center justify-end gap-2">
+      @if (missing(); as m) { <span class="text-muted-foreground mr-auto text-xs" role="status">Still needed: {{ m }}</span> }
       <button hlmBtn variant="outline" type="button" (click)="close()" [disabled]="submitting()">Cancel</button>
       <button hlmBtn type="button" (click)="submit()" [disabled]="!canSubmit()">
         {{ submitting() ? 'Creating…' : 'Create server' }}
@@ -408,6 +414,18 @@ export class ServerCreateDialog {
       this.memoryMb() >= this.MIN_MB,
   );
 
+  /// Why Create is disabled, in words, instead of a silently greyed-out button.
+  protected readonly missing = computed(() => {
+    const m: string[] = [];
+    if (!this.serverType()) m.push('server type');
+    if (this.displayName().trim() === '') m.push('name');
+    if (this.accessMode() === 'direct' ? !(this.lanPort() > 0 && this.lanPort() <= 65535) : this.fullHostname() === '') {
+      m.push(this.accessMode() === 'direct' ? 'port' : 'address');
+    }
+    if (this.memoryMb() < this.MIN_MB) m.push('more memory');
+    return m.join(', ');
+  });
+
   protected submit(): void {
     if (!this.canSubmit()) return;
     this.submitting.set(true);
@@ -430,14 +448,15 @@ export class ServerCreateDialog {
         extraEnv: this.extraEnv().trim() === '' ? undefined : this.extraEnv(),
       })
       .subscribe({
-        next: () => {
+        next: (created) => {
           this.submitting.set(false);
-          this.ctx.onCreated();
+          toast.success(`Created ${created.displayName}. It's starting for the first time, which can take a minute.`);
+          this.ctx.onCreated(created);
           this.ref.close();
         },
         error: (err: unknown) => {
           this.submitting.set(false);
-          this.error.set(messageOf(err));
+          this.error.set(messageOf(err, 'Create failed.'));
         },
       });
   }
@@ -447,15 +466,6 @@ export class ServerCreateDialog {
   }
 }
 
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-    if (typeof e === 'string' && e.trim() !== '') return e;
-  }
-  if (err instanceof Error) return err.message;
-  return 'Create failed';
-}
 
 /// Aikar's flags are tuned for the older Java/G1GC era, so they're the default below 1.21 and off for
 /// 1.21+ and the 26.x scheme, where modern defaults do better.

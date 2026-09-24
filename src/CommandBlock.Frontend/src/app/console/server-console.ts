@@ -35,9 +35,12 @@ import { environment } from '../shared/environments/environment';
       <input
         hlmInput
         class="flex-1 font-mono"
-        placeholder="Enter a command"
+        aria-label="Server command"
+        [placeholder]="connected() ? 'Enter a command, e.g. list (↑/↓ for history)' : 'Connecting to the console…'"
         [value]="command()"
         (input)="command.set($any($event.target).value)"
+        (keydown.arrowup)="recall(-1, $event)"
+        (keydown.arrowdown)="recall(1, $event)"
         [disabled]="!connected()"
         autocomplete="off"
       />
@@ -59,6 +62,8 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
   private connection?: HubConnection;
   private stream?: { dispose: () => void };
   private lineBuf = '';
+  private readonly history: string[] = [];
+  private historyAt = 0;
   private readonly onResize = () => this.fit?.fit();
 
   /// Buffers the raw stream into whole lines, then writes each one colourised (MC logs carry no ANSI
@@ -104,21 +109,48 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
       .withAutomaticReconnect()
       .build();
 
-    this.connection.onreconnected(() => this.connected.set(true));
-    this.connection.onreconnecting(() => this.connected.set(false));
-    this.connection.onclose(() => this.connected.set(false));
+    // A dropped connection ends the log stream, so a reconnect has to subscribe again - otherwise the
+    // input comes back but no new output ever arrives. The fresh stream replays the recent tail, so
+    // the screen is cleared first rather than showing those lines twice.
+    this.connection.onreconnected(() => {
+      this.connected.set(true);
+      this.term?.clear();
+      this.subscribeLogs();
+    });
+    this.connection.onreconnecting(() => {
+      this.connected.set(false);
+      this.term?.writeln(`\r\n${NOTICE}[connection lost - reconnecting…]${RESET}`);
+    });
+    this.connection.onclose(() => {
+      this.connected.set(false);
+      this.term?.writeln(`\r\n${NOTICE}[disconnected - reload the page to reconnect]${RESET}`);
+    });
 
     try {
       await this.connection.start();
       this.connected.set(true);
-      this.stream = this.connection.stream('StreamLogs', this.serverId()).subscribe({
-        next: (chunk: string) => this.handleChunk(chunk),
-        error: (err: unknown) => this.term?.writeln(`\r\n[stream ended: ${String(err)}]`),
-        complete: () => this.term?.writeln('\r\n[log stream closed]'),
-      });
+      this.subscribeLogs();
     } catch (err) {
-      this.term.writeln(`\r\n[failed to connect: ${String(err)}]`);
+      this.term.writeln(`\r\n${ERROR}[couldn't connect to the console: ${hubMessage(err)}]${RESET}`);
     }
+  }
+
+  private subscribeLogs(): void {
+    this.stream?.dispose();
+    this.lineBuf = '';
+    this.stream = this.connection!.stream('StreamLogs', this.serverId()).subscribe({
+      next: (chunk: string) => this.handleChunk(chunk),
+      error: (err: unknown) => this.term?.writeln(`\r\n${NOTICE}[log stream ended: ${hubMessage(err)}]${RESET}`),
+      complete: () => this.term?.writeln(`\r\n${NOTICE}[log stream closed]${RESET}`),
+    });
+  }
+
+  /// Shell-style history: ↑ walks back through sent commands, ↓ forward to an empty line.
+  protected recall(step: -1 | 1, event: Event): void {
+    if (this.history.length === 0) return;
+    event.preventDefault();
+    this.historyAt = Math.min(this.history.length, Math.max(0, this.historyAt + step));
+    this.command.set(this.history[this.historyAt] ?? '');
   }
 
   protected async send(event: Event): Promise<void> {
@@ -126,6 +158,8 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
     const cmd = this.command().trim();
     if (cmd === '' || !this.connection) return;
     this.command.set('');
+    if (this.history.at(-1) !== cmd) this.history.push(cmd);
+    this.historyAt = this.history.length;
     // The command itself isn't echoed - the server already logs what it did, so echoing it just
     // duplicates the line above the response.
     try {
@@ -135,7 +169,7 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
       const reply = output?.replace(/\s+$/, '');
       if (reply) this.term?.writeln(reply.replace(/\n/g, '\r\n'));
     } catch (err) {
-      this.term?.writeln(`\x1b[31m${String(err)}\x1b[0m`);
+      this.term?.writeln(`${ERROR}${hubMessage(err)}${RESET}`);
     }
   }
 
@@ -148,6 +182,16 @@ export class ServerConsole implements AfterViewInit, OnDestroy {
 }
 
 const RESET = '\x1b[0m';
+const NOTICE = '\x1b[90m';
+const ERROR = '\x1b[31m';
+
+/// SignalR wraps server errors as "An unexpected error occurred invoking 'X' on the server.
+/// HubException: <message>"; only the message after the last "HubException:" is meant for people.
+function hubMessage(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err);
+  const i = text.lastIndexOf('HubException:');
+  return (i >= 0 ? text.slice(i + 'HubException:'.length) : text).trim();
+}
 // Minecraft § colour/format codes -> ANSI SGR (so coloured in-game messages show in the console).
 const SECTION_ANSI: Record<string, string> = {
   '0': '\x1b[30m', '1': '\x1b[34m', '2': '\x1b[32m', '3': '\x1b[36m', '4': '\x1b[31m', '5': '\x1b[35m',

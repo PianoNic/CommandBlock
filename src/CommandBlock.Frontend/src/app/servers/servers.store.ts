@@ -3,6 +3,10 @@ import { patchState, signalStore, withComputed, withHooks, withMethods, withStat
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
+import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
+import { messageOf, toastError } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
+import { Observable } from 'rxjs';
 import { memoryMb } from '../shared/utils/format';
 
 interface ServersState {
@@ -45,33 +49,79 @@ export const ServersStore = signalStore(
       return [...counts.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
     }),
   })),
-  withMethods((store, api = inject(ServerService)) => {
+  withMethods((store, api = inject(ServerService), confirm = inject(ConfirmService), stream = inject(ServerStatusStream)) => {
     const mark = (id: string) => patchState(store, { busy: [...new Set([...store.busy(), id])] });
     const unmark = (id: string) => patchState(store, { busy: store.busy().filter((b) => b !== id) });
     const load = () => {
       patchState(store, { loading: true, error: null });
       api.apiServerGet().subscribe({
         next: (rows) => patchState(store, { servers: rows, loading: false, loaded: true }),
-        error: () => patchState(store, { loading: false, error: 'Failed to load servers.' }),
+        error: (err: unknown) => patchState(store, { loading: false, error: messageOf(err, "Couldn't load your servers.") }),
       });
+    };
+    const playersOn = (s: ServerInstanceDto) => stream.statuses()[s.id]?.playersOnline ?? coerce(s.playersOnline) ?? 0;
+    // Every page runs lifecycle actions through here, so confirmations and feedback read the same everywhere.
+    const run = (s: ServerInstanceDto, call: Observable<unknown>, verb: string) => {
+      mark(s.id);
+      call.subscribe({
+        next: load,
+        error: (err: unknown) => { unmark(s.id); toastError(err, `Couldn't ${verb} ${s.displayName}.`); },
+      });
+    };
+    const stopMessage = (s: ServerInstanceDto) => {
+      const n = playersOn(s);
+      const who = n > 0 ? `${n} player${n === 1 ? ' is' : 's are'} disconnected` : 'Players are disconnected';
+      return `${who}. The world is kept and you can start it again any time.`;
     };
     return {
       load,
       isBusy: (id: string) => store.busy().includes(id),
-      start(id: string) {
-        mark(id);
-        api.apiServerIdStartPost(id).subscribe({ next: load, error: () => unmark(id) });
+      start(s: ServerInstanceDto) {
+        run(s, api.apiServerIdStartPost(s.id), 'start');
       },
-      restart(id: string) {
-        mark(id);
-        api.apiServerIdRestartPost(id).subscribe({ next: load, error: () => unmark(id) });
+      async restart(s: ServerInstanceDto) {
+        // Only worth interrupting the user for when someone is actually playing.
+        if (playersOn(s) > 0) {
+          const ok = await confirm.open({
+            title: `Restart ${s.displayName}?`,
+            message: `${stopMessage(s).split('.')[0]} for a moment while it restarts.`,
+            confirmLabel: 'Restart',
+          });
+          if (!ok) return;
+        }
+        run(s, api.apiServerIdRestartPost(s.id), 'restart');
       },
-      stop(id: string) {
-        mark(id);
-        api.apiServerIdStopPost(id).subscribe({ next: load, error: () => unmark(id) });
+      async stop(s: ServerInstanceDto) {
+        const ok = await confirm.open({ title: `Stop ${s.displayName}?`, message: stopMessage(s), confirmLabel: 'Stop server', destructive: true });
+        if (ok) run(s, api.apiServerIdStopPost(s.id), 'stop');
       },
-      remove(id: string) {
-        api.apiServerIdDelete(id).subscribe({ next: load });
+      async stopAll(servers: ReadonlyArray<ServerInstanceDto>) {
+        if (servers.length === 0) return;
+        const players = servers.reduce((sum, s) => sum + playersOn(s), 0);
+        const ok = await confirm.open({
+          title: `Stop ${servers.length} running server${servers.length === 1 ? '' : 's'}?`,
+          message: `${players > 0 ? `${players} player${players === 1 ? ' is' : 's are'} disconnected. ` : ''}Worlds are kept and you can start them again any time.`,
+          confirmLabel: 'Stop all',
+          destructive: true,
+        });
+        if (ok) for (const s of servers) run(s, api.apiServerIdStopPost(s.id), 'stop');
+      },
+      /// Resolves true once the server is gone, so a page showing it can navigate away.
+      async remove(s: ServerInstanceDto): Promise<boolean> {
+        const ok = await confirm.open({
+          title: `Delete ${s.displayName}?`,
+          message: 'This stops the server and permanently deletes its world and files. This cannot be undone.',
+          confirmLabel: 'Delete server',
+          destructive: true,
+        });
+        if (!ok) return false;
+        mark(s.id);
+        return new Promise((resolve) => {
+          api.apiServerIdDelete(s.id).subscribe({
+            next: () => { unmark(s.id); toast.success(`Deleted ${s.displayName}.`); load(); resolve(true); },
+            error: (err: unknown) => { unmark(s.id); toastError(err, `Couldn't delete ${s.displayName}.`); resolve(false); },
+          });
+        });
       },
     };
   }),

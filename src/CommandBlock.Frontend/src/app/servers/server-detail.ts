@@ -22,7 +22,7 @@ import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
 import { HlmDropdownMenuImports } from '@spartan-ng/helm/dropdown-menu';
 import { HlmDialogService } from '@spartan-ng/helm/dialog';
 import { ContentHeader } from '../shared/components/content-header/content-header';
-import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dialog';
+import { ServersStore } from './servers.store';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
 import { ServerConsole } from '../console/server-console';
 import { ServerService } from '../api/api/server.service';
@@ -34,6 +34,9 @@ import { ServerSettingsDialog } from './server-settings-dialog';
 import { environment } from '../shared/environments/environment';
 import { formatGb } from '../shared/utils/format';
 import { serverIconUrl } from '../shared/utils/server-icon';
+import { stateLabel, stateTextClass } from '../shared/utils/server-state';
+import { Title } from '@angular/platform-browser';
+import { messageOf } from '../shared/utils/errors';
 
 @Component({
   selector: 'app-server-detail',
@@ -62,7 +65,7 @@ import { serverIconUrl } from '../shared/utils/server-icon';
     <section class="flex flex-1 min-h-0 flex-col border-t">
       <header class="mx-4 flex flex-wrap items-center justify-between gap-2 border-b py-2">
         <div class="flex min-w-0 items-center gap-2">
-          <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back"><ng-icon name="lucideArrowLeft" size="16" /></a>
+          <a hlmBtn size="sm" variant="ghost" routerLink="/servers" title="Back to servers" aria-label="Back to servers"><ng-icon name="lucideArrowLeft" size="16" /></a>
           @if (server(); as s) {
             <img [src]="s.hasIcon ? iconUrl(s) : 'default-server-icon.png'" alt="" class="h-[22px] w-[22px] shrink-0 rounded-sm" style="image-rendering:pixelated" />
             <h2 class="truncate text-sm font-medium">{{ s.displayName }}</h2>
@@ -82,7 +85,7 @@ import { serverIconUrl } from '../shared/utils/server-icon';
               <button hlmBtn size="sm" type="button" (click)="start(s)"><ng-icon name="lucidePlay" size="14" /> Start</button>
             }
             <!-- Everything else behind a kebab menu -->
-            <button hlmBtn size="sm" variant="outline" type="button" [hlmDropdownMenuTrigger]="hdrMenu" align="end" title="More actions">
+            <button hlmBtn size="sm" variant="outline" type="button" [hlmDropdownMenuTrigger]="hdrMenu" align="end" title="More actions" [attr.aria-label]="'More actions for ' + s.displayName">
               <ng-icon name="lucideEllipsisVertical" size="16" />
             </button>
             <ng-template #hdrMenu>
@@ -100,9 +103,14 @@ import { serverIconUrl } from '../shared/utils/server-icon';
 
       @if (loading()) {
         <div class="p-4"><p class="text-muted-foreground text-sm">Loading…</p></div>
+      } @else if (loadError()) {
+        <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 text-center" role="alert">
+          <p class="text-sm">{{ loadError() }}</p>
+          <button hlmBtn size="sm" variant="outline" type="button" (click)="reload()">Retry</button>
+        </div>
       } @else if (!server()) {
         <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 text-center">
-          <p class="text-sm">Server not found.</p>
+          <p class="text-sm">This server doesn't exist anymore.</p>
           <a hlmBtn size="sm" variant="outline" routerLink="/servers">Back to servers</a>
         </div>
       } @else if (server(); as s) {
@@ -111,7 +119,7 @@ import { serverIconUrl } from '../shared/utils/server-icon';
           <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 border-b px-4 py-2.5 text-xs sm:grid-cols-3 lg:grid-cols-4">
             <div class="flex items-center gap-1.5">
               <span class="text-muted-foreground">Status</span>
-              <span class="font-medium" [class.text-primary]="isRunning()" [class.text-foreground]="!isRunning()">{{ state() ?? 'unknown' }}</span>
+              <span class="font-medium" [class]="stateTextClass(state())">{{ stateLabel(state()) }}</span>
             </div>
 
             <div class="flex items-center gap-1.5">
@@ -167,14 +175,19 @@ export class ServerDetail {
   private readonly router = inject(Router);
   private readonly api = inject(ServerService);
   private readonly dialog = inject(HlmDialogService);
-  private readonly confirm = inject(ConfirmService);
+  private readonly store = inject(ServersStore);
+  private readonly title = inject(Title);
   private readonly statusStream = inject(ServerStatusStream);
   private readonly statuses = this.statusStream.statuses;
+
+  protected readonly stateLabel = stateLabel;
+  protected readonly stateTextClass = stateTextClass;
 
   private readonly id = this.route.snapshot.paramMap.get('id') ?? '';
   protected readonly server = signal<ServerInstanceDto | null>(null);
   protected readonly loading = signal(true);
-  protected readonly busy = signal(false);
+  protected readonly loadError = signal<string | null>(null);
+  protected readonly busy = computed(() => this.store.isBusy(this.id));
   protected readonly playerList = signal<PlayerListDto | null>(null);
   protected readonly playersLoading = signal(false);
 
@@ -227,16 +240,20 @@ export class ServerDetail {
     });
   }
 
+  protected reload(): void { this.load(); }
+
   private load(): void {
     this.loading.set(true);
+    this.loadError.set(null);
     this.api.apiServerGet().subscribe({
       next: (rows) => {
         const found = rows.find((r) => r.id === this.id) ?? null;
         this.server.set(found);
+        if (found) this.title.setTitle(`${found.displayName} · CommandBlock`);
         this.loading.set(false);
         if (found && (this.statuses()[found.id]?.state ?? found.state) === 'running') this.loadPlayers();
       },
-      error: () => this.loading.set(false),
+      error: (err: unknown) => { this.loadError.set(messageOf(err, "Couldn't load this server.")); this.loading.set(false); },
     });
   }
 
@@ -323,37 +340,12 @@ export class ServerDetail {
     return serverIconUrl(s.id!, this.iconV());
   }
 
-  protected start(s: ServerInstanceDto): void {
-    this.busy.set(true);
-    this.api.apiServerIdStartPost(s.id).subscribe({ next: () => this.busy.set(false), error: () => this.busy.set(false) });
-  }
-
-  protected async stop(s: ServerInstanceDto): Promise<void> {
-    const ok = await this.confirm.open({
-      title: `Stop ${s.displayName}?`,
-      message: 'The container stops and players are disconnected. The world is preserved.',
-      confirmLabel: 'Stop',
-      destructive: true,
-    });
-    if (!ok) return;
-    this.busy.set(true);
-    this.api.apiServerIdStopPost(s.id).subscribe({ next: () => this.busy.set(false), error: () => this.busy.set(false) });
-  }
-
-  protected restart(s: ServerInstanceDto): void {
-    this.busy.set(true);
-    this.api.apiServerIdRestartPost(s.id).subscribe({ next: () => this.busy.set(false), error: () => this.busy.set(false) });
-  }
+  protected start(s: ServerInstanceDto): void { this.store.start(s); }
+  protected stop(s: ServerInstanceDto): void { void this.store.stop(s); }
+  protected restart(s: ServerInstanceDto): void { void this.store.restart(s); }
 
   protected async remove(s: ServerInstanceDto): Promise<void> {
-    const ok = await this.confirm.open({
-      title: `Delete ${s.displayName}?`,
-      message: 'This stops and removes the container and its world data. This cannot be undone (restore from a backup if you have one).',
-      confirmLabel: 'Delete server',
-      destructive: true,
-    });
-    if (!ok) return;
-    this.api.apiServerIdDelete(s.id).subscribe({ next: () => this.router.navigate(['/servers']) });
+    if (await this.store.remove(s)) this.router.navigate(['/servers']);
   }
 
   protected openBackups(s: ServerInstanceDto): void {

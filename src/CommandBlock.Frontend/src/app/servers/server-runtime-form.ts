@@ -7,6 +7,8 @@ import { MinecraftVersionsService } from '../api/api/minecraftVersions.service';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerRuntimeFields } from './server-runtime-fields';
+import { messageOf } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
 
 /// The Runtime section of the server-settings modal: memory, Java version and JVM flags. Saving
 /// recreates the container (restart, world kept). Standalone form for the tabbed modal.
@@ -87,7 +89,7 @@ export class ServerRuntimeForm implements OnInit {
   protected readonly allowAnyClientVersion = signal(false);
   protected readonly jvmArgs = signal('');
   protected readonly extraEnv = signal('');
-  protected readonly saving = signal(false);
+  readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
   protected readonly canSave = computed(() => !this.saving() && this.memory().trim() !== '');
@@ -126,20 +128,10 @@ export class ServerRuntimeForm implements OnInit {
         extraEnv: this.extraEnv().trim() === '' ? undefined : this.extraEnv(),
       })
       .subscribe({
-        next: () => { this.saving.set(false); this.saved.emit(); },
-        error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err)); },
+        next: () => { this.saving.set(false); toast.success('Saved. The server is being recreated with the new settings.'); this.saved.emit(); },
+        error: (err: unknown) => { this.saving.set(false); this.error.set(messageOf(err, 'Failed to apply settings.')); },
       });
   }
 }
 
 const MODPACK_TYPES = ['CURSEFORGE', 'AUTO_CURSEFORGE', 'FTBA'];
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-    if (typeof e === 'string' && e.trim() !== '') return e;
-  }
-  if (err instanceof Error) return err.message;
-  return 'Failed to apply settings';
-}

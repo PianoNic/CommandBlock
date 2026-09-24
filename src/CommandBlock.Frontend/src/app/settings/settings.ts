@@ -8,6 +8,8 @@ import { ConfirmService } from '../shared/components/confirm-dialog/confirm-dial
 import { DomainsService } from '../api/api/domains.service';
 import { DomainDto } from '../api/model/domainDto';
 import { DomainAddDialog } from './domain-add-dialog';
+import { messageOf, toastError } from '../shared/utils/errors';
+import { toast } from '@spartan-ng/brain/sonner';
 
 @Component({
   selector: 'app-settings',
@@ -32,6 +34,11 @@ import { DomainAddDialog } from './domain-add-dialog';
       <div class="min-h-0 flex-1 overflow-auto p-4">
         @if (loading()) {
           <p class="text-muted-foreground text-sm">Loading…</p>
+        } @else if (loadError(); as err) {
+          <div class="flex items-center gap-2 text-sm" role="alert">
+            <p class="text-destructive">{{ err }}</p>
+            <button hlmBtn size="sm" variant="outline" type="button" (click)="load()">Retry</button>
+          </div>
         } @else if (domains().length === 0) {
           <div class="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center">
             <ng-icon name="lucideGlobe" size="32" class="opacity-50" />
@@ -49,7 +56,7 @@ import { DomainAddDialog } from './domain-add-dialog';
                 <ng-icon name="lucideGlobe" size="16" class="text-muted-foreground shrink-0" />
                 <span class="flex-1 font-mono text-sm">{{ d.name }}</span>
                 <span class="text-muted-foreground font-mono text-xs">*.{{ d.name }}</span>
-                <button hlmBtn size="icon" variant="ghost" type="button" (click)="remove(d)" aria-label="Delete domain">
+                <button hlmBtn size="icon" variant="ghost" type="button" (click)="remove(d)" [attr.aria-label]="'Remove ' + d.name" title="Remove domain">
                   <ng-icon name="lucideTrash2" size="14" />
                 </button>
               </li>
@@ -67,6 +74,7 @@ export class Settings {
 
   protected readonly domains = signal<ReadonlyArray<DomainDto>>([]);
   protected readonly loading = signal(false);
+  protected readonly loadError = signal<string | null>(null);
 
   constructor() {
     this.load();
@@ -74,12 +82,13 @@ export class Settings {
 
   protected load(): void {
     this.loading.set(true);
+    this.loadError.set(null);
     this.api.apiDomainsGet().subscribe({
       next: (rows) => {
         this.domains.set(rows);
         this.loading.set(false);
       },
-      error: () => this.loading.set(false),
+      error: (err: unknown) => { this.loadError.set(messageOf(err, "Couldn't load your domains.")); this.loading.set(false); },
     });
   }
 
@@ -94,10 +103,13 @@ export class Settings {
     const ok = await this.confirm.open({
       title: `Remove ${d.name}?`,
       message: 'Existing servers keep their hostnames, but new servers can no longer pick this domain.',
-      confirmLabel: 'Remove',
+      confirmLabel: 'Remove domain',
       destructive: true,
     });
     if (!ok) return;
-    this.api.apiDomainsIdDelete(d.id).subscribe({ next: () => this.load() });
+    this.api.apiDomainsIdDelete(d.id).subscribe({
+      next: () => { toast.success(`Removed ${d.name}.`); this.load(); },
+      error: (err: unknown) => toastError(err, `Couldn't remove ${d.name}.`),
+    });
   }
 }

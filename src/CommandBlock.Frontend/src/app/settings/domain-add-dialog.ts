@@ -5,6 +5,7 @@ import { HlmDialogDescription, HlmDialogHeader, HlmDialogTitle } from '@spartan-
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { DomainsService } from '../api/api/domains.service';
+import { messageOf } from '../shared/utils/errors';
 
 type DialogContext = { onAdded: () => void };
 
@@ -104,7 +105,7 @@ export class DomainAddDialog {
       },
       error: (err: unknown) => {
         this.submitting.set(false);
-        this.error.set(messageOf(err));
+        this.error.set(messageOf(err, 'Failed to add domain.'));
       },
     });
   }
@@ -112,14 +113,4 @@ export class DomainAddDialog {
   protected close(): void {
     this.ref.close();
   }
-}
-
-function messageOf(err: unknown): string {
-  if (err && typeof err === 'object' && 'error' in err) {
-    const e = (err as { error: unknown }).error;
-    if (e && typeof e === 'object' && 'error' in e) return String((e as { error: unknown }).error);
-    if (typeof e === 'string' && e.trim() !== '') return e;
-  }
-  if (err instanceof Error) return err.message;
-  return 'Failed to add domain';
 }

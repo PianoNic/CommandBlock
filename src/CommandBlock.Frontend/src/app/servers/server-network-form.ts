@@ -4,6 +4,7 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmRadioGroupImports } from '@spartan-ng/helm/radio-group';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
+import { messageOf } from '../shared/utils/errors';
 
 /// The Network section of the server-settings modal. A server is reached either through the router by
 /// hostname or directly on a host port of its own - never both, so this is a choice rather than two
@@ -114,7 +115,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
     @if (error()) {
       <p class="text-destructive text-xs">{{ error() }}</p>
     } @else if (saving()) {
-      <span class="text-muted-foreground text-xs">saving…</span>
+      <span class="text-muted-foreground text-xs">Saving…</span>
     } @else if (savedOk()) {
       <span class="text-primary text-xs">Saved</span>
     }
@@ -129,7 +130,7 @@ export class ServerNetworkForm implements OnInit {
   protected readonly hostname = signal('');
   protected readonly port = signal(25566);
   protected readonly bind = signal('');
-  protected readonly saving = signal(false);
+  readonly saving = signal(false);
   protected readonly savedOk = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -145,6 +146,7 @@ export class ServerNetworkForm implements OnInit {
 
   /// Called by the dialog's pinned Save button.
   save(): void {
+    if (this.saving()) return;
     const routed = this.mode() === 'router';
 
     if (routed && this.needsHostname() && this.hostname().trim() === '') {
@@ -173,9 +175,9 @@ export class ServerNetworkForm implements OnInit {
           this.savedOk.set(true);
           this.saved.emit();
         },
-        error: (err: { error?: { error?: string } }) => {
+        error: (err: unknown) => {
           this.saving.set(false);
-          this.error.set(err?.error?.error ?? 'Could not apply the network settings.');
+          this.error.set(messageOf(err, 'Could not apply the network settings.'));
         },
       });
   }

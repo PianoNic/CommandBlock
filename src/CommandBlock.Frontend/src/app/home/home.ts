@@ -19,6 +19,8 @@ import { ServersStore } from '../servers/servers.store';
 import { environment } from '../shared/environments/environment';
 import { formatGb } from '../shared/utils/format';
 import { serverIconUrl } from '../shared/utils/server-icon';
+import { stateLabel, stateTextClass } from '../shared/utils/server-state';
+import { activityLabel } from '../shared/utils/activity-label';
 
 /// The dashboard is a control surface, not a report: every server is actionable from here, and only
 /// things that need a decision are promoted to the top. Purely descriptive numbers (server count,
@@ -42,7 +44,11 @@ export class Home {
   private readonly dialog = inject(HlmDialogService);
   private readonly store = inject(ServersStore);
 
+  protected readonly activityLabel = activityLabel;
   protected readonly servers = this.store.servers;
+  protected readonly loaded = this.store.loaded;
+  protected readonly loadError = this.store.error;
+  protected reloadServers(): void { this.store.load(); }
   protected readonly running = this.store.running;
   protected readonly total = this.store.total;
   protected readonly players = this.store.playersOnline;
@@ -153,38 +159,21 @@ export class Home {
     }
   }
 
-  protected stateLabel(s: ServerInstanceDto): string {
-    switch (this.stateOf(s)) {
-      case 'running': return 'Running';
-      case 'starting': return 'Starting…';
-      case 'crashed': return 'Exited unexpectedly';
-      case 'sleeping': return 'Asleep - wakes on join';
-      case 'exited': return 'Stopped';
-      default: return 'Unknown';
-    }
-  }
-
-  protected stateTextClass(s: ServerInstanceDto): string {
-    switch (this.stateOf(s)) {
-      case 'running': return 'text-primary';
-      case 'crashed': return 'text-destructive';
-      case 'sleeping': return 'text-sky-500';
-      default: return 'text-muted-foreground';
-    }
-  }
+  protected stateLabel(s: ServerInstanceDto): string { return stateLabel(this.stateOf(s)); }
+  protected stateTextClass(s: ServerInstanceDto): string { return stateTextClass(this.stateOf(s)); }
 
   protected isRunning(s: ServerInstanceDto): boolean { return this.stateOf(s) === 'running'; }
   protected isBusy(s: ServerInstanceDto): boolean {
     return this.store.isBusy(s.id) || this.stateOf(s) === 'starting';
   }
 
-  protected start(s: ServerInstanceDto): void { this.store.start(s.id); }
-  protected stop(s: ServerInstanceDto): void { this.store.stop(s.id); }
-  protected restart(s: ServerInstanceDto): void { this.store.restart(s.id); }
+  protected start(s: ServerInstanceDto): void { this.store.start(s); }
+  protected stop(s: ServerInstanceDto): void { void this.store.stop(s); }
+  protected restart(s: ServerInstanceDto): void { void this.store.restart(s); }
 
   /// Only touches servers that are actually up, so it can never boot the whole estate by accident.
   protected stopAll(): void {
-    for (const s of this.runningServers()) this.store.stop(s.id);
+    void this.store.stopAll(this.runningServers());
   }
 
   protected address(s: ServerInstanceDto): string {

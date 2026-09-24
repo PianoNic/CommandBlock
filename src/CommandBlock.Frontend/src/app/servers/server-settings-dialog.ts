@@ -73,8 +73,8 @@ type DialogContext = { server: ServerInstanceDto; onSaved?: () => void };
           {{ appliesInstantly() ? 'Close' : 'Cancel' }}
         </button>
         @if (!appliesInstantly()) {
-          <button hlmBtn size="sm" type="button" (click)="save()">
-            {{ needsRestart() ? 'Save & restart' : 'Save' }}
+          <button hlmBtn size="sm" type="button" (click)="save()" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : needsRestart() ? 'Save & restart' : 'Save' }}
           </button>
         }
       </div>
@@ -98,7 +98,18 @@ export class ServerSettingsDialog {
   /// recreates the container - say so on the button rather than surprising the operator with downtime.
   protected readonly needsRestart = computed(() => this.activeTab() === 'runtime' || this.activeTab() === 'network');
 
+  /// The active tab's in-flight save, so the pinned button can't fire a second one (the network
+  /// and runtime tabs recreate the container on every save).
+  protected readonly saving = computed(() => {
+    switch (this.activeTab()) {
+      case 'runtime': return this.runtimeForm()?.saving() ?? false;
+      case 'network': return this.networkForm()?.saving() ?? false;
+      default: return this.propertiesForm()?.saving() ?? false;
+    }
+  });
+
   protected save(): void {
+    if (this.saving()) return;
     if (this.activeTab() === 'runtime') this.runtimeForm()?.save();
     else if (this.activeTab() === 'network') this.networkForm()?.save();
     else this.propertiesForm()?.save();
