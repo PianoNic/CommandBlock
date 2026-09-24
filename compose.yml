@@ -59,7 +59,7 @@ services:
       Oidc__InternalAuthority: "http://mock-oauth2:8080/default"
       Oidc__RequireHttpsMetadata: "false"
       Oidc__ClientId: commandblock
-      Oidc__RequiredRole: admin
+      Oidc__AdminRole: admin
       Oidc__RedirectUri: "http://localhost:56722/"
       Oidc__PostLogoutRedirectUri: "http://localhost:56722/"
       Oidc__Scope: "openid profile email roles"

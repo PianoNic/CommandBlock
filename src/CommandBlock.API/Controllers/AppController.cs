@@ -1,42 +1,42 @@
-using Mediator;
+using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Toamaisutaa.AspNetCore;
 using CommandBlock.Application.Dtos.App;
-using CommandBlock.Application.Queries.App;
 
 namespace CommandBlock.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AppController(IMediator mediator, IConfiguration configuration) : ControllerBase
+    public class AppController(IToamaisutaaClientConfigurationProvider clientConfiguration) : ControllerBase
     {
+        // /application.properties at the repo root is the single source of truth for the app version;
+        // src/Directory.Build.props feeds it into AssemblyInformationalVersion at build time. SourceLink
+        // may append "+<commit>"; strip it so the SPA shows a clean semver.
+        private static readonly string AppVersion =
+            typeof(AppController).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?.Split('+')[0]
+            ?? "0.0.0";
+
+        /// <summary>What the SPA reads before sign-in: where to log in, and which build it is talking to.
+        /// Toamaisutaa resolves the redirect URIs (configured value, then the public URL, then the
+        /// request's own origin).</summary>
         [AllowAnonymous]
         [HttpGet]
         [ProducesResponseType(typeof(AppDto), StatusCodes.Status200OK)]
-        public async Task<IActionResult> Get(CancellationToken cancellationToken)
+        public IActionResult Get()
         {
-            var result = await mediator.Send(new AppQuery(), cancellationToken);
-
-            // Respect an explicitly configured Oidc:RedirectUri (e.g. a fixed public HTTPS URL behind
-            // a reverse proxy). Only DERIVE it from the current request when it isn't configured - the
-            // bundled image reached via a host-assigned random port (Testcontainers), or a split-origin
-            // dev setup. The old code always overrode it, which behind a TLS-terminating proxy produced
-            // an http:// URL the IdP rejects even when the admin set the right https URL.
-            if (string.IsNullOrWhiteSpace(configuration["Oidc:RedirectUri"]) && string.IsNullOrWhiteSpace(configuration["CommandBlock:PublicUrl"]))
+            var auth = clientConfiguration.GetConfiguration(HttpContext);
+            return Ok(new AppDto
             {
-                var request = HttpContext.Request;
-                var browserOrigin = request.Headers.Origin.ToString();
-                var origin = !string.IsNullOrWhiteSpace(browserOrigin)
-                    ? browserOrigin.TrimEnd('/') + "/"
-                    : $"{request.Scheme}://{request.Host.Value}/";
-                result = result with
-                {
-                    RedirectUri = origin,
-                    PostLogoutRedirectUri = origin,
-                };
-            }
-
-            return Ok(result);
+                Authority = auth.Authority,
+                ClientId = auth.ClientId,
+                RedirectUri = auth.RedirectUri,
+                PostLogoutRedirectUri = auth.PostLogoutRedirectUri,
+                Scope = auth.Scope,
+                Version = AppVersion,
+            });
         }
     }
 }
