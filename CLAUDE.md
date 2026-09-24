@@ -22,9 +22,8 @@ Never work on main. Always:
 ## Versioning
 
 - The version lives in `application.properties` (`<version>`); it's baked into the build.
-- Every feature commit bumps the **minor** version and gets a matching annotated git tag `vX.Y.Z`; fixes bump **patch**. Chores/refactors/docs don't bump.
-- History is tagged retroactively from `v0.1.0`; current release is `v1.22.0`.
-- Tagging alone does NOT ship anything: publishing a **GitHub Release** is what triggers `release.yaml`, which syncs `application.properties` and builds/pushes the Docker image.
+- Every feature commit bumps the **minor** version; fixes bump **patch**. Chores/refactors/docs don't bump.
+- **Never create or push git tags.** Tags are reserved for releases: publishing a **GitHub Release** creates the tag and triggers `release.yaml`, which syncs `application.properties` and builds/pushes the Docker image. That is done by the maintainer, not as part of a PR.
 
 ## CLI generators
 
