@@ -3,6 +3,7 @@ import { patchState, signalStore, withComputed, withHooks, withMethods, withStat
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { ServerStatusStream } from '../shared/services/server-status.stream';
+import { memoryMb } from '../shared/utils/format';
 
 interface ServersState {
   servers: ReadonlyArray<ServerInstanceDto>;
@@ -35,7 +36,7 @@ export const ServersStore = signalStore(
       }, 0),
     ),
     memoryLabel: computed(() => {
-      const mb = store.servers().reduce((sum, s) => sum + parseMemoryMb(s.memory), 0);
+      const mb = store.servers().reduce((sum, s) => sum + memoryMb(s.memory), 0);
       return mb >= 1024 ? `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB` : `${mb} MB`;
     }),
     byType: computed(() => {
@@ -109,13 +110,3 @@ function coerce(v: unknown): number | null {
   return v == null ? null : Number(v as number);
 }
 
-function parseMemoryMb(mem: string): number {
-  const m = /^\s*(\d+(?:\.\d+)?)\s*([gmk]?)/i.exec(mem ?? '');
-  if (!m) return 0;
-  const n = parseFloat(m[1]);
-  switch (m[2].toLowerCase()) {
-    case 'g': return Math.round(n * 1024);
-    case 'k': return Math.round(n / 1024);
-    default: return Math.round(n);
-  }
-}

@@ -92,8 +92,7 @@ namespace CommandBlock.Application.Command.Server
                 try { await docker.RemoveVolumeAsync($"{server.ContainerName}-data", force: true, cancellationToken); }
                 catch { /* volume may already be gone */ }
 
-                // Host-folder storage cleanup only applies to local servers - the folder lives on
-                // the node's filesystem otherwise, which this process can't see.
+                // Only reachable when the host folder is mounted into this container at the same path.
                 var hostFolder = options.Value.Storage.TryResolveHostFolderForContainer(server.ContainerName);
                 if (hostFolder is not null && Directory.Exists(hostFolder))
                 {

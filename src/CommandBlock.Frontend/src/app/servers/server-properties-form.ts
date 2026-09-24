@@ -13,6 +13,7 @@ import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { DomainsService } from '../api/api/domains.service';
 import { DomainDto } from '../api/model/domainDto';
 import { environment } from '../shared/environments/environment';
+import { serverIconUrl } from '../shared/utils/server-icon';
 
 const SECTION = '§'; // Minecraft's section sign for colour/format codes
 
@@ -279,7 +280,7 @@ export class ServerPropertiesForm implements OnInit {
 
   protected previewIconUrl(): string {
     const s = this.server();
-    return s.hasIcon ? `${environment.apiBaseUrl}/api/Server/${s.id}/icon` : 'default-server-icon.png';
+    return s.hasIcon ? serverIconUrl(s.id!) : 'default-server-icon.png';
   }
 
   protected insert(code: string): void {

@@ -33,6 +33,7 @@ import { ServerBackupsDialog } from './server-backups-dialog';
 import { ServerSettingsDialog } from './server-settings-dialog';
 import { ServersStore } from './servers.store';
 import { environment } from '../shared/environments/environment';
+import { serverIconUrl } from '../shared/utils/server-icon';
 
 @Component({
   selector: 'app-servers',
@@ -165,7 +166,7 @@ export class Servers {
   }
 
   protected iconUrl(s: ServerInstanceDto): string {
-    return `${environment.apiBaseUrl}/api/Server/${s.id}/icon`;
+    return serverIconUrl(s.id!);
   }
 
   protected address(s: ServerInstanceDto): string {

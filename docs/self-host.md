@@ -32,7 +32,6 @@ services:
       - "5000:8080"        # web UI / API
       - "25565:25565"      # the Minecraft router - the ONLY game port you open
     environment:
-      Database__Provider: "Postgres"
       ConnectionStrings__CommandBlockDatabase: "Host=db;Port=5432;Database=commandblock;Username=postgres;Password=${POSTGRES_PASSWORD}"
       CommandBlock__PublicUrl: ${CommandBlock_PUBLIC_URL}
       Cors__AllowedOrigins__0: ${CommandBlock_PUBLIC_URL}
@@ -132,8 +131,7 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 
 | Variable | What it does |
 | --- | --- |
-| `ConnectionStrings__CommandBlockDatabase` | CommandBlock's own metadata DB. Postgres: `Host=db;Port=5432;Database=commandblock;Username=postgres;Password=…`. SQLite: `Data Source=/data/commandblock.db`. |
-| `Database__Provider` | `Postgres` or `Sqlite` (default). |
+| `ConnectionStrings__CommandBlockDatabase` | CommandBlock's own metadata DB (PostgreSQL): `Host=db;Port=5432;Database=commandblock;Username=postgres;Password=…`. |
 | `Oidc__Authority` / `Oidc__ClientId` / `Oidc__Scope` / `Oidc__RequireHttpsMetadata` | OIDC login (public/PKCE client). `Authority` must match the IdP `issuer` byte-for-byte. |
 | `Oidc__RequiredRole` | **Recommended.** Only users whose token carries this value in its `roles` or `groups` claim can sign in. Unset, *anyone* who can log in at your IdP gets full control. |
 | `Oidc__Audience` | Optional. Reject tokens whose `aud` isn't this value (e.g. your client id, if your IdP puts it there). |
@@ -144,23 +142,6 @@ With `HostFolder`, `/data/servers` must be writable by the server containers. `i
 | `Router__MaxConnections` / `Router__MaxConnectionsPerAddress` | Concurrent router connections in total and per IP; extra connections are refused (defaults: `2048`, `32`). |
 | `Backup__Enabled` / `Backup__S3Endpoint` / `Backup__Bucket` / `Backup__AccessKey` / `Backup__SecretKey` / `Backup__Region` | Backups to S3/SeaweedFS. See [Backups](./backups). |
 | `Docker__Endpoint` | Docker daemon URI. Optional - auto-detected when unset. |
-
-</details>
-
-<details>
-<summary><strong>SQLite instead of Postgres</strong></summary>
-
-Drop the `db` service and point CommandBlock at a file on a mounted host folder:
-
-```yaml
-    environment:
-      Database__Provider: "Sqlite"
-      ConnectionStrings__CommandBlockDatabase: "Data Source=/data/commandblock.db"
-    volumes:
-      - ./data/app:/data
-```
-
-Remove `depends_on: db`. The file **must** be on a mounted folder or it's wiped on every recreate.
 
 </details>
 

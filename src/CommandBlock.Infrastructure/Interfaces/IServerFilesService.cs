@@ -9,8 +9,8 @@ namespace CommandBlock.Infrastructure.Interfaces
     public sealed record FileContent(string Content, bool Truncated, bool Binary);
 
     /// <summary>Browses and edits a server's world/config files inside its container, via Docker's
-    /// copy (archive) and exec APIs - so it works for both host-folder and volume storage, and for
-    /// servers on remote nodes. All paths are relative to /data and confined to it.</summary>
+    /// copy (archive) and exec APIs - so it works for both host-folder and volume storage. All paths
+    /// are relative to /data and confined to it.</summary>
     public interface IServerFilesService
     {
         Task<IReadOnlyList<FileEntry>> ListAsync(Guid serverId, string path, CancellationToken cancellationToken = default);

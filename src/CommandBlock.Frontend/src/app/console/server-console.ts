@@ -14,8 +14,6 @@ import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideTerminal } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { environment } from '../shared/environments/environment';
@@ -25,8 +23,7 @@ import { environment } from '../shared/environments/environment';
 /// dropped into the detail page or a full-screen route alike.
 @Component({
   selector: 'app-server-console',
-  imports: [NgIcon, HlmButtonImports, HlmInputImports],
-  providers: [provideIcons({ lucideTerminal })],
+  imports: [HlmButtonImports, HlmInputImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'flex h-full min-h-0 flex-col' },
   template: `

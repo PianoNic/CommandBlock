@@ -5,6 +5,7 @@ import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { ServerService } from '../api/api/server.service';
 import { ServerInstanceDto } from '../api/model/serverInstanceDto';
 import { environment } from '../shared/environments/environment';
+import { serverIconUrl } from '../shared/utils/server-icon';
 
 /// The Icon section of the server-settings modal: upload/replace/remove the server image. Uploads are
 /// cropped to 64x64 server-side and also written into the container as server-icon.png.
@@ -54,7 +55,7 @@ export class ServerIconForm implements OnInit {
 
   protected iconUrl(): string {
     const s = this.server();
-    return this.hasIcon() ? `${environment.apiBaseUrl}/api/Server/${s.id}/icon?v=${this.v()}` : 'default-server-icon.png';
+    return this.hasIcon() ? serverIconUrl(s.id!, this.v()) : 'default-server-icon.png';
   }
 
   protected upload(event: Event): void {
