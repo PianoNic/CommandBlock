@@ -38,6 +38,12 @@ jobs:
           TAG_VERSION="$TAG_NAME"
           # Tags ship inconsistently cased (e.g. "V2.6.2"); strip any non-digit prefix.
           TAG_VERSION="$(printf '%s' "$TAG_VERSION" | sed -E 's/^[^0-9]*//')"
+          # A release whose tag was deleted is renamed "untagged-<hash>"; stripping the prefix would leave the
+          # hash, get committed to main as the version, and break the build. Only ever accept X.Y.Z.
+          if ! printf '%s' "$TAG_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Release tag '$TAG_NAME' is not a vX.Y.Z version - refusing to release it."
+            exit 1
+          fi
           FILE_VERSION=$(grep -oP '(?<=<version>)[^<]+' application.properties)
           echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
 
