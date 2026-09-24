@@ -119,7 +119,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 var requiredRole = builder.Configuration["Oidc:RequiredRole"];
 var accessPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser();
 if (!string.IsNullOrWhiteSpace(requiredRole))
-    accessPolicy.RequireAssertion(ctx => ctx.User.HasClaim(c => c.Type is "roles" or "groups" && c.Value == requiredRole));
+    // JwtBearer maps the inbound `roles` claim to ClaimTypes.Role, so match both spellings (and `groups`).
+    accessPolicy.RequireAssertion(ctx => ctx.User.HasClaim(c =>
+        c.Type is "roles" or "role" or "groups" or System.Security.Claims.ClaimTypes.Role && c.Value == requiredRole));
 builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = accessPolicy.Build();   // hubs (.RequireAuthorization())
