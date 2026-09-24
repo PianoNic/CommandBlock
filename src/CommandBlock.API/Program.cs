@@ -94,7 +94,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters.ValidateIssuer = builder.Configuration.GetValue("Oidc:ValidateIssuer", true);
         options.TokenValidationParameters.NameClaimType = "name";
         options.TokenValidationParameters.RoleClaimType = "roles";
-        options.TokenValidationParameters.ValidateAudience = false;
+        // Opt-in: many IdPs put something other than the client id in `aud` (Keycloak says "account"),
+        // so audience checking is only enforced when the operator names the expected audience.
+        var audience = builder.Configuration["Oidc:Audience"];
+        options.TokenValidationParameters.ValidateAudience = !string.IsNullOrWhiteSpace(audience);
+        options.TokenValidationParameters.ValidAudience = audience;
 
         // Browser WebSockets can't set the Authorization header, so SignalR passes the token as a
         // query-string param on /hubs connections. Pull it in so hub auth works.
@@ -110,11 +114,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// Signing in grants full control of every server. With a shared or self-registration IdP that's everyone
+// who has an account there, so Oidc:RequiredRole limits access to users carrying that role or group.
+var requiredRole = builder.Configuration["Oidc:RequiredRole"];
+var accessPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser();
+if (!string.IsNullOrWhiteSpace(requiredRole))
+    accessPolicy.RequireAssertion(ctx => ctx.User.HasClaim(c => c.Type is "roles" or "groups" && c.Value == requiredRole));
 builder.Services.AddAuthorization(options =>
 {
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
+    options.DefaultPolicy = accessPolicy.Build();   // hubs (.RequireAuthorization())
+    options.FallbackPolicy = options.DefaultPolicy; // controllers
 });
 
 var app = builder.Build();
@@ -137,6 +146,16 @@ if (app.Environment.IsDevelopment())
             });
     }).AllowAnonymous();
 }
+
+// Baseline hardening for the SPA and API: no framing (clickjacking), no MIME sniffing, no referrer leaks.
+app.Use((context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers.XContentTypeOptions = "nosniff";
+    headers.XFrameOptions = "SAMEORIGIN";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    return next();
+});
 
 app.UseStaticFiles();
 

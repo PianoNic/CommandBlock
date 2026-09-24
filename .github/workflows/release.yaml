@@ -32,8 +32,10 @@ jobs:
 
       - name: Bump application.properties and push to main
         id: sync
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          TAG_VERSION="${{ github.event.release.tag_name }}"
+          TAG_VERSION="$TAG_NAME"
           # Tags ship inconsistently cased (e.g. "V2.6.2"); strip any non-digit prefix.
           TAG_VERSION="$(printf '%s' "$TAG_VERSION" | sed -E 's/^[^0-9]*//')"
           FILE_VERSION=$(grep -oP '(?<=<version>)[^<]+' application.properties)

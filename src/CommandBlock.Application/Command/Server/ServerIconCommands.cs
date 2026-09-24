@@ -37,8 +37,18 @@ namespace CommandBlock.Application.Command.Server
 
         /// <summary>Center-crops the upload to a square and scales it to Minecraft's 64x64 server-icon
         /// size, returning PNG bytes.</summary>
+        private const int MaxSide = 4096;
+
         private static byte[] ToServerIconPng(byte[] imageData)
         {
+            // Check the declared size before decoding: a tiny file can claim a huge canvas and blow up memory.
+            using (var codec = SKCodec.Create(new MemoryStream(imageData)))
+            {
+                if (codec is null) throw new ArgumentException("The uploaded file isn't a valid image.");
+                if (codec.Info.Width > MaxSide || codec.Info.Height > MaxSide)
+                    throw new ArgumentException($"The image is too large (max {MaxSide}x{MaxSide} pixels).");
+            }
+
             using var original = SKBitmap.Decode(imageData)
                 ?? throw new ArgumentException("The uploaded file isn't a valid image.");
 

@@ -47,8 +47,13 @@ namespace CommandBlock.API.Routing.Limbo
             var keepAlive = KeepAliveLoopAsync(client, ids, linked.Token);
             var drain = DrainAsync(client, linked.Token);
             try { await waitForBackendReady(linked.Token); }
-            catch (OperationCanceledException) { return; }
-            finally { }
+            catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+            {
+                logger.LogInformation("Limbo '{Name}': backend never came up; dropping", name);
+                linked.Cancel();
+                try { await Task.WhenAll(keepAlive, drain); } catch { }
+                return;
+            }
 
             // Transfer back to the router (the address the client dialled) -> it pipes into the now-live backend.
             logger.LogDebug("Limbo transferring '{Name}' to {Host}:{Port}", name, reconnectHost, reconnectPort);
@@ -104,12 +109,17 @@ namespace CommandBlock.API.Routing.Limbo
         }
 
         // --- framing / reading (uncompressed) ---
+        /// <summary>Per-packet read deadline during login/configuration; a real client answers in milliseconds.</summary>
+        private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(10);
+
         private static async Task<(int id, byte[] payload)?> ReadPacketAsync(NetworkStream s, CancellationToken ct)
         {
-            var len = await MinecraftProtocol.ReadVarIntAsync(s, ct);
-            if (len is null || len.Value <= 0 || len.Value > 2_000_000) return null;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(ReadTimeout);
+            var len = await MinecraftProtocol.ReadVarIntAsync(s, cts.Token);
+            if (len is null || len.Value <= 0 || len.Value > MinecraftRouter.MaxLoginPacketBytes) return null;
             var buf = new byte[len.Value];
-            await s.ReadExactlyAsync(buf, ct);
+            await s.ReadExactlyAsync(buf, cts.Token);
             var pos = 0;
             if (!MinecraftProtocol.TryReadVarInt(buf, ref pos, out var id)) return null;
             return (id, buf[pos..]);

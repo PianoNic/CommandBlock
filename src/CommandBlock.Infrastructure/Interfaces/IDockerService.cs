@@ -50,6 +50,8 @@ namespace CommandBlock.Infrastructure.Interfaces
         Task<Stream> GetArchiveAsync(string containerId, string path, CancellationToken cancellationToken = default);
 
         /// <summary>Extracts a tar archive into <paramref name="path"/> inside a container (Docker
+        /// <summary>Stats a path inside a container (works while it's stopped). Null when the path doesn't exist.</summary>
+        Task<(bool IsRegularFile, long Size)?> StatPathAsync(string containerId, string path, CancellationToken cancellationToken = default);
         /// "copy in"). Pass the parent dir (e.g. "/") of what the tar contains.</summary>
         Task ExtractArchiveAsync(string containerId, string path, Stream tar, CancellationToken cancellationToken = default);
     }

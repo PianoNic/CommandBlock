@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: d4vpas8w0rd13!!!
       POSTGRES_DB: commandblock-dev
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - postgres-data-dev:/var/lib/postgresql
 
@@ -21,7 +21,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HTTP_PORT: 8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./keycloak/commandblock-realm.json:/opt/keycloak/data/import/commandblock-realm.json:ro
       - ./keycloak/keycloakify/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/commandblock-keycloak-theme.jar:ro
